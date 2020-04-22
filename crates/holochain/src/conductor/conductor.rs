@@ -51,7 +51,7 @@ pub struct CellState {
     _active: bool,
 }
 
-///
+/// An [Cell] tracked by a Conductor, along with some [CellState]
 struct CellItem {
     cell: Cell,
     _state: CellState,
@@ -63,12 +63,12 @@ pub type StopReceiver = tokio::sync::broadcast::Receiver<()>;
 /// A handle to the conductor that can easily be passed
 /// around and cheaply cloned
 #[derive(Clone, From, AsRef, Deref)]
-pub struct ConductorHandle(Arc<RwLock<Box<dyn Conductor + Send + Sync>>>);
+pub struct ConductorHandle<DS: DnaStore>(Arc<RwLock<Box<Conductor<DS>>>>);
 
-impl ConductorHandle {
+impl<DS: DnaStore> ConductorHandle<DS> {
     /// Creates new handle
-    pub fn new<DS: DnaStore + 'static>(conductor: RealConductor<DS>) -> Self {
-        let conductor_handle: Arc<RwLock<Box<dyn Conductor + Send + Sync>>> =
+    pub fn new(conductor: Conductor<DS>) -> Self {
+        let conductor_handle: Arc<RwLock<Box<Conductor<DS>>>> =
             Arc::new(RwLock::new(Box::new(conductor)));
         ConductorHandle(conductor_handle)
     }
@@ -80,7 +80,7 @@ impl ConductorHandle {
 }
 
 /// A Conductor is a group of [Cell]s
-pub struct RealConductor<DS = RealDnaStore>
+pub struct Conductor<DS = RealDnaStore>
 where
     DS: DnaStore,
 {
@@ -122,14 +122,14 @@ where
     dna_store: DS,
 }
 
-impl RealConductor {
+impl Conductor {
     /// Create a conductor builder
     pub fn builder() -> ConductorBuilder {
         ConductorBuilder::new()
     }
 }
 
-impl<DS> RealConductor<DS>
+impl<DS> Conductor<DS>
 where
     DS: DnaStore,
 {
@@ -138,7 +138,7 @@ where
         let (task_tx, task_manager_run_handle) = spawn_task_manager();
         let task_manager_run_handle = Some(task_manager_run_handle);
         let (stop_tx, _) = tokio::sync::broadcast::channel::<()>(1);
-        Ok(RealConductor {
+        Ok(Self {
             env,
             state_db: Kv::new(db)?,
             cells: HashMap::new(),
@@ -193,24 +193,7 @@ where
     }
 }
 
-#[allow(missing_docs)]
-#[async_trait::async_trait]
-pub trait Conductor {
-    fn cell_by_id(&self, cell_id: &CellId) -> ConductorApiResult<&Cell>;
-    fn tx_network(&self) -> &NetSender;
-    async fn manage_task(&mut self, handle: ManagedTaskAdd) -> ConductorResult<()>;
-    fn check_running(&self) -> ConductorResult<()>;
-    fn get_arbitrary_admin_websocket_port(&self) -> Option<u16>;
-    async fn get_state(&self) -> ConductorResult<ConductorState>;
-    fn dna_store(&self) -> &dyn DnaStore;
-    fn dna_store_mut(&mut self) -> &mut dyn DnaStore;
-    fn add_admin_port(&mut self, port: u16);
-    fn shutdown(&mut self);
-    fn get_wait_handle(&mut self) -> Option<TaskManagerRunHandle>;
-}
-
-#[async_trait::async_trait]
-impl<DS> Conductor for RealConductor<DS>
+impl<DS> Conductor<DS>
 where
     DS: DnaStore,
 {
@@ -256,11 +239,11 @@ where
         Ok(self.state_db.get(&reader, &UnitDbKey)?.unwrap_or_default())
     }
 
-    fn dna_store(&self) -> &dyn DnaStore {
+    fn dna_store(&self) -> &DS {
         &self.dna_store
     }
 
-    fn dna_store_mut(&mut self) -> &mut dyn DnaStore {
+    fn dna_store_mut(&mut self) -> &mut DS {
         &mut self.dna_store
     }
 
@@ -331,7 +314,7 @@ mod builder {
         ) -> ConductorResult<ConductorHandle> {
             let env_path = config.environment_path;
             let environment = Environment::new(env_path.as_ref(), EnvironmentKind::Conductor)?;
-            let conductor = RealConductor::new(environment, self.dna_store).await?;
+            let conductor = Conductor::new(environment, self.dna_store).await?;
             let stop_tx = conductor.managed_task_stop_broadcaster.clone();
             let conductor_handle = ConductorHandle::new(conductor);
 
@@ -347,7 +330,7 @@ mod builder {
 
         pub async fn test(self) -> ConductorResult<ConductorHandle> {
             let environment = test_conductor_env();
-            let conductor = RealConductor::new(environment, self.dna_store).await?;
+            let conductor = Conductor::new(environment, self.dna_store).await?;
             let conductor_handle = ConductorHandle::new(conductor);
             Ok(conductor_handle)
         }
@@ -435,7 +418,7 @@ mod builder {
 #[cfg(test)]
 pub mod tests {
 
-    use super::{Conductor, ConductorState, RealConductor};
+    use super::{Conductor, ConductorState};
     use crate::conductor::{dna_store::MockDnaStore, state::CellConfig};
     use sx_state::test_utils::test_conductor_env;
 
@@ -443,7 +426,7 @@ pub mod tests {
     async fn can_update_state() {
         let environment = test_conductor_env();
         let dna_store = MockDnaStore::new();
-        let conductor = RealConductor::new(environment, dna_store).await.unwrap();
+        let conductor = Conductor::new(environment, dna_store).await.unwrap();
         let state = conductor.get_state().await.unwrap();
         assert_eq!(state, ConductorState::default());
 

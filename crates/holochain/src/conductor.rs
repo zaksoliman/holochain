@@ -12,7 +12,7 @@ pub mod paths;
 pub mod state;
 
 pub use cell::Cell;
-pub use conductor::{Conductor, ConductorHandle, RealConductor};
+pub use conductor::{Conductor, ConductorHandle};
 
 //FIXME should this be here?
 // #[cfg(test)]
