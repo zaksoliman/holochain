@@ -98,6 +98,11 @@ wasm_io_types!(
     // the current system time, in the opinion of the host, as a Duration
     pub struct SysTimeInput(());
     pub struct SysTimeOutput(core::time::Duration);
+
+    // an ffi call to a plugin
+    pub struct PluginInput(crate::plugin::PluginCall);
+    pub struct PluginOutput(crate::SerializedBytes);
+
     // the debug host import takes a DebugMsg to output wherever the host wants to display it
     // it is intended that the zome dev or the HDK provides a little sugar to support arbitrary
     // implementations of Debug, e.g. something like a debug! macro that wraps debug_msg! and the

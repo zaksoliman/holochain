@@ -31,6 +31,7 @@ pub mod send;
 pub mod show_env;
 pub mod sign;
 pub mod sys_time;
+pub mod plugin;
 pub mod update_entry;
 
 use self::{
@@ -39,7 +40,7 @@ use self::{
     entry_type_properties::entry_type_properties, get_entry::get_entry, get_links::get_links,
     globals::globals, keystore::keystore, link_entries::link_entries, property::property,
     query::query, remove_entry::remove_entry, remove_link::remove_link, schedule::schedule,
-    send::send, show_env::show_env, sign::sign, sys_time::sys_time, update_entry::update_entry,
+    send::send, show_env::show_env, sign::sign, sys_time::sys_time, update_entry::update_entry, plugin::plugin
 };
 
 use error::RibosomeResult;
@@ -195,6 +196,7 @@ impl WasmRibosome {
                 "__remove_entry" => func!(invoke_host_function!(remove_entry)),
                 "__show_env" => func!(invoke_host_function!(show_env)),
                 "__sys_time" => func!(invoke_host_function!(sys_time)),
+                "__plugin" => func!(invoke_host_function!(plugin)),
             },
         }
     }
@@ -294,6 +296,10 @@ pub mod wasm_test {
             v.insert(
                 String::from("debug"),
                 zome_from_code(TestWasm::Debug.into()),
+            );
+            v.insert(
+                String::from("hash_dumper"),
+                zome_from_code(TestWasm::HashDumper.into()),
             );
             v
         }))
