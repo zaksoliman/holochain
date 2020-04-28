@@ -428,7 +428,7 @@ dependencies = [
  "autocfg 1.0.0",
  "cfg-if",
  "crossbeam-utils",
- "lazy_static",
+ "lazy_static 1.4.0",
  "maybe-uninit",
  "memoffset",
  "scopeguard",
@@ -452,7 +452,7 @@ checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
 dependencies = [
  "autocfg 1.0.0",
  "cfg-if",
- "lazy_static",
+ "lazy_static 1.4.0",
 ]
 
 [[package]]
@@ -577,6 +577,12 @@ dependencies = [
  "gcc",
  "libc",
 ]
+
+[[package]]
+name = "error-chain"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e92ecf0a508c8e074c0e6fa8fe0fa38414848ad4dfc4db6f74c5e9753330b248"
 
 [[package]]
 name = "failure"
@@ -908,7 +914,7 @@ dependencies = [
  "holochain_websocket",
  "holochain_zome_types",
  "human-panic",
- "lazy_static",
+ "lazy_static 1.4.0",
  "maplit",
  "matches",
  "mockall",
@@ -919,6 +925,7 @@ dependencies = [
  "predicates",
  "serde",
  "serde_json",
+ "sharedlib",
  "shrinkwraprs",
  "structopt",
  "tempdir",
@@ -942,7 +949,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1ea372338cb6550b0fa7f62b35c6d986e541181d9167083965adf6e15940b2d"
 dependencies = [
  "directories 1.0.2",
- "lazy_static",
+ "lazy_static 1.4.0",
 ]
 
 [[package]]
@@ -951,13 +958,17 @@ version = "0.0.1"
 dependencies = [
  "blake2b_simd",
  "futures",
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "once_cell",
  "rust_sodium_holochain_fork-sys",
  "thiserror",
  "tokio",
 ]
+
+[[package]]
+name = "holochain_plugin_test_utils"
+version = "0.0.1"
 
 [[package]]
 name = "holochain_serialized_bytes"
@@ -995,7 +1006,7 @@ dependencies = [
  "futures",
  "holo_hash",
  "holochain_types",
- "lazy_static",
+ "lazy_static 1.4.0",
  "mockall",
  "nanoid",
  "owning_ref",
@@ -1029,7 +1040,7 @@ dependencies = [
  "holochain_types_derive",
  "holochain_wasmer_common",
  "holochain_zome_types",
- "lazy_static",
+ "lazy_static 1.4.0",
  "lib3h_crypto_api",
  "maplit",
  "matches",
@@ -1085,7 +1096,7 @@ dependencies = [
  "byte-slice-cast",
  "holochain_serialized_bytes",
  "holochain_wasmer_common",
- "lazy_static",
+ "lazy_static 1.4.0",
  "serde",
  "wasmer-runtime",
 ]
@@ -1234,6 +1245,12 @@ dependencies = [
  "winapi 0.2.8",
  "winapi-build",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
 
 [[package]]
 name = "lazy_static"
@@ -1441,7 +1458,7 @@ dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "lazy_static",
+ "lazy_static 1.4.0",
  "mockall_derive",
  "predicates",
  "predicates-tree",
@@ -1521,7 +1538,7 @@ version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b0d88c06fe90d5ee94048ba40409ef1d9315d86f6f38c2efdaad4fb50c58b2d"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "log",
  "openssl",
@@ -1694,7 +1711,7 @@ dependencies = [
  "bitflags",
  "cfg-if",
  "foreign-types",
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "openssl-sys",
 ]
@@ -2209,7 +2226,7 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-queue",
  "crossbeam-utils",
- "lazy_static",
+ "lazy_static 1.4.0",
  "num_cpus",
 ]
 
@@ -2292,7 +2309,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "failure",
- "lazy_static",
+ "lazy_static 1.4.0",
  "lmdb-rkv",
  "ordered-float",
  "serde",
@@ -2352,7 +2369,7 @@ dependencies = [
  "cc",
  "flate2",
  "http_req",
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "pkg-config",
  "rand 0.4.6",
@@ -2389,7 +2406,7 @@ version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "039c25b130bd8c1321ee2d7de7fde2659fa9c2744e4bb29711cfc852ea53cd19"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
  "winapi 0.3.8",
 ]
 
@@ -2533,7 +2550,19 @@ version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae75d0445b5d3778c9da3d1f840faa16d0627c8607f78a74daf69e5b988c39a1"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
+]
+
+[[package]]
+name = "sharedlib"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e1ab7ad123216d2b04448d3b31edd7e5314b500012b2b01812245725536df2c"
+dependencies = [
+ "error-chain",
+ "kernel32-sys",
+ "lazy_static 0.2.11",
+ "winapi 0.2.8",
 ]
 
 [[package]]
@@ -2632,7 +2661,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff6da2e8d107dfd7b74df5ef4d205c6aebee0706c647f6bc6a2d5789905c00fb"
 dependencies = [
  "clap",
- "lazy_static",
+ "lazy_static 1.4.0",
  "structopt-derive",
 ]
 
@@ -2813,7 +2842,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d40c6d1b69745a6ec6fb1ca717914848da4b44ae29d9b3080cbee91d72a69b14"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
 ]
 
 [[package]]
@@ -2845,7 +2874,7 @@ dependencies = [
  "fnv",
  "futures-core",
  "iovec",
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "memchr",
  "mio",
@@ -2941,7 +2970,7 @@ version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0aa83a9a47081cd522c09c81b31aec2c9273424976f922ad61c053b58350b715"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
 ]
 
 [[package]]
@@ -2960,7 +2989,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e0f8c7178e13481ff6765bd169b33e8d554c5d2bbede5e32c356194be02b9b9"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
  "log",
  "tracing-core",
 ]
@@ -2983,7 +3012,7 @@ checksum = "dedebcf5813b02261d6bab3a12c6a8ae702580c0405a2e8ec16c3713caf14c20"
 dependencies = [
  "ansi_term",
  "chrono",
- "lazy_static",
+ "lazy_static 1.4.0",
  "matchers",
  "regex",
  "serde",
@@ -3244,7 +3273,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05726a0bc546d57e06cde6a7754cf9afbf21a5869d080a3c654d35902cd6fab3"
 dependencies = [
- "lazy_static",
+ "lazy_static 1.4.0",
  "memmap",
  "serde",
  "serde_derive",
@@ -3265,7 +3294,7 @@ dependencies = [
  "errno",
  "hex",
  "indexmap",
- "lazy_static",
+ "lazy_static 1.4.0",
  "libc",
  "nix 0.15.0",
  "page_size",

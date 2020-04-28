@@ -1,0 +1,10 @@
+[package]
+name = "holochain_plugin_test_utils"
+version = "0.0.1"
+authors = [ "thedavidmeister", "thedavidmeister@gmail.com" ]
+edition = "2018"
+
+[lib]
+name = "holochain_plugin_test_utils"
+crate-type = [ "cdylib", "rlib" ]
+path = "./src/lib.rs"

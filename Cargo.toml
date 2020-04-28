@@ -8,6 +8,7 @@ members = [
   "crates/types",
   "crates/crypto",
   "crates/websocket",
+  "crates/test_utils/plugin",
   "crates/test_utils/wasm",
   "crates/test_utils/wasm_common",
 ]
