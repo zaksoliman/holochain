@@ -166,10 +166,8 @@ In short, there are a few functions that the guest needs to expose to the host
 that the host will use to request safe memory allocations and deallocations from
 the guest.
 
-This allows the host to repect the guest's own memory allocation logic, and so
-provides support for alternative allocators such as the wasm-friendly wee alloc.
-
-https://github.com/rustwasm/wee_alloc
+This allows the host to repect the guest's own memory allocation logic, and
+provides support for alternative allocators.
 
 Exposing these functions is as simple as calling the `holochain_externs!` macro
 in the `holochain_wasmer_guest` crate.
@@ -192,7 +190,6 @@ documentation.
 - Serde: https://github.com/serde-rs/serde
 - Serde messagepack: https://github.com/3Hren/msgpack-rust
 - Holochain serialized bytes: https://github.com/holochain/holochain-serialization/tree/develop/crates/holochain_serialized_bytes
-
 
 ## Wasm overview
 
@@ -657,7 +654,7 @@ pub extern "C" fn commit_message(remote_ptr: RemotePtr) -> RemotePtr {
 }
 ```
 
-### Example: Quarantine extern boilerplate
+### Example: Separate extern boilerplate
 
 While the wasmer macros do a lot of heavy lifting, they are still not as
 ergonomic or idiomatic as vanilla rust would be.
@@ -744,6 +741,176 @@ fn _validate_entry(input: HostInput) -> Result<GuestOutput, String> {
  }.try_into()?))
 }
 ```
+
+## Callbacks
+
+### Entry defs
+
+The entry defs callback allows holochain applications to differentiate between
+application entries and provide additional metadata.
+
+All holochain entries are either system entries or app entries. The difference
+is that system entries have special meaning to holochain core (e.g. agent pub
+ keys) and app entries are treated as "opaque" by the system. The application
+ can serialize any messagepack-compatible data into an app entry to implement
+ application-specific logic and storage.
+
+Generally applications will want to differentiate entry data at a high level,
+e.g. to define the difference between a `Post` and a `Comment`. This is done
+by returning an `EntryDefs` newtype from the `entry_defs` callback.
+
+`EntryDefs` is simply a newtype around `Vec<EntryDef>` to allow multiple
+ordered `EntryDef` structs to be returned by the `entry_defs` callback.
+
+The order is important. __The index of the `EntryDef` in the `EntryDefs` vector
+is used to map the return from the wasm callback against additional metadata
+provided by tooling and configuration external to wasm__.
+
+For example, metadata about entry types can be added to Dna config files. The
+order of the entry type in the Dna config implicitly matches configuration to
+the order entries are returned by the `entry_defs` callback.
+
+The `EntryDefs` vector index is also included in the source chain header for
+app entries. This enables core to filter and query app entries in the source
+chain without needing to execute wasm code.
+
+Each `EntryDef` includes:
+
+- `id`: an `EntryDefId` which is a `String` newtype to name the entry type
+- `visibility`: an `EntryVisibility` to control the entry visibility on the DHT
+- `crdt_type`: a strategy to reduce many versions of an entry to a single value
+- `required_validations`: number of successful validations, after which an entry
+  can propagate on the DHT without its author being online to construct
+  validation packages on-demand
+
+The `EntryDefId` must be passed to core for every function that operates on app
+entries (e.g. commit entry) so that core can pass it back to the app where
+appropriate.
+
+Best practise is to simply `impl From<&MyType> for EntryDefId` so that `.into()`
+can be used alongside the serialization `.try_into()` for the commit entry host
+call.
+
+#### Example: Entry defs
+
+```rust
+use holochain_zome_types::entry_def::EntryDefId;
+use holochain_zome_types::entry_def::EntryVisibility;
+use holochain_zome_types::crdt::CrdtType;
+use holochain_zome_types::entry_def::RequiredValidations;
+use holochain_zome_types::entry_def::EntryDef;
+use holochain_zome_types::globals::ZomeGlobals;
+use holochain_zome_types::entry_def::EntryDefs;
+use holochain_wasmer_guest::*;
+use holochain_zome_types::*;
+use holochain_zome_types::entry_def::EntryDefsCallbackResult;
+
+holochain_wasmer_guest::holochain_externs!();
+
+const POST_ID: &str = "post";
+const POST_VALIDATIONS: u8 = 8;
+struct Post;
+
+impl From<&Post> for EntryDefId {
+    fn from(_: &Post) -> Self {
+        POST_ID.into()
+    }
+}
+
+impl From<&Post> for EntryVisibility {
+    fn from(_: &Post) -> Self {
+        Self::Public
+    }
+}
+
+impl From<&Post> for CrdtType {
+    fn from(_: &Post) -> Self {
+        Self
+    }
+}
+
+impl From<&Post> for RequiredValidations {
+    fn from(_: &Post) -> Self {
+        POST_VALIDATIONS.into()
+    }
+}
+
+impl From<&Post> for EntryDef {
+    fn from(post: &Post) -> Self {
+        Self {
+            id: post.into(),
+            visibility: post.into(),
+            crdt_type: post.into(),
+            required_validations: post.into(),
+        }
+    }
+}
+
+const COMMENT_ID: &str = "comment";
+const COMMENT_VALIDATIONS: u8 = 3;
+struct Comment;
+
+impl From<&Comment> for EntryDefId {
+    fn from(_: &Comment) -> Self {
+        COMMENT_ID.into()
+    }
+}
+
+impl From<&Comment> for EntryVisibility {
+    fn from(_: &Comment) -> Self {
+        Self::Private
+    }
+}
+
+impl From<&Comment> for CrdtType {
+    fn from(_: &Comment) -> Self {
+        Self
+    }
+}
+
+impl From<&Comment> for RequiredValidations {
+    fn from(_: &Comment) -> Self {
+        COMMENT_VALIDATIONS.into()
+    }
+}
+
+impl From<&Comment> for EntryDef {
+    fn from(comment: &Comment) -> Self {
+        Self {
+            id: comment.into(),
+            visibility: comment.into(),
+            crdt_type: comment.into(),
+            required_validations: comment.into(),
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn entry_defs(_: RemotePtr) -> RemotePtr {
+    let globals: ZomeGlobals = try_result!(host_call!(__globals, ()), "failed to get globals");
+
+    let defs: EntryDefs = vec![
+        (&Post).into(),
+        (&Comment).into(),
+    ].into();
+
+    ret!(GuestOutput::new(try_result!(EntryDefsCallbackResult::Defs(
+        globals.zome_name,
+        defs,
+    ).try_into(), "failed to serialize entry defs return value")));
+}
+
+```
+
+### Init
+
+### Migrate agent
+
+### Post commit
+
+### Validate
+
+### Validation package
 
 ## HDK
 
