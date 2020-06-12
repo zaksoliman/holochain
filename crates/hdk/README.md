@@ -352,7 +352,9 @@ holochain_externs!();
 // tell the compiler not to "mangle" (rename) the function
 #[no_mangle]
 // note the `extern "C"` keywords
-pub extern "C" fn init(_: RemotePtr) -> RemotePtr {
+pub extern "C" fn init(ptr: RemotePtr) -> RemotePtr {
+
+ let _: () = host_args!(ptr);
 
  // `ret!` will `return` anything `TryInto<SerializedBytes>` as a `RemotePtr`
  ret!(
@@ -410,7 +412,8 @@ struct HelloWorld;
 // the same #[no_mangle] attribute and `extern "C"` keywords are used to expose
 // functions to the external world as to implement callback functions
 #[no_mangle]
-pub extern "C" hello_world(_: RemotePtr) -> RemotePtr {
+pub extern "C" hello_world(ptr: RemotePtr) -> RemotePtr {
+ let _: () = host_args!(ptr);
  ret!(
   GuestOutput(
    // the derived serialization traits make this work
