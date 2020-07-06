@@ -110,6 +110,7 @@ impl Cell {
         };
 
         if has_genesis {
+            // TODO: call the entry defs and write them to the db / buffer
             let queue_triggers =
                 spawn_queue_consumer_tasks(&state_env, holochain_p2p_cell.clone()).await;
 
