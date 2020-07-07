@@ -96,7 +96,8 @@ impl From<Vec<EntryDef>> for EntryDefs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
 pub enum EntryDefsCallbackResult {
-    Defs(ZomeName, EntryDefs),
+    // Defs(ZomeName, EntryDefs),
+    Defs(EntryDefs),
     Err(ZomeName, String),
 }
 
@@ -112,7 +113,7 @@ impl From<GuestOutput> for EntryDefsCallbackResult {
 impl CallbackResult for EntryDefsCallbackResult {
     fn is_definitive(&self) -> bool {
         match self {
-            EntryDefsCallbackResult::Defs(_, _) => false,
+            EntryDefsCallbackResult::Defs(_) => false,
             EntryDefsCallbackResult::Err(_, _) => true,
         }
     }
@@ -131,7 +132,7 @@ mod tests {
     #[test]
     fn from_guest_output_test() {
         let defs_callback_result = EntryDefsCallbackResult::Defs(
-            "foo".into(),
+            // "foo".into(),
             vec![EntryDef {
                 id: "bar".into(),
                 visibility: EntryVisibility::Public,

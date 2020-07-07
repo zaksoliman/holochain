@@ -53,17 +53,17 @@ pub enum EntryDefsResult {
     Err(ZomeName, String),
 }
 
-impl From<Vec<EntryDefsCallbackResult>> for EntryDefsResult {
-    fn from(callback_results: Vec<EntryDefsCallbackResult>) -> Self {
+impl From<Vec<(ZomeName, EntryDefsCallbackResult)>> for EntryDefsResult {
+    fn from(callback_results: Vec<(ZomeName, EntryDefsCallbackResult)>) -> Self {
         callback_results.into_iter().fold(
             EntryDefsResult::Defs(BTreeMap::new()),
-            |acc, x| match x {
+            |acc, (zome_name, x)| match x {
                 // err overrides everything
                 EntryDefsCallbackResult::Err(zome_name, fail_string) => {
                     Self::Err(zome_name, fail_string)
                 }
                 // passing callback allows the acc to carry forward
-                EntryDefsCallbackResult::Defs(zome_name, defs) => match acc {
+                EntryDefsCallbackResult::Defs(defs) => match acc {
                     Self::Defs(mut btreemap) => {
                         btreemap.insert(zome_name, defs);
                         Self::Defs(btreemap)
@@ -76,7 +76,7 @@ impl From<Vec<EntryDefsCallbackResult>> for EntryDefsResult {
 }
 
 #[cfg(test)]
-#[cfg(feature = "slow_tests")]
+// #[cfg(feature = "slow_tests")]
 mod test {
 
     use super::EntryDefsInvocationFixturator;
@@ -84,7 +84,7 @@ mod test {
     use crate::core::ribosome::Invocation;
     use crate::core::ribosome::RibosomeT;
     use crate::core::ribosome::ZomesToInvoke;
-    use crate::core::workflow::unsafe_invoke_zome_workspace::UnsafeInvokeZomeWorkspaceFixturator;
+    // use crate::core::workflow::unsafe_invoke_zome_workspace::UnsafeInvokeZomeWorkspaceFixturator;
     use crate::fixt::curve::Zomes;
     use crate::fixt::EntryDefsFixturator;
     use crate::fixt::WasmRibosomeFixturator;
@@ -122,7 +122,7 @@ mod test {
                 tree.insert(zome_name.clone(), entry_defs.clone());
                 tree
             }),
-            vec![EntryDefsCallbackResult::Defs(zome_name, entry_defs),].into(),
+            vec![(zome_name, EntryDefsCallbackResult::Defs(entry_defs)),].into(),
         );
 
         // two defs
@@ -138,8 +138,8 @@ mod test {
                 tree
             }),
             vec![
-                EntryDefsCallbackResult::Defs(zome_name_one, entry_defs_one),
-                EntryDefsCallbackResult::Defs(zome_name_two, entry_defs_two),
+                (zome_name_one, EntryDefsCallbackResult::Defs(entry_defs_one)),
+                (zome_name_two, EntryDefsCallbackResult::Defs(entry_defs_two)),
             ]
             .into()
         );
@@ -151,16 +151,19 @@ mod test {
         let number_of_defs = rng.gen_range(0, 3);
 
         for _ in 0..number_of_fails {
-            results.push(EntryDefsCallbackResult::Err(
+            results.push((
                 zome_name_fixturator.next().unwrap(),
-                string_fixturator.next().unwrap(),
+                EntryDefsCallbackResult::Err(
+                    zome_name_fixturator.next().unwrap(),
+                    string_fixturator.next().unwrap(),
+                ),
             ));
         }
 
         for _ in 0..number_of_defs {
-            results.push(EntryDefsCallbackResult::Defs(
+            results.push((
                 zome_name_fixturator.next().unwrap(),
-                entry_defs_fixturator.next().unwrap(),
+                EntryDefsCallbackResult::Defs(entry_defs_fixturator.next().unwrap()),
             ));
         }
 
@@ -219,9 +222,9 @@ mod test {
     #[tokio::test(threaded_scheduler)]
     #[serial_test::serial]
     async fn test_entry_defs_unimplemented() {
-        let workspace = UnsafeInvokeZomeWorkspaceFixturator::new(fixt::Unpredictable)
-            .next()
-            .unwrap();
+        // let workspace = UnsafeInvokeZomeWorkspaceFixturator::new(fixt::Unpredictable)
+        //     .next()
+        //     .unwrap();
         let ribosome = WasmRibosomeFixturator::new(Zomes(vec![TestWasm::Foo]))
             .next()
             .unwrap();
@@ -230,7 +233,8 @@ mod test {
             .unwrap();
 
         let result = ribosome
-            .run_entry_defs(workspace, entry_defs_invocation)
+            // .run_entry_defs(workspace, entry_defs_invocation)
+            .run_entry_defs(entry_defs_invocation)
             .unwrap();
         assert_eq!(result, EntryDefsResult::Defs(BTreeMap::new()),);
     }
@@ -238,9 +242,9 @@ mod test {
     #[tokio::test(threaded_scheduler)]
     #[serial_test::serial]
     async fn test_entry_defs_implemented_defs() {
-        let workspace = UnsafeInvokeZomeWorkspaceFixturator::new(fixt::Unpredictable)
-            .next()
-            .unwrap();
+        // let workspace = UnsafeInvokeZomeWorkspaceFixturator::new(fixt::Unpredictable)
+        //     .next()
+        //     .unwrap();
         let ribosome = WasmRibosomeFixturator::new(Zomes(vec![TestWasm::EntryDefs]))
             .next()
             .unwrap();
@@ -249,7 +253,8 @@ mod test {
             .unwrap();
 
         let result = ribosome
-            .run_entry_defs(workspace, entry_defs_invocation)
+            // .run_entry_defs(workspace, entry_defs_invocation)
+            .run_entry_defs(entry_defs_invocation)
             .unwrap();
         assert_eq!(
             result,

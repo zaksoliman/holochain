@@ -311,7 +311,7 @@ pub trait RibosomeT: Sized {
 
     fn run_entry_defs(
         &self,
-        workspace: UnsafeInvokeZomeWorkspace,
+        // workspace: UnsafeInvokeZomeWorkspace,
         invocation: EntryDefsInvocation,
     ) -> RibosomeResult<EntryDefsResult>;
 

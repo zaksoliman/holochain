@@ -105,6 +105,16 @@ impl WasmRibosome {
         )?)
     }
 
+    pub fn minimal_instance(&self, zome_name: ZomeName) -> RibosomeResult<Instance> {
+        let wasm: Arc<Vec<u8>> = self.dna_file.get_wasm_for_zome(&zome_name)?.code();
+        let imports: ImportObject = Self::minimal_imports(self);
+        Ok(holochain_wasmer_host::instantiate::instantiate(
+            self.wasm_cache_key(&zome_name)?,
+            &wasm,
+            &imports,
+        )?)
+    }
+
     fn imports(&self, host_context: HostContext) -> ImportObject {
         let instance_timeout = crate::start_hard_timeout!();
 
@@ -192,6 +202,19 @@ impl WasmRibosome {
         imports.register("env", ns);
 
         crate::end_hard_timeout!(instance_timeout, crate::perf::WASM_INSTANCE);
+        imports
+    }
+
+    fn minimal_imports(&self) -> ImportObject {
+        let mut imports = imports! {};
+        let mut ns = Namespace::new();
+
+        // standard memory handling used by the holochain_wasmer guest and host macros
+        ns.insert(
+            "__import_data",
+            func!(holochain_wasmer_host::import::__import_data),
+        );
+        imports.register("env", ns);
         imports
     }
 }
@@ -333,10 +356,23 @@ impl RibosomeT for WasmRibosome {
 
     fn run_entry_defs(
         &self,
-        workspace: UnsafeInvokeZomeWorkspace,
+        //workspace: UnsafeInvokeZomeWorkspace,
         invocation: EntryDefsInvocation,
     ) -> RibosomeResult<EntryDefsResult> {
-        do_callback!(self, workspace, invocation, EntryDefsCallbackResult)
+        let mut entry_defs = Vec::new();
+        let mut call = invocation.fn_components();
+        let call = call.next().expect("Entry defs should contain the call");
+        for zome_name in self.zomes_to_invoke(ZomesToInvoke::All) {
+            let mut instance = self.minimal_instance(zome_name.clone())?;
+            let result: EntryDefsCallbackResult = holochain_wasmer_host::guest::call(
+                &mut instance,
+                &call,
+                invocation.to_owned().host_input()?,
+            )?;
+            entry_defs.push((zome_name, result));
+        }
+        Ok(entry_defs.into())
+        // do_callback!(self, workspace, invocation, EntryDefsCallbackResult)
     }
 
     fn run_migrate_agent(
