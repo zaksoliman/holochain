@@ -14,7 +14,10 @@ use crate::core::ribosome::ZomeCallInvocationResponse;
 use crate::core::state::workspace::Workspace;
 use crate::{
     conductor::{api::CellConductorApi, cell::error::CellResult},
-    core::ribosome::{guest_callback::init::InitResult, wasm_ribosome::WasmRibosome},
+    core::{
+        ribosome::{guest_callback::init::InitResult, wasm_ribosome::WasmRibosome},
+        SourceChainError,
+    },
     core::{
         state::source_chain::SourceChainBuf,
         workflow::{
@@ -38,6 +41,7 @@ use holochain_zome_types::HostInput;
 use std::{
     hash::{Hash, Hasher},
     path::Path,
+    sync::Arc,
 };
 use tokio::sync;
 use tracing::*;
@@ -369,8 +373,9 @@ impl Cell {
         let writer: crate::core::queue_consumer::OneshotWriter = self.state_env.clone().into();
 
         writer
-            .with_writer(|writer| workspace.flush_to_txn(writer).expect("TODO"))
-            .await?;
+            .with_writer(|writer| Ok(workspace.flush_to_txn(writer)?))
+            .await
+            .map_err(Box::new)?;
 
         // trigger integration of queued ops
         self.queue_triggers.integrate_dht_ops.clone().trigger();
@@ -446,7 +451,7 @@ impl Cell {
         // double ? because
         // - ConductorApiResult
         // - ZomeCallInvocationResult
-        match self.call_zome(invocation).await?? {
+        match self.call_zome(Arc::new(invocation)).await?? {
             ZomeCallInvocationResponse::ZomeApiFn(guest_output) => Ok(guest_output.into_inner()),
             //currently unreachable
             //_ => Err(RibosomeError::ZomeFnNotExists(zome_name, "A remote zome call failed in a way that should not be possible.".into()))?,
@@ -456,7 +461,7 @@ impl Cell {
     /// Function called by the Conductor
     pub async fn call_zome(
         &self,
-        invocation: ZomeCallInvocation,
+        invocation: Arc<ZomeCallInvocation>,
     ) -> CellResult<ZomeCallInvocationResult> {
         // Check if init has run if not run it
         self.check_or_run_zome_init().await?;
@@ -468,16 +473,25 @@ impl Cell {
 
         let args = InvokeZomeWorkflowArgs {
             ribosome: self.get_ribosome().await?,
-            invocation,
+            invocation: Arc::clone(&invocation),
         };
-        Ok(invoke_zome_workflow(
+
+        match invoke_zome_workflow(
             workspace,
             self.state_env().clone().into(),
             args,
             self.queue_triggers.produce_dht_ops.clone(),
         )
         .await
-        .map_err(Box::new)?)
+        {
+            Err(WorkflowError::SourceChainError(SourceChainError::HeadMoved(old, new))) => {
+                // In the case of an as-at collision, we want to re-run the
+                // same zome invocation
+                // FIXME: find a non-recursive solution
+                self.call_zome(invocation).await
+            }
+            result => Ok(result.map_err(Box::new)?),
+        }
     }
 
     /// Check if each Zome's init callback has been run, and if not, run it.

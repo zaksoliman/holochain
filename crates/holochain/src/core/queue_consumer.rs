@@ -28,7 +28,6 @@
 use derive_more::{Constructor, Display, From};
 use holochain_state::{
     env::{EnvironmentWrite, WriteManager},
-    error::DatabaseError,
     prelude::Writer,
 };
 use tokio::sync::{self, mpsc};
@@ -43,6 +42,7 @@ use app_validation_consumer::*;
 mod produce_dht_ops_consumer;
 use produce_dht_ops_consumer::*;
 mod publish_dht_ops_consumer;
+use super::workflow::error::WorkflowError;
 use crate::conductor::manager::ManagedTaskAdd;
 use holochain_p2p::HolochainP2pCell;
 use publish_dht_ops_consumer::*;
@@ -178,15 +178,12 @@ pub struct OneshotWriter(EnvironmentWrite);
 
 impl OneshotWriter {
     /// Create the writer and pass it into a closure.
-    pub async fn with_writer<F>(self, f: F) -> Result<(), DatabaseError>
+    pub async fn with_writer<F>(self, f: F) -> Result<(), WorkflowError>
     where
-        F: FnOnce(&mut Writer) -> () + Send,
+        F: FnOnce(&mut Writer) -> Result<(), WorkflowError> + Send,
     {
         let env_ref = self.0.guard().await;
-        env_ref.with_commit::<DatabaseError, (), _>(|w| {
-            f(w);
-            Ok(())
-        })?;
+        env_ref.with_commit::<WorkflowError, (), _>(|w| f(w))?;
         Ok(())
     }
 }

@@ -33,7 +33,7 @@ pub async fn initialize_zomes_workflow<'env, Ribosome: RibosomeT>(
 
     // commit the workspace
     writer
-        .with_writer(|writer| workspace.flush_to_txn(writer).expect("TODO"))
+        .with_writer(|writer| Ok(workspace.flush_to_txn(writer)?))
         .await?;
 
     Ok(result)
