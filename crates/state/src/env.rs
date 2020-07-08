@@ -19,7 +19,7 @@ use std::{
 };
 use tokio::sync::{RwLock, RwLockReadGuard};
 
-const DEFAULT_INITIAL_MAP_SIZE: usize = 100 * 1024 * 1024; // 100MB
+const DEFAULT_INITIAL_MAP_SIZE: usize = 100 * 1024 * 1024 * 10; // 6000MB
 const MAX_DBS: u32 = 32;
 
 lazy_static! {

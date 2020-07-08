@@ -26,6 +26,7 @@ use crate::{
     },
 };
 use error::CellError;
+use fallible_iterator::FallibleIterator;
 use futures::future::FutureExt;
 use holo_hash::*;
 use holochain_keystore::KeystoreSender;
@@ -315,6 +316,7 @@ impl Cell {
     }
 
     /// we are receiving a "publish" event from the network
+    #[instrument(skip(self, _request_validation_receipt, _dht_hash, ops))]
     async fn handle_publish(
         &self,
         from_agent: AgentPubKey,
@@ -351,6 +353,12 @@ impl Cell {
                 &reader, &env_ref,
             )
             .expect("Could not create Workspace");
+
+        let count = workspace.integration_queue.iter()?.count()?;
+        debug!(queue_count = count);
+        if count > 20 {
+            return Ok(());
+        }
 
         // add incoming ops to the integration queue transaction
         for (hash, op) in ops {

@@ -261,12 +261,15 @@ impl KitsuneP2pActor {
             let send_success_count = Arc::new(std::sync::atomic::AtomicU8::new(0));
 
             loop {
+                let s = tracing::debug_span!("notify_loop");
+                let _g = s.enter();
                 if let Ok(agent_list) = internal_sender
                     .list_online_agents_for_basis_hash(space.clone(), basis.clone())
                     .await
                 {
                     for agent in agent_list {
                         if !sent_to.contains(&agent) {
+                            tracing::debug!("notifying agent");
                             sent_to.insert(agent.clone());
                             // send the notify here - but spawn
                             // so we're not holding up this loop
@@ -275,14 +278,19 @@ impl KitsuneP2pActor {
                             let payload = payload.clone();
                             let send_success_count = send_success_count.clone();
                             tokio::task::spawn(async move {
+                                let s = tracing::debug_span!("notify_loop");
+                                let _g = s.enter();
+                                tracing::debug!("immediate request send");
                                 if let Ok(_) = internal_sender
                                     .immediate_request(space, agent, payload)
                                     .await
                                 {
+                                    tracing::debug!("immediate request response");
                                     send_success_count
                                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                 }
                             });
+                            tokio::time::delay_for(std::time::Duration::from_millis(10)).await;
                         }
                     }
                 }

@@ -370,15 +370,20 @@ impl<'env> Workspace<'env> for IntegrateDhtOpsWorkspace<'env> {
             meta,
         })
     }
+    #[instrument(skip(self, writer))]
     fn flush_to_txn(self, writer: &mut Writer) -> WorkspaceResult<()> {
         // flush cas
         self.cas.flush_to_txn(writer)?;
+        debug!("cas done");
         // flush metadata store
         self.meta.flush_to_txn(writer)?;
+        debug!("meta done");
         // flush integrated
         self.integrated_dht_ops.flush_to_txn(writer)?;
+        debug!("ops done");
         // flush integration queue
         self.integration_queue.flush_to_txn(writer)?;
+        debug!("queue done");
         Ok(())
     }
 }
