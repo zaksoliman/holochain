@@ -13,10 +13,10 @@ This repository contains most of the core Holochain libraries and binaries. This
 
 ## Overview
 
-[Holochain Implementation Architectural Overview](./docs/TODO.md)
-[Holochain's Formal State Model](./docs/formalization.md)
-[Holochain Workflow Diagrams](./docs/TODO.md)
-[Major changes from Redux to Workflow model](./docs/major_changes.md)
+ - [Holochain Implementation Architectural Overview](./docs/TODO.md)
+ - [Holochain's Formal State Model](./docs/formalization.md)
+ - [Holochain Workflow Diagrams](./docs/TODO.md)
+ - [Major changes from Redux to Workflow model](./docs/major_changes.md)
 
 ## Application Developer
 
