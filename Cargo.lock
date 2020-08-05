@@ -1327,6 +1327,16 @@ dependencies = [
 [[package]]
 name = "holochain_wasmer_common"
 version = "0.0.37"
+source = "git+https://github.com/holochain/holochain-wasmer.git?branch=extra-error-info#4d7bdb13f791cb76bcca6fabf5aaa8c92d4e8673"
+dependencies = [
+ "holochain_serialized_bytes",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "holochain_wasmer_common"
+version = "0.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "158532e5478884b8030477e6d8378de5f312f3401e8500dd551f8f5f0a819596"
 dependencies = [
@@ -1338,11 +1348,10 @@ dependencies = [
 [[package]]
 name = "holochain_wasmer_guest"
 version = "0.0.37"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d38745de8587f886aec602bea3d051d9cbedbdfad467e7cc37c6348cbe8682"
+source = "git+https://github.com/holochain/holochain-wasmer.git?branch=extra-error-info#4d7bdb13f791cb76bcca6fabf5aaa8c92d4e8673"
 dependencies = [
  "holochain_serialized_bytes",
- "holochain_wasmer_common",
+ "holochain_wasmer_common 0.0.37 (git+https://github.com/holochain/holochain-wasmer.git?branch=extra-error-info)",
  "serde",
 ]
 
@@ -1353,7 +1362,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ec4864b5e5664448b21228880e6a5b7f3d8f83b3b10784405d68d6623c96265"
 dependencies = [
  "holochain_serialized_bytes",
- "holochain_wasmer_common",
+ "holochain_wasmer_common 0.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static",
  "serde",
  "wasmer-runtime",
