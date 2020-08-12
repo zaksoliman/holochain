@@ -8,6 +8,7 @@ use crate::core::ribosome::{ZomeCallInvocation, ZomeCallInvocationResponse};
 use holochain_serialized_bytes::prelude::*;
 use holochain_types::app::{AppId, InstalledApp};
 use holochain_zome_types::GuestOutput;
+use tracing::*;
 
 /// The interface that a Conductor exposes to the outside world.
 #[async_trait::async_trait]
@@ -25,8 +26,14 @@ pub trait AppInterfaceApi: 'static + Send + Sync + Clone {
         let res = self.handle_app_request_inner(request).await;
 
         match res {
-            Ok(response) => response,
-            Err(e) => AppResponse::Error(e.into()),
+            Ok(response) => {
+                trace!(?response);
+                response
+            }
+            Err(e) => {
+                error!(error = ?e, "Error handling app request");
+                AppResponse::Error(e.into())
+            }
         }
     }
 }

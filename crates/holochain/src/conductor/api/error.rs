@@ -99,7 +99,7 @@ pub enum SerializationError {
 pub type ConductorApiResult<T> = Result<T, ConductorApiError>;
 
 /// Error type that goes over the websocket wire.
-/// This intends to be application developer facing
+/// This is intended to be application developer facing
 /// so it should be readable and relevant
 #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes, Clone)]
 #[serde(rename = "snake-case", tag = "type", content = "data")]
@@ -119,20 +119,11 @@ pub enum ExternalApiWireError {
     ActivateApp(String),
 }
 
-impl ExternalApiWireError {
-    /// Convert the error from the display.
-    pub fn internal<T: std::fmt::Display>(e: T) -> Self {
-        // Display format is used because
-        // this version intended for users.
-        ExternalApiWireError::InternalError(e.to_string())
-    }
-}
-
 impl From<ConductorApiError> for ExternalApiWireError {
     fn from(err: ConductorApiError) -> Self {
         match err {
             ConductorApiError::DnaReadError(e) => ExternalApiWireError::DnaReadError(e),
-            e => ExternalApiWireError::internal(e),
+            e => ExternalApiWireError::InternalError(e.to_string()),
         }
     }
 }

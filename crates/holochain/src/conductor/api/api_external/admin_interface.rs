@@ -36,8 +36,14 @@ pub trait AdminInterfaceApi: 'static + Send + Sync + Clone {
         let res = self.handle_admin_request_inner(request).await;
 
         match res {
-            Ok(response) => response,
-            Err(e) => AdminResponse::Error(e.into()),
+            Ok(response) => {
+                trace!(?response);
+                response
+            }
+            Err(e) => {
+                error!(error = ?e, "Error handling admin request");
+                AdminResponse::Error(e.into())
+            }
         }
     }
 }
