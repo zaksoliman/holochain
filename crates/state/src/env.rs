@@ -122,6 +122,11 @@ impl EnvironmentRead {
         }
     }
 
+    /// Accessor for underlying mutex
+    pub fn rkv(&self) -> Arc<RwLock<Rkv>> {
+        Arc::clone(&self.arc)
+    }
+
     /// Accessor for the [EnvironmentKind] of the EnvironmentWrite
     pub fn kind(&self) -> &EnvironmentKind {
         &self.kind

@@ -1,8 +1,11 @@
 #![allow(clippy::mutex_atomic)]
 use super::*;
-use crate::core::state::workspace::WorkspaceError;
+use crate::{core::state::workspace::WorkspaceError, eraser::OwnedReadGuard};
 use futures::Future;
-use holochain_state::env::{EnvironmentRead, EnvironmentWrite};
+use holochain_state::{
+    env::{EnvironmentRead, EnvironmentWrite},
+    error::DatabaseError,
+};
 
 #[derive(Clone)]
 pub struct CallZomeWorkspaceFactory(EnvironmentRead);
@@ -45,50 +48,52 @@ impl CallZomeWorkspaceFactory {
         Ok(())
     }
 
-    pub async fn apply_ref<
-        'a,
-        R: 'a,
-        Fut: Future<Output = R> + 'a,
-        F: FnOnce(&CallZomeWorkspace<'a>) -> Fut + 'a,
-    >(
-        &'a self,
+    pub async fn apply_ref<R, Fut: Future<Output = R>, F: FnOnce(&CallZomeWorkspace) -> Fut>(
+        &self,
         f: F,
     ) -> Result<R, error::WorkspaceFactoryError> {
         let env_ref = self.0.guard().await;
-        let reader = env_ref.reader().map_err(WorkspaceError::from)?;
+        let guard = OwnedReadGuard::new(self.0.rkv()).await;
+        let reader = guard
+            .read()
+            .await
+            .read()
+            .map_err(DatabaseError::from)
+            .map_err(WorkspaceError::from)?;
         let workspace = CallZomeWorkspace::new(&reader, &env_ref)?;
         Ok(f(&workspace).await)
     }
 
-    pub async fn apply_mut<
-        'a,
-        R,
-        Fut: Future<Output = R> + 'a,
-        F: FnOnce(&'a mut CallZomeWorkspace) -> Fut,
-    >(
-        &'a self,
+    pub async fn apply_mut<R, Fut: Future<Output = R>, F: FnOnce(&mut CallZomeWorkspace) -> Fut>(
+        &self,
         f: F,
     ) -> Result<R, error::WorkspaceFactoryError> {
         let env_ref = self.0.guard().await;
-        let reader = env_ref.reader().map_err(WorkspaceError::from)?;
+        let guard = OwnedReadGuard::new(self.0.rkv()).await;
+        let reader = guard
+            .read()
+            .await
+            .read()
+            .map_err(DatabaseError::from)
+            .map_err(WorkspaceError::from)?;
         let mut workspace = CallZomeWorkspace::new(&reader, &env_ref)?;
         Ok(f(&mut workspace).await)
     }
 
-    pub async fn apply_owned<
-        'a,
-        R,
-        Fut: Future<Output = R> + 'a,
-        F: FnOnce(CallZomeWorkspace) -> Fut,
-    >(
-        &'a self,
-        f: F,
-    ) -> Result<R, error::WorkspaceFactoryError> {
-        let env_ref = self.0.guard().await;
-        let reader = env_ref.reader().map_err(WorkspaceError::from)?;
-        let mut workspace = CallZomeWorkspace::new(&reader, &env_ref)?;
-        Ok(f(workspace).await)
-    }
+    // pub async fn apply_owned<
+    //     'a,
+    //     R,
+    //     Fut: Future<Output = R> + 'a,
+    //     F: FnOnce(CallZomeWorkspace) -> Fut,
+    // >(
+    //     &'a self,
+    //     f: F,
+    // ) -> Result<R, error::WorkspaceFactoryError> {
+    //     let env_ref = self.0.guard().await;
+    //     let reader = env_ref.reader().map_err(WorkspaceError::from)?;
+    //     let mut workspace = CallZomeWorkspace::new(&reader, &env_ref)?;
+    //     Ok(f(workspace).await)
+    // }
 }
 
 pub mod error {
