@@ -10,7 +10,7 @@ use holochain_keystore::KeystoreSender;
 use holochain_types::cell::CellId;
 use lazy_static::lazy_static;
 use parking_lot::RwLock as RwLockSync;
-use rkv::{EnvironmentFlags, Rkv};
+use rkv::EnvironmentFlags;
 use shrinkwraprs::Shrinkwrap;
 use std::{
     collections::{hash_map, HashMap},
@@ -72,14 +72,30 @@ fn rkv_builder(
     flags: Option<EnvironmentFlags>,
 ) -> impl (Fn(&Path) -> Result<Rkv, rkv::StoreError>) {
     move |path: &Path| {
-        let mut env_builder = Rkv::environment_builder();
+        let mut env_builder = rkv::Rkv::environment_builder();
         env_builder
             // max size of memory map, can be changed later
             .set_map_size(initial_map_size.unwrap_or(DEFAULT_INITIAL_MAP_SIZE))
             // max number of DBs in this environment
             .set_max_dbs(MAX_DBS)
             .set_flags(flags.unwrap_or_else(default_flags) | required_flags());
-        Rkv::from_env(path, env_builder)
+        rkv::Rkv::from_env(path, env_builder).map(Into::into)
+    }
+}
+
+/// Wrapper around rkv::Rkv which returns our own wrapped Environment types
+#[derive(Shrinkwrap, derive_more::From)]
+pub struct Rkv(rkv::Rkv);
+
+impl Rkv {
+    /// Wrapper
+    pub fn read(&self) -> Result<Reader, rkv::StoreError> {
+        self.0.read().map(Into::into)
+    }
+
+    /// Wrapper
+    pub fn write(&self) -> Result<Writer, rkv::StoreError> {
+        self.0.write().map(Into::into)
     }
 }
 
