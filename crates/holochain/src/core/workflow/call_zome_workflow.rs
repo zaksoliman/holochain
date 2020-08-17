@@ -27,6 +27,7 @@ use holochain_types::element::Element;
 use holochain_zome_types::entry::GetOptions;
 use holochain_zome_types::header::Header;
 use std::sync::Arc;
+use tracing::instrument;
 use tracing::*;
 use unsafe_call_zome_workspace::{error::WorkspaceFactoryResult, CallZomeWorkspaceFactory};
 
