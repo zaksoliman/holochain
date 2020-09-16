@@ -43,7 +43,7 @@ use tracing::instrument;
 
 mod test_utils;
 
-const DEFAULT_NUM: usize = 2000;
+const DEFAULT_NUM: usize = 197;
 
 #[tokio::test(threaded_scheduler)]
 #[ignore]
@@ -90,7 +90,7 @@ async fn speed_test_timed_ice() {
 }
 
 #[tokio::test(threaded_scheduler)]
-#[ignore]
+// #[ignore]
 async fn speed_test_normal() {
     observability::test_run().unwrap();
     speed_test(None).await;
@@ -247,6 +247,7 @@ async fn speed_test(n: Option<usize>) -> TestEnvironment {
     let timer = std::time::Instant::now();
 
     for i in 0..num {
+        println!("{}", i);
         let invocation = anchor_invocation("alice", alice_cell_id.clone(), i).unwrap();
         let response = call(&mut app_interface, invocation).await.unwrap();
         assert_matches!(response, AppResponse::ZomeCallInvocation(_));
@@ -254,6 +255,8 @@ async fn speed_test(n: Option<usize>) -> TestEnvironment {
         let response = call(&mut app_interface, invocation).await.unwrap();
         assert_matches!(response, AppResponse::ZomeCallInvocation(_));
     }
+
+    println!("done");
 
     let mut alice_done = false;
     let mut bobbo_done = false;
@@ -273,6 +276,7 @@ async fn speed_test(n: Option<usize>) -> TestEnvironment {
                 AppResponse::ZomeCallInvocation(r) => {
                     let response: SerializedBytes = r.into_inner();
                     let hashes: EntryHashes = response.try_into().unwrap();
+                    dbg!(hashes.0.len());
                     bobbo_done = hashes.0.len() == num;
                 }
                 _ => unreachable!(),
@@ -292,6 +296,7 @@ async fn speed_test(n: Option<usize>) -> TestEnvironment {
                 AppResponse::ZomeCallInvocation(r) => {
                     let response: SerializedBytes = r.into_inner();
                     let hashes: EntryHashes = response.try_into().unwrap();
+                    dbg!(hashes.0.len());
                     alice_done = hashes.0.len() == num;
                 }
                 _ => unreachable!(),
