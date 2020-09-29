@@ -9,7 +9,7 @@ use holo_hash::*;
 use holochain_state::{buffer::BufferedStore, error::DatabaseResult, fresh_reader, prelude::*};
 use holochain_types::{prelude::*, EntryHashed};
 use holochain_zome_types::{
-    capability::{CapAccess, CapGrant, CapSecret, GrantedFunction},
+    capability::{CapAccess, CapGrant, GrantedFunction, ZomeCallCapClaim},
     element::Element,
     entry::{CapClaimEntry, Entry},
     header::{builder, EntryType, Header, HeaderBuilder, HeaderBuilderCommon, HeaderInner},
@@ -99,12 +99,12 @@ impl SourceChain {
         &self,
         check_function: &GrantedFunction,
         check_agent: &AgentPubKey,
-        check_secret: Option<&CapSecret>,
+        check_claim: &ZomeCallCapClaim,
     ) -> SourceChainResult<Option<CapGrant>> {
         // most calls for most apps are going to be the local agent calling itself locally
         // for this case we want to short circuit without iterating the whole source chain
         let author_grant = CapGrant::from(self.agent_pubkey()?);
-        if author_grant.is_valid(check_function, check_agent, check_secret) {
+        if author_grant.is_valid(check_function, check_agent, check_claim) {
             return Ok(Some(author_grant));
         }
 
@@ -190,7 +190,7 @@ impl SourceChain {
             .filter_map(|entry| Ok(entry.as_cap_grant()))
             // filter down to only the grants for this function
             .filter(|grant| {
-                Ok(grant.is_valid(check_function, check_agent, check_secret))
+                Ok(grant.is_valid(check_function, check_agent, check_claim))
             })
             // if there are still multiple grants, fold them down based on specificity
             // authorship > assigned > transferable > unrestricted
@@ -211,15 +211,17 @@ impl SourceChain {
                                 // authorship should be short circuit and filtered
                                 _ => unreachable!(),
                             },
-                            CapAccess::Transferable { .. } => match &acc {
+                            CapAccess::Transferable { .. } | CapAccess::LocalOnly { .. } => match &acc {
                                 Some(CapGrant::RemoteAgent(acc_zome_call_cap_grant)) => {
                                     match acc_zome_call_cap_grant.access {
                                         // an assigned acc takes precedence
                                         CapAccess::Assigned { .. } => acc,
                                         // transferable acc takes precedence
                                         CapAccess::Transferable { .. } => acc,
+                                        // local-only acc takes precedence
+                                        CapAccess::LocalOnly { .. } => acc,
                                         // current grant takes preference over other accs
-                                        _ => Some(grant),
+                                        CapAccess::Unrestricted => Some(grant),
                                     }
                                 }
                                 None => Some(grant),
@@ -232,7 +234,7 @@ impl SourceChain {
                             }
                         }
                     },
-                    // ChainAuthor should have short circuited and be filtered out already
+                    // ChainAuthor should have short circuited and been filtered out already
                     _ => unreachable!(),
                 };
                 Ok(acc)
@@ -358,13 +360,17 @@ pub mod tests {
         {
             let chain = SourceChain::new(env.clone().into())?;
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
 
             // bob should not match anything as the secret hasn't been committed yet
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 None
             );
         }
@@ -390,14 +396,18 @@ pub mod tests {
             // alice should find her own authorship with higher priority than the committed grant
             // even if she passes in the secret
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
 
             // bob should be granted with the committed grant as it matches the secret he passes to
             // alice at runtime
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 Some(grant.clone().into())
             );
         }
@@ -432,21 +442,29 @@ pub mod tests {
             // alice should find her own authorship with higher priority than the committed grant
             // even if she passes in the secret
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, updated_secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
 
             // bob MUST provide the updated secret as the old one is invalidated by the new one
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 None
             );
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, updated_secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 Some(updated_grant.into())
             );
         }
@@ -467,21 +485,29 @@ pub mod tests {
             let chain = SourceChain::new(env.clone().into())?;
             // alice should find her own authorship
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
             assert_eq!(
-                chain.valid_cap_grant(&function, &alice, updated_secret.as_ref())?,
+                chain.valid_cap_grant(
+                    &function,
+                    &alice,
+                    &ZomeCallCapClaim::remote(Some(secret))
+                )?,
                 Some(CapGrant::ChainAuthor(alice)),
             );
 
             // bob has no access
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 None
             );
             assert_eq!(
-                chain.valid_cap_grant(&function, &bob, updated_secret.as_ref())?,
+                chain.valid_cap_grant(&function, &bob, &ZomeCallCapClaim::remote(Some(secret)))?,
                 None
             );
         }

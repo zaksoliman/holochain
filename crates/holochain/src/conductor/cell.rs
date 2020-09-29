@@ -10,8 +10,6 @@ use crate::conductor::api::CellConductorApiT;
 use crate::conductor::handle::ConductorHandle;
 use crate::core::queue_consumer::{spawn_queue_consumer_tasks, InitialQueueTriggers};
 use crate::core::ribosome::ZomeCallInvocation;
-use holochain_zome_types::zome::FunctionName;
-
 use crate::{
     conductor::{api::CellConductorApi, cell::error::CellResult},
     core::ribosome::{guest_callback::init::InitResult, wasm_ribosome::WasmRibosome},
@@ -49,9 +47,10 @@ use holochain_types::{
     metadata::{MetadataSet, TimedHeaderHash},
     Timestamp,
 };
-use holochain_zome_types::capability::CapSecret;
+use holochain_zome_types::capability::{CapSecret, ZomeCallCapClaim};
 use holochain_zome_types::header::{CreateLink, DeleteLink};
 use holochain_zome_types::signature::Signature;
+use holochain_zome_types::zome::FunctionName;
 use holochain_zome_types::zome::ZomeName;
 use holochain_zome_types::ExternInput;
 use std::{
@@ -635,7 +634,7 @@ impl Cell {
         let invocation = ZomeCallInvocation {
             cell_id: self.id.clone(),
             zome_name: zome_name.clone(),
-            cap,
+            cap: ZomeCallCapClaim::remote(cap),
             payload: ExternInput::new(payload),
             provenance: from_agent,
             fn_name,

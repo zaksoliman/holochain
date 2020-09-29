@@ -1,4 +1,4 @@
-use super::CapSecret;
+use super::{CapSecret, ZomeCallCapClaim};
 use crate::zome::FunctionName;
 use crate::zome::ZomeName;
 use holo_hash::*;
@@ -89,7 +89,7 @@ impl CapGrant {
         &self,
         check_function: &GrantedFunction,
         check_agent: &AgentPubKey,
-        check_secret: Option<&CapSecret>,
+        check_claim: &ZomeCallCapClaim,
     ) -> bool {
         match self {
             // Grant is always valid if the author matches the check agent.
@@ -108,12 +108,14 @@ impl CapGrant {
                     _ => true,
                 }
                 // The secret needs to match…
-                && match access {
+                && match (access, check_claim) {
                     // Unless the extern is unrestricted.
-                    CapAccess::Unrestricted => true,
+                    (CapAccess::Unrestricted, _) => true,
                     // note the PartialEq implementation is constant time for secrets
-                    CapAccess::Transferable { secret, .. } => check_secret.map(|given| secret == given).unwrap_or(false),
-                    CapAccess::Assigned { secret, .. } => check_secret.map(|given| secret == given).unwrap_or(false),
+                    (CapAccess::Transferable { secret }, claim) => Some(secret) == claim.secret(),
+                    (CapAccess::Assigned { secret, assignees }, claim) => Some(secret) == claim.secret() && assignees.contains(check_agent),
+                    (CapAccess::LocalOnly { secret }, ZomeCallCapClaim::Local(given)) => secret == given,
+                    _ => false,
                 }
             }
         }
@@ -127,6 +129,11 @@ pub enum CapAccess {
     Unrestricted,
     /// Callable by anyone who can provide the secret.
     Transferable {
+        /// The secret.
+        secret: CapSecret,
+    },
+    /// Callable by anyone who can provide the secret. Must be requested over an interface.
+    LocalOnly {
         /// The secret.
         secret: CapSecret,
     },

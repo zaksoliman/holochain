@@ -44,3 +44,34 @@ impl CapClaim {
         &self.grantor
     }
 }
+
+/// The different ways to provide a capability claim for a zome call
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum ZomeCallCapClaim {
+    /// No capability claimed: expecting Unrestricted access to this function
+    None,
+    /// Claiming access to a LocalOnly grant: this request originated locally, across an interface
+    Local(CapSecret),
+    /// Claiming access to a Transferable grant: this request originated from an agent on the network
+    Remote(CapSecret),
+}
+
+impl ZomeCallCapClaim {
+    /// Constructor for Local or None variants
+    pub fn local(secret: Option<CapSecret>) -> Self {
+        secret.map(Self::Local).unwrap_or(Self::None)
+    }
+
+    /// Constructor for Remote or None variants
+    pub fn remote(secret: Option<CapSecret>) -> Self {
+        secret.map(Self::Remote).unwrap_or(Self::None)
+    }
+
+    /// Access the secret, if applicable
+    pub fn secret(&self) -> Option<&CapSecret> {
+        match self {
+            Self::Local(secret) | Self::Remote(secret) => Some(secret),
+            Self::None => None,
+        }
+    }
+}
