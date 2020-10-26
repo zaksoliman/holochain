@@ -95,43 +95,45 @@ async fn sys_validation_workflow_inner(
 ) -> WorkflowResult<WorkComplete> {
     let env = workspace.validation_limbo.env().clone();
     // Drain all the ops
-    let sorted_ops: BinaryHeap<OrderedOp<ValidationLimboValue>> = fresh_reader!(env, |r| {
+    let sorted_ops: Vec<OrderedOp<ValidationLimboValue>> = fresh_reader!(env, |r| {
         let validation_limbo = &mut workspace.validation_limbo;
         let element_pending = &workspace.element_pending;
 
-        let sorted_ops: Result<BinaryHeap<OrderedOp<ValidationLimboValue>>, WorkflowError> =
-            validation_limbo
-                .drain_iter_filter(&r, |(_, vlv)| {
-                    match vlv.status {
-                        // We only want pending or awaiting sys dependency ops
-                        ValidationLimboStatus::Pending
-                        | ValidationLimboStatus::AwaitingSysDeps(_) => Ok(true),
-                        ValidationLimboStatus::SysValidated
-                        | ValidationLimboStatus::AwaitingAppDeps(_) => Ok(false),
+        validation_limbo
+            .drain_iter_filter(&r, |(_, vlv)| {
+                match vlv.status {
+                    // We only want pending or awaiting sys dependency ops
+                    ValidationLimboStatus::Pending | ValidationLimboStatus::AwaitingSysDeps(_) => {
+                        Ok(true)
                     }
-                })?
-                .map_err(WorkflowError::from)
-                .map(|vlv| {
-                    // Sort the ops into a min-heap
-                    let op = light_to_op(vlv.op.clone(), element_pending)?;
+                    ValidationLimboStatus::SysValidated
+                    | ValidationLimboStatus::AwaitingAppDeps(_) => Ok(false),
+                }
+            })?
+            .map_err(WorkflowError::from)
+            .map(|vlv| {
+                // Sort the ops into a min-heap
+                let op = light_to_op(vlv.op.clone(), element_pending)?;
 
-                    let hash = DhtOpHash::with_data_sync(&op);
-                    let order = DhtOpOrder::from(&op);
-                    let v = OrderedOp {
-                        order,
-                        hash,
-                        op,
-                        value: vlv,
-                    };
-                    Ok(v)
-                })
-                .iterator()
-                .collect();
-        sorted_ops
+                let hash = DhtOpHash::with_data_sync(&op);
+                let order = DhtOpOrder::from(&op);
+                let v = OrderedOp {
+                    order,
+                    hash,
+                    op,
+                    value: vlv,
+                };
+                Ok(v)
+            })
+            .iterator()
+            .collect::<Result<BinaryHeap<_>, _>>()
+            .map(|heap| heap.into_sorted_vec())
     })?;
 
+    tracing::info!("{:?}", sorted_ops);
+
     // Process each op
-    for so in sorted_ops.into_sorted_vec() {
+    for so in sorted_ops {
         let OrderedOp {
             hash: op_hash,
             op,
@@ -219,14 +221,14 @@ async fn validate_op(
         },
         // Handle the errors that result in pending or awaiting deps
         Err(SysValidationError::ValidationOutcome(e)) => {
-            warn!(
+            info!(
                 agent = %which_agent(conductor_api.cell_id().agent_pubkey()),
                 msg = "DhtOp has failed system validation",
                 ?op,
                 error = ?e,
                 error_msg = %e
             );
-            Ok(handle_failed(e))
+            Ok(Outcome::from(e))
         }
         Err(e) => Err(e.into()),
     }
@@ -236,30 +238,32 @@ async fn validate_op(
 /// we might find it useful to include the reason something
 /// was rejected etc.
 /// This is why the errors contain data but is currently unread.
-fn handle_failed(error: ValidationOutcome) -> Outcome {
-    use Outcome::*;
-    match error {
-        ValidationOutcome::Counterfeit(_, _) => {
-            unreachable!("Counterfeit ops are dropped before sys validation")
+impl From<ValidationOutcome> for Outcome {
+    fn from(error: ValidationOutcome) -> Outcome {
+        use Outcome::*;
+        match error {
+            ValidationOutcome::Counterfeit(_, _) => {
+                unreachable!("Counterfeit ops are dropped before sys validation")
+            }
+            ValidationOutcome::DepMissingFromDht(_) => MissingDhtDep,
+            ValidationOutcome::EntryDefId(_) => Rejected,
+            ValidationOutcome::EntryHash => Rejected,
+            ValidationOutcome::EntryTooLarge(_, _) => Rejected,
+            ValidationOutcome::EntryType => Rejected,
+            ValidationOutcome::EntryVisibility(_) => Rejected,
+            ValidationOutcome::TagTooLarge(_, _) => Rejected,
+            ValidationOutcome::NotCreateLink(_) => Rejected,
+            ValidationOutcome::NotNewEntry(_) => Rejected,
+            ValidationOutcome::NotHoldingDep(dep) => AwaitingOpDep(dep),
+            ValidationOutcome::PrevHeaderError(PrevHeaderError::MissingMeta(dep)) => {
+                AwaitingOpDep(dep.into())
+            }
+            ValidationOutcome::PrevHeaderError(_) => Rejected,
+            ValidationOutcome::PrivateEntry => Rejected,
+            ValidationOutcome::UpdateTypeMismatch(_, _) => Rejected,
+            ValidationOutcome::VerifySignature(_, _) => Rejected,
+            ValidationOutcome::ZomeId(_) => Rejected,
         }
-        ValidationOutcome::DepMissingFromDht(_) => MissingDhtDep,
-        ValidationOutcome::EntryDefId(_) => Rejected,
-        ValidationOutcome::EntryHash => Rejected,
-        ValidationOutcome::EntryTooLarge(_, _) => Rejected,
-        ValidationOutcome::EntryType => Rejected,
-        ValidationOutcome::EntryVisibility(_) => Rejected,
-        ValidationOutcome::TagTooLarge(_, _) => Rejected,
-        ValidationOutcome::NotCreateLink(_) => Rejected,
-        ValidationOutcome::NotNewEntry(_) => Rejected,
-        ValidationOutcome::NotHoldingDep(dep) => AwaitingOpDep(dep),
-        ValidationOutcome::PrevHeaderError(PrevHeaderError::MissingMeta(dep)) => {
-            AwaitingOpDep(dep.into())
-        }
-        ValidationOutcome::PrevHeaderError(_) => Rejected,
-        ValidationOutcome::PrivateEntry => Rejected,
-        ValidationOutcome::UpdateTypeMismatch(_, _) => Rejected,
-        ValidationOutcome::VerifySignature(_, _) => Rejected,
-        ValidationOutcome::ZomeId(_) => Rejected,
     }
 }
 
@@ -725,11 +729,13 @@ impl SysValidationWorkspace {
         })
     }
 
+    #[tracing::instrument(skip(self))]
     fn put_val_limbo(
         &mut self,
         hash: DhtOpHash,
         mut vlv: ValidationLimboValue,
     ) -> WorkflowResult<()> {
+        info!("put_val_limbo {}", vlv.num_tries);
         vlv.last_try = Some(Timestamp::now());
         vlv.num_tries += 1;
         self.validation_limbo.put(hash, vlv)?;

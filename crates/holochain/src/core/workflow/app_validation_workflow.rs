@@ -292,7 +292,7 @@ async fn validate_op(
         }
     };
     if let Outcome::AwaitingDeps(_) | Outcome::Rejected(_) = &outcome {
-        warn!(
+        info!(
             agent = %which_agent(conductor_api.cell_id().agent_pubkey()),
             msg = "DhtOp has failed app validation",
             outcome = ?outcome,

@@ -281,7 +281,6 @@ pub mod wasm_test {
     }
 
     #[tokio::test(threaded_scheduler)]
-    #[ignore = "david.b (this test is flaky)"]
     // maackle: this consistently passes for me with n = 37
     //          but starts to randomly lock up at n = 38,
     //          and fails consistently for higher values

@@ -191,7 +191,7 @@ impl TriggerSender {
     pub fn trigger(&mut self) {
         match self.0.try_send(()) {
             Err(mpsc::error::TrySendError::Closed(_)) => {
-                tracing::warn!(
+                tracing::info!(
                     "Queue consumer trigger was sent while Cell is shutting down: ignoring."
                 );
             }
