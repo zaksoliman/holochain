@@ -1,30 +1,30 @@
 #![allow(clippy::mutex_atomic)]
 use super::*;
 use std::sync::Arc;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{Mutex, MutexGuard};
 
 #[derive(Clone, shrinkwraprs::Shrinkwrap)]
-pub struct CallZomeWorkspaceLock(Arc<RwLock<CallZomeWorkspace>>);
+pub struct CallZomeWorkspaceLock(Arc<Mutex<CallZomeWorkspace>>);
 
 impl CallZomeWorkspaceLock {
     pub fn new(workspace: CallZomeWorkspace) -> Self {
-        Self(Arc::new(RwLock::new(workspace)))
+        Self(Arc::new(Mutex::new(workspace)))
     }
 
-    pub fn into_inner(self) -> Arc<RwLock<CallZomeWorkspace>> {
+    pub fn into_inner(self) -> Arc<Mutex<CallZomeWorkspace>> {
         self.0
     }
 
     #[tracing::instrument(skip(self))]
     pub async fn read<'a>(&'a self) -> CallZomeWorkspaceLockReadGuard<'a> {
         tracing::info!("read start");
-        CallZomeWorkspaceLockReadGuard(self.0.read().await)
+        CallZomeWorkspaceLockReadGuard(self.0.lock().await)
     }
 
     #[tracing::instrument(skip(self))]
     pub async fn write<'a>(&'a self) -> CallZomeWorkspaceLockWriteGuard<'a> {
         tracing::info!("write start");
-        CallZomeWorkspaceLockWriteGuard(self.0.write().await)
+        CallZomeWorkspaceLockWriteGuard(self.0.lock().await)
     }
 }
 
@@ -36,7 +36,7 @@ impl From<CallZomeWorkspace> for CallZomeWorkspaceLock {
 
 #[derive(shrinkwraprs::Shrinkwrap)]
 #[shrinkwrap(mutable, unsafe_ignore_visibility)]
-pub struct CallZomeWorkspaceLockReadGuard<'a>(RwLockReadGuard<'a, CallZomeWorkspace>);
+pub struct CallZomeWorkspaceLockReadGuard<'a>(MutexGuard<'a, CallZomeWorkspace>);
 
 impl<'a> Drop for CallZomeWorkspaceLockReadGuard<'a> {
     #[tracing::instrument(skip(self))]
@@ -47,7 +47,7 @@ impl<'a> Drop for CallZomeWorkspaceLockReadGuard<'a> {
 
 #[derive(shrinkwraprs::Shrinkwrap)]
 #[shrinkwrap(mutable, unsafe_ignore_visibility)]
-pub struct CallZomeWorkspaceLockWriteGuard<'a>(RwLockWriteGuard<'a, CallZomeWorkspace>);
+pub struct CallZomeWorkspaceLockWriteGuard<'a>(MutexGuard<'a, CallZomeWorkspace>);
 
 impl<'a> Drop for CallZomeWorkspaceLockWriteGuard<'a> {
     #[tracing::instrument(skip(self))]

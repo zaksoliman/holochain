@@ -130,7 +130,7 @@ async fn sys_validation_workflow_inner(
             .map(|heap| heap.into_sorted_vec())
     })?;
 
-    tracing::info!("{:?}", sorted_ops);
+    // tracing::info!("{:?}", sorted_ops);
 
     // Process each op
     for so in sorted_ops {

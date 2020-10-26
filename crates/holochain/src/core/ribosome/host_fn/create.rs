@@ -71,6 +71,7 @@ pub fn create<'a>(
         let element = source_chain
             .get_element(&header_hash)?
             .expect("Element we just put in SourceChain must be gettable");
+        tracing::info!("pre integrate");
         integrate_to_authored(
             &element,
             workspace.source_chain.elements(),
@@ -79,6 +80,7 @@ pub fn create<'a>(
         .await
         .map_err(Box::new)
         .map_err(SourceChainError::from)?;
+        tracing::info!("post integrate");
         Ok(CreateOutput::new(header_hash))
     })
 }
