@@ -426,21 +426,27 @@ impl Cell {
     /// we are receiving a "publish" event from the network
     async fn handle_publish(
         &self,
-        _from_agent: AgentPubKey,
+        from_agent: AgentPubKey,
         _request_validation_receipt: bool,
         _dht_hash: holo_hash::AnyDhtHash,
         ops: Vec<(holo_hash::DhtOpHash, holochain_types::dht_op::DhtOp)>,
     ) -> CellResult<()> {
-        incoming_dht_ops_workflow(&self.env, self.queue_triggers.sys_validation.clone(), ops)
-            .await
-            .map_err(Box::new)
-            .map_err(ConductorApiError::from)
-            .map_err(Box::new)?;
+        incoming_dht_ops_workflow(
+            &self.env,
+            self.queue_triggers.sys_validation.clone(),
+            ops,
+            Some(from_agent),
+        )
+        .await
+        .map_err(Box::new)
+        .map_err(ConductorApiError::from)
+        .map_err(Box::new)?;
         Ok(())
     }
 
+    #[instrument(skip(self))]
     /// a remote node is attempting to retrieve a validation package
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), level = "trace")]
     async fn handle_get_validation_package(
         &self,
         header_hash: HeaderHash,
@@ -454,17 +460,30 @@ impl Cell {
             .retrieve_header(header_hash, Default::default())
             .await?
         {
-            Some(shh) => shh.into_header_and_signature().0.into_content(),
+            Some(shh) => shh.into_header_and_signature().0,
             None => return Ok(None.into()),
         };
 
+        let ribosome = self.get_ribosome().await?;
+
         // This agent is the author so get the validation package from the source chain
         if header.author() == self.id.agent_pubkey() {
-            let ribosome = self.get_ribosome().await?;
-            validation_package::get_as_author(header, env, &ribosome.dna_file, &self.conductor_api)
-                .await
+            validation_package::get_as_author(
+                header,
+                env,
+                &ribosome,
+                &self.conductor_api,
+                &self.holochain_p2p_cell,
+            )
+            .await
         } else {
-            todo!("Implement authority returning validation package")
+            validation_package::get_as_authority(
+                header,
+                env,
+                &ribosome.dna_file,
+                &self.conductor_api,
+            )
+            .await
         }
     }
 
@@ -513,27 +532,36 @@ impl Cell {
             return Ok(GetElementResponse::GetHeader(None));
         }
 
-        // Look for a delete on the header and collect it
-        let deleted = meta_vault
+        // Look for a deletes on the header and collect them
+        let deletes = meta_vault
             .get_deletes_on_header(&reader, hash.clone())?
-            .next()?;
-        let deleted = match deleted {
-            Some(delete_header) => {
+            .map_err(CellError::from)
+            .map(|delete_header| {
                 let delete = delete_header.header_hash;
                 match element_vault.get_header(&delete)? {
-                    Some(delete) => Some(delete.try_into().map_err(AuthorityDataError::from)?),
-                    None => {
-                        return Err(AuthorityDataError::missing_data(delete));
-                    }
+                    Some(delete) => Ok(delete.try_into().map_err(AuthorityDataError::from)?),
+                    None => Err(AuthorityDataError::missing_data(delete)),
                 }
-            }
-            None => None,
-        };
+            })
+            .collect()?;
+
+        // Look for a updates on the header and collect them
+        let updates = meta_vault
+            .get_updates(&reader, hash.clone().into())?
+            .map_err(CellError::from)
+            .map(|update_header| {
+                let update = update_header.header_hash;
+                match element_vault.get_header(&update)? {
+                    Some(update) => Ok(update.try_into().map_err(AuthorityDataError::from)?),
+                    None => Err(AuthorityDataError::missing_data(update)),
+                }
+            })
+            .collect()?;
 
         // Get the actual header and return it with proof of deleted if there is any
         let r = element_vault
             .get_element(&hash)?
-            .map(|e| WireElement::from_element(e, deleted))
+            .map(|e| WireElement::from_element(e, deletes, updates))
             .map(Box::new);
 
         Ok(GetElementResponse::GetHeader(r))
@@ -671,7 +699,7 @@ impl Cell {
                     crate::core::workflow::produce_dht_ops_workflow::dht_op_light::light_to_op(
                         val.op, &cas,
                     )?;
-                let basis = full_op.dht_basis().await;
+                let basis = full_op.dht_basis();
                 out.push((basis, op_hash, full_op));
             }
         }
