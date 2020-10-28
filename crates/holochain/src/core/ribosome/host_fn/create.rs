@@ -376,6 +376,8 @@ pub mod wasm_test {
             )
         );
 
+        dbg!("everything committed");
+
         // bob get the entries
         let output = handle
             .call_zome(ZomeCallInvocation {

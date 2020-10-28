@@ -11,6 +11,7 @@ use holochain_types::{
 use holochain_zome_types::zome::FunctionName;
 use kitsune_p2p::actor::KitsuneP2pSender;
 use kitsune_p2p::agent_store::AgentInfoSigned;
+use kitsune_p2p::FutureTimeoutExt;
 
 pub(crate) struct HolochainP2pActor {
     evt_sender: futures::channel::mpsc::Sender<HolochainP2pEvent>,
@@ -620,6 +621,7 @@ impl HolochainP2pHandler for HolochainP2pActor {
                     payload,
                 })
                 .instrument(tracing::debug_span!("rpc_multi"))
+                .timeout(std::time::Duration::from_secs(1), "rpc_multi await")
                 .await?;
 
             let mut out = Vec::new();
