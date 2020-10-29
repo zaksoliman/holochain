@@ -14,7 +14,7 @@ use crate::core::{
         metadata::MetadataBuf,
         metadata::MetadataBufT,
         validation_db::{ValidationLimboStatus, ValidationLimboStore, ValidationLimboValue},
-        workspace::{Workspace, WorkspaceResult},
+        workspace::WorkspaceResult,
     },
 };
 use holo_hash::{AgentPubKey, DhtOpHash};
@@ -88,7 +88,9 @@ pub struct IncomingDhtOpsWorkspace {
     pub meta_integrated: MetadataBuf<IntegratedPrefix>,
 }
 
-impl Workspace for IncomingDhtOpsWorkspace {
+impl BufferedStore for IncomingDhtOpsWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.validation_limbo.0.flush_to_txn_ref(writer)?;
         self.element_pending.flush_to_txn_ref(writer)?;

@@ -30,13 +30,23 @@ pub trait BufferedStore: Sized {
     /// The error type for `flush_to_txn` errors
     type Error: std::error::Error;
 
-    /// Flush the scratch space to the read-write transaction, staging the changes
-    /// for an actual database update
-    fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> Result<(), Self::Error>;
-
+    /// Flush accumulated changes in the scratch space to the `writer`,
+    /// without committing.
+    ///
+    /// No method is provided to commit the writer as well, because Writers
+    /// should be managed such that write failures are properly handled, which
+    /// is outside the scope of the workspace.
+    ///
+    /// This method is provided and shouldn't need to be implemented. It is
+    /// preferred to use this over `flush_to_txn_ref` since it's generally not
+    /// valid to flush the same data twice.
     fn flush_to_txn(mut self, writer: &mut Writer) -> Result<(), Self::Error> {
         self.flush_to_txn_ref(writer)
     }
+
+    /// Flush changes to the `writer` without consuming self. `flush_to_txn`
+    /// is preferred over this whenever possible
+    fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> Result<(), Self::Error>;
 
     /// Specifies whether there are actually changes to flush. If not, the
     /// flush_to_txn method may decide to do nothing.

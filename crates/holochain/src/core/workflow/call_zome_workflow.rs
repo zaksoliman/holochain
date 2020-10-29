@@ -7,7 +7,6 @@ use crate::core::ribosome::ZomeCallInvocation;
 use crate::core::ribosome::{error::RibosomeResult, RibosomeT, ZomeCallHostAccess};
 use crate::core::state::metadata::MetadataBufT;
 use crate::core::state::source_chain::SourceChainError;
-use crate::core::state::workspace::Workspace;
 use crate::core::{
     queue_consumer::{OneshotWriter, TriggerSender},
     state::{
@@ -293,7 +292,9 @@ impl<'a> CallZomeWorkspace {
     }
 }
 
-impl Workspace for CallZomeWorkspace {
+impl BufferedStore for CallZomeWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.source_chain.flush_to_txn_ref(writer)?;
         self.meta_authored.flush_to_txn_ref(writer)?;
@@ -411,7 +412,7 @@ pub mod tests {
     // - Check entry content matches entry schema
     //   Depending on the type of the commit, validate all possible validations for the
     //   DHT Op that would be produced by it
-    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation 
+    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation
     complete so we aren't duplicating the unit test inside sys val."]
     #[tokio::test]
     async fn calls_system_validation<'a>() {

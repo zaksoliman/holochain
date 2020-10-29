@@ -14,7 +14,7 @@ use crate::core::{
         element_buf::ElementBuf,
         metadata::{MetadataBuf, MetadataBufT},
         validation_db::ValidationLimboStore,
-        workspace::{Workspace, WorkspaceResult},
+        workspace::WorkspaceResult,
     },
     validation::DhtOpOrder,
     validation::OrderedOp,
@@ -515,7 +515,9 @@ pub struct IntegrateDhtOpsWorkspace {
     pub validation_limbo: ValidationLimboStore,
 }
 
-impl Workspace for IntegrateDhtOpsWorkspace {
+impl BufferedStore for IntegrateDhtOpsWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.update_element_stores(writer)?;
         // flush elements

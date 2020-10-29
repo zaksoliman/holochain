@@ -5,11 +5,11 @@ use crate::core::{
         guest_callback::init::{InitHostAccess, InitInvocation, InitResult},
         RibosomeT,
     },
-    state::workspace::Workspace,
 };
 use derive_more::Constructor;
 use holochain_keystore::KeystoreSender;
 use holochain_p2p::HolochainP2pCell;
+use holochain_state::buffer::BufferedStore;
 use holochain_types::dna::DnaDef;
 use holochain_zome_types::header::builder;
 use tracing::*;

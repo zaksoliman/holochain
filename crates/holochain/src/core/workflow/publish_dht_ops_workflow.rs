@@ -17,9 +17,8 @@ use super::{
 use crate::core::{
     queue_consumer::{OneshotWriter, WorkComplete},
     state::{
-        dht_op_integration::AuthoredDhtOpsStore,
-        element_buf::ElementBuf,
-        workspace::{Workspace, WorkspaceResult},
+        dht_op_integration::AuthoredDhtOpsStore, element_buf::ElementBuf,
+        workspace::WorkspaceResult,
     },
 };
 use fallible_iterator::FallibleIterator;
@@ -141,7 +140,9 @@ pub async fn publish_dht_ops_workflow_inner(
     Ok(to_publish)
 }
 
-impl Workspace for PublishDhtOpsWorkspace {
+impl BufferedStore for PublishDhtOpsWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.authored_dht_ops.flush_to_txn_ref(writer)?;
         Ok(())

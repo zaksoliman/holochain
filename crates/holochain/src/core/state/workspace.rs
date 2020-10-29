@@ -4,7 +4,7 @@
 //! Every Workflow has an associated Workspace type.
 
 use super::source_chain::SourceChainError;
-use holochain_state::{error::DatabaseError, prelude::Writer};
+use holochain_state::{buffer::BufferedStore, error::DatabaseError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,28 +21,12 @@ pub enum WorkspaceError {
 pub type WorkspaceResult<T> = Result<T, WorkspaceError>;
 
 /// Defines a Workspace
-pub trait Workspace: Send + Sized {
-    /// Flush accumulated changes to the writer without committing.
-    ///
-    /// No method is provided to commit the writer as well, because Writers
-    /// should be managed such that write failures are properly handled, which
-    /// is outside the scope of the workspace.
-    ///
-    /// This method is provided and shouldn't need to be implemented. It is
-    /// preferred to use this over `flush_to_txn_ref` since it's generally not
-    /// valid to flush the same data twice.
-    fn flush_to_txn(mut self, writer: &mut Writer) -> WorkspaceResult<()> {
-        self.flush_to_txn_ref(writer)
-    }
-
-    /// Flush accumulated changes to the writer, without consuming the Workspace
-    fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()>;
-}
+pub trait Workspace: BufferedStore + Send {}
+impl<T> Workspace for T where T: BufferedStore + Send {}
 
 #[cfg(test)]
 pub mod tests {
 
-    use super::Workspace;
     use crate::core::state::workspace::WorkspaceResult;
     use holochain_state::{
         buffer::{BufferedStore, KvBufFresh},
@@ -66,7 +50,9 @@ pub mod tests {
         }
     }
 
-    impl Workspace for TestWorkspace {
+    impl BufferedStore for TestWorkspace {
+        type Error = crate::core::state::workspace::WorkspaceError;
+
         fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
             self.one.flush_to_txn_ref(writer)?;
             self.two.flush_to_txn_ref(writer)?;

@@ -5,7 +5,7 @@ use crate::{
     core::ribosome::ZomeCallInvocation,
     core::{
         ribosome::{host_fn, wasm_ribosome::WasmRibosome, CallContext, ZomeCallHostAccess},
-        state::{metadata::LinkMetaKey, workspace::Workspace},
+        state::metadata::LinkMetaKey,
         workflow::{CallZomeWorkspace, CallZomeWorkspaceLock},
     },
 };
@@ -17,6 +17,7 @@ use holochain_p2p::{
     HolochainP2pCell,
 };
 use holochain_serialized_bytes::prelude::*;
+use holochain_state::buffer::BufferedStore;
 use holochain_state::{
     env::{EnvironmentRead, EnvironmentWrite},
     prelude::{GetDb, WriteManager},

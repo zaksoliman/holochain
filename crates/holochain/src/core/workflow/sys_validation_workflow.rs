@@ -14,7 +14,7 @@ use crate::{
             element_buf::ElementBuf,
             metadata::MetadataBuf,
             validation_db::{ValidationLimboStatus, ValidationLimboStore, ValidationLimboValue},
-            workspace::{Workspace, WorkspaceError, WorkspaceResult},
+            workspace::WorkspaceResult,
         },
         sys_validate::*,
         validation::*,
@@ -835,7 +835,9 @@ impl SysValidationWorkspace {
     }
 }
 
-impl Workspace for SysValidationWorkspace {
+impl BufferedStore for SysValidationWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.validation_limbo.0.flush_to_txn_ref(writer)?;
         self.integration_limbo.flush_to_txn_ref(writer)?;
@@ -851,7 +853,7 @@ impl Workspace for SysValidationWorkspace {
 
 /// Create a new SysValidationWorkspace with the scratches from the CallZomeWorkspace
 impl TryFrom<&CallZomeWorkspace> for SysValidationWorkspace {
-    type Error = WorkspaceError;
+    type Error = crate::core::state::workspace::WorkspaceError;
 
     fn try_from(call_zome: &CallZomeWorkspace) -> Result<Self, Self::Error> {
         let CallZomeWorkspace {

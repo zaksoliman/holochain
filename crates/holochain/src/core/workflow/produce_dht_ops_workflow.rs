@@ -3,7 +3,7 @@ use crate::core::queue_consumer::{OneshotWriter, TriggerSender, WorkComplete};
 use crate::core::state::{
     dht_op_integration::{AuthoredDhtOpsStore, AuthoredDhtOpsValue},
     source_chain::SourceChain,
-    workspace::{Workspace, WorkspaceResult},
+    workspace::WorkspaceResult,
 };
 use holochain_state::{
     buffer::KvBufFresh,
@@ -73,7 +73,9 @@ impl ProduceDhtOpsWorkspace {
     }
 }
 
-impl Workspace for ProduceDhtOpsWorkspace {
+impl BufferedStore for ProduceDhtOpsWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.source_chain.flush_to_txn_ref(writer)?;
         self.authored_dht_ops.flush_to_txn_ref(writer)?;

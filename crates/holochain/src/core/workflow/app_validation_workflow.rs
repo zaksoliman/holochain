@@ -39,7 +39,7 @@ use crate::{
             element_buf::ElementBuf,
             metadata::MetadataBuf,
             validation_db::{ValidationLimboStatus, ValidationLimboStore, ValidationLimboValue},
-            workspace::{Workspace, WorkspaceResult},
+            workspace::WorkspaceResult,
         },
         validation::DhtOpOrder,
         validation::OrderedOp,
@@ -1035,7 +1035,9 @@ impl AppValidationWorkspace {
     }
 }
 
-impl Workspace for AppValidationWorkspace {
+impl BufferedStore for AppValidationWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.validation_limbo.0.flush_to_txn_ref(writer)?;
         self.integration_limbo.flush_to_txn_ref(writer)?;

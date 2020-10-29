@@ -11,10 +11,7 @@ use super::error::{WorkflowError, WorkflowResult};
 use crate::conductor::api::CellConductorApiT;
 use crate::core::{
     queue_consumer::OneshotWriter,
-    state::{
-        source_chain::SourceChainBuf,
-        workspace::{Workspace, WorkspaceResult},
-    },
+    state::{source_chain::SourceChainBuf, workspace::WorkspaceResult},
 };
 use derive_more::Constructor;
 use holochain_state::prelude::*;
@@ -95,7 +92,9 @@ impl GenesisWorkspace {
     }
 }
 
-impl Workspace for GenesisWorkspace {
+impl BufferedStore for GenesisWorkspace {
+    type Error = crate::core::state::workspace::WorkspaceError;
+
     fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
         self.source_chain.flush_to_txn_ref(writer)?;
         Ok(())
