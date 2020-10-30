@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
+csv = { version = "1.1", optional = true }
 fallible-iterator = "0.2"
 holochain = { path = "../holochain" }
 holochain_keystore = { path = "../keystore"}
@@ -17,6 +18,9 @@ rkv = "0.10.4"
 structopt = "0.3"
 tokio = { version = "0.2", features = [ "full" ] }
 
+[features]
+default = [ "state-dumps" ]
+state-dumps = [ "csv" ]
 
 [patch.crates-io]
 

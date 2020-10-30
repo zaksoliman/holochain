@@ -104,3 +104,11 @@ impl HashableContent for Entry {
         }
     }
 }
+
+use holochain_diagnostics::dump::{Record, Tabular};
+
+impl Tabular for Entry {
+    fn tabular(&self) -> Record {
+        todo!()
+    }
+}
