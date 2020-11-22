@@ -1,23 +1,21 @@
 [workspace]
 members = [
-  "crates/dna_util",
+  # "crates/dna_util",
   "crates/fixt",
   "crates/fixt/test",
-  "crates/hdk",
+  # "crates/hdk",
   "crates/holo_hash",
-  "crates/holochain",
-  "crates/holochain_p2p",
+  "crates/holochain_state",
+  # "crates/holochain_p2p",
   "crates/keystore",
   "crates/kitsune_p2p/kitsune_p2p",
   "crates/kitsune_p2p/transport_quic",
   "crates/kitsune_p2p/types",
   "crates/kitsune_p2p/proxy",
-  "crates/legacy",
-  "crates/state",
-  "crates/test_utils/wasm",
-  "crates/test_utils/wasm_common",
-  "crates/types",
-  "crates/websocket",
+  # "crates/legacy",
+  # "crates/test_utils/wasm",
+  # "crates/test_utils/wasm_common",
+  # "crates/websocket",
 ]
 
 exclude = [
