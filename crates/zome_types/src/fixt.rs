@@ -4,6 +4,7 @@ use ::fixt::prelude::*;
 use holo_hash::EntryHash;
 use holochain_serialized_bytes::prelude::SerializedBytes;
 
+use crate::cell::CellId;
 use crate::entry_def::EntryVisibility;
 use crate::header::*;
 use crate::link::LinkTag;
@@ -172,3 +173,9 @@ impl Iterator for DeleteLinkFixturator<KnownDeleteLink> {
         Some(f)
     }
 }
+
+
+fixturator!(
+    CellId;
+    constructor fn new(DnaHash, AgentPubKey);
+);

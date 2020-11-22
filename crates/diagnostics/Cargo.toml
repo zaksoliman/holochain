@@ -11,7 +11,7 @@ anyhow = "1.0"
 fallible-iterator = "0.2"
 holochain = { path = "../holochain" }
 holochain_keystore = { path = "../keystore"}
-holochain_state = { path = "../state"}
+holochain_state = { path = "../holochain_state"}
 holochain_types = { path = "../types"}
 rkv = "0.10.4"
 structopt = "0.3"
