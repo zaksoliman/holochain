@@ -49,7 +49,7 @@ use holochain_keystore::{
     lair_keystore::spawn_lair_keystore, test_keystore::spawn_test_keystore, KeystoreSender,
     KeystoreSenderExt,
 };
-use holochain_state::{
+use holochain_lmdb::{
     buffer::BufferedStore,
     buffer::{KvStore, KvStoreT},
     db,
@@ -592,9 +592,9 @@ where
         impl IntoIterator<Item = (EntryDefBufferKey, EntryDef)>,
     )> {
         let environ = &self.wasm_env;
-        let wasm = environ.get_db(&*holochain_state::db::WASM)?;
-        let dna_def_db = environ.get_db(&*holochain_state::db::DNA_DEF)?;
-        let entry_def_db = environ.get_db(&*holochain_state::db::ENTRY_DEF)?;
+        let wasm = environ.get_db(&*holochain_lmdb::db::WASM)?;
+        let dna_def_db = environ.get_db(&*holochain_lmdb::db::DNA_DEF)?;
+        let entry_def_db = environ.get_db(&*holochain_lmdb::db::ENTRY_DEF)?;
 
         let wasm_buf = Arc::new(WasmBuf::new(environ.clone().into(), wasm)?);
         let dna_def_buf = DnaDefBuf::new(environ.clone().into(), dna_def_db)?;
@@ -743,9 +743,9 @@ where
         dna: DnaFile,
     ) -> ConductorResult<Vec<(EntryDefBufferKey, EntryDef)>> {
         let environ = self.wasm_env.clone();
-        let wasm = environ.get_db(&*holochain_state::db::WASM)?;
-        let dna_def_db = environ.get_db(&*holochain_state::db::DNA_DEF)?;
-        let entry_def_db = environ.get_db(&*holochain_state::db::ENTRY_DEF)?;
+        let wasm = environ.get_db(&*holochain_lmdb::db::WASM)?;
+        let dna_def_db = environ.get_db(&*holochain_lmdb::db::DNA_DEF)?;
+        let entry_def_db = environ.get_db(&*holochain_lmdb::db::ENTRY_DEF)?;
 
         let zome_defs = get_entry_defs(dna.clone())?;
 
@@ -888,7 +888,7 @@ mod builder {
 
     use super::*;
     use crate::conductor::{dna_store::RealDnaStore, ConductorHandle};
-    use holochain_state::{env::EnvironmentKind, test_utils::TestEnvironments};
+    use holochain_lmdb::{env::EnvironmentKind, test_utils::TestEnvironments};
 
     /// A configurable Builder for Conductor and sometimes ConductorHandle
     #[derive(Default)]
@@ -1123,7 +1123,7 @@ pub mod tests {
     use super::*;
     use super::{Conductor, ConductorState};
     use crate::conductor::dna_store::MockDnaStore;
-    use holochain_state::test_utils::test_environments;
+    use holochain_lmdb::test_utils::test_environments;
     use holochain_types::test_utils::fake_cell_id;
     use matches::assert_matches;
 

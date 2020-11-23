@@ -12,9 +12,9 @@ use crate::{
         workflow::error::WorkflowError,
     },
 };
+use holochain_lmdb::error::DatabaseError;
 use holochain_serialized_bytes::prelude::*;
-use holochain_state::error::DatabaseError;
-use holochain_types::cell::CellId;
+use holochain_zome_types::cell::CellId;
 use thiserror::Error;
 
 /// Errors occurring during a [CellConductorApi] or [InterfaceApi] call
@@ -61,7 +61,7 @@ pub enum ConductorApiError {
 
     /// DnaError
     #[error("DnaError: {0}")]
-    DnaError(#[from] holochain_types::dna::DnaError),
+    DnaError(#[from] holochain_nucleus::dna::DnaError),
 
     /// The Dna file path provided was invalid
     #[error("The Dna file path provided was invalid")]

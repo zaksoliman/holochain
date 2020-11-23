@@ -1,6 +1,6 @@
 use call_zome_workflow::CallZomeWorkspaceLock;
 use holochain_p2p::HolochainP2pCell;
-use holochain_state::{env::EnvironmentRead, error::DatabaseResult, prelude::*};
+use holochain_lmdb::{env::EnvironmentRead, error::DatabaseResult, prelude::*};
 use holochain_types::{dna::DnaFile, HeaderHashed};
 
 use crate::core::{

@@ -50,7 +50,7 @@ pub use error::*;
 use fallible_iterator::FallibleIterator;
 use holo_hash::{AgentPubKey, DhtOpHash};
 use holochain_p2p::{actor::GetActivityOptions, HolochainP2pCell, HolochainP2pCellT};
-use holochain_state::{
+use holochain_lmdb::{
     buffer::{BufferedStore, KvBufFresh},
     db::{INTEGRATED_DHT_OPS, INTEGRATION_LIMBO},
     fresh_reader,

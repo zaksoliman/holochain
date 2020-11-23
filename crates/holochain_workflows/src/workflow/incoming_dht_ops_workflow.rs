@@ -18,7 +18,7 @@ use crate::core::{
     },
 };
 use holo_hash::{AgentPubKey, DhtOpHash};
-use holochain_state::{
+use holochain_lmdb::{
     buffer::BufferedStore,
     buffer::KvBufFresh,
     db::{INTEGRATED_DHT_OPS, INTEGRATION_LIMBO},

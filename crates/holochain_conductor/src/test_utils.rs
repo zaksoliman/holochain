@@ -23,7 +23,7 @@ use holochain_p2p::{
     HolochainP2pRef, HolochainP2pSender,
 };
 use holochain_serialized_bytes::{SerializedBytes, SerializedBytesError, UnsafeBytes};
-use holochain_state::{
+use holochain_lmdb::{
     env::EnvironmentWrite, fresh_reader_test, test_utils::test_environments,
     test_utils::TestEnvironments,
 };

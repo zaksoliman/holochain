@@ -23,7 +23,7 @@ pub use call_zome_workspace_lock::CallZomeWorkspaceLock;
 use either::Either;
 use holochain_keystore::KeystoreSender;
 use holochain_p2p::HolochainP2pCell;
-use holochain_state::prelude::*;
+use holochain_lmdb::prelude::*;
 use holochain_types::element::Element;
 use holochain_zome_types::entry::GetOptions;
 use holochain_zome_types::header::Header;
@@ -35,10 +35,6 @@ pub mod call_zome_workspace_lock;
 
 #[cfg(test)]
 mod validation_test;
-
-/// Placeholder for the return value of a zome invocation
-/// TODO: do we want this to be the same as ZomeCallInvocationRESPONSE?
-pub type ZomeCallInvocationResult = RibosomeResult<ZomeCallResponse>;
 
 #[derive(Debug)]
 pub struct CallZomeWorkflowArgs<Ribosome: RibosomeT, C: CellConductorApiT> {
@@ -248,73 +244,6 @@ async fn call_zome_workflow_inner<'env, Ribosome: RibosomeT, C: CellConductorApi
     Ok(result)
 }
 
-pub struct CallZomeWorkspace {
-    pub source_chain: SourceChain,
-    pub meta_authored: MetadataBuf<AuthoredPrefix>,
-    pub element_integrated: ElementBuf<IntegratedPrefix>,
-    pub meta_integrated: MetadataBuf<IntegratedPrefix>,
-    pub element_cache: ElementBuf,
-    pub meta_cache: MetadataBuf,
-}
-
-impl<'a> CallZomeWorkspace {
-    pub fn new(env: EnvironmentRead) -> WorkspaceResult<Self> {
-        let source_chain = SourceChain::new(env.clone())?;
-        let meta_authored = MetadataBuf::authored(env.clone())?;
-        let element_integrated = ElementBuf::vault(env.clone(), true)?;
-        let meta_integrated = MetadataBuf::vault(env.clone())?;
-        let element_cache = ElementBuf::cache(env.clone())?;
-        let meta_cache = MetadataBuf::cache(env)?;
-
-        Ok(CallZomeWorkspace {
-            source_chain,
-            meta_authored,
-            element_integrated,
-            meta_integrated,
-            element_cache,
-            meta_cache,
-        })
-    }
-
-    pub fn cascade(&'a mut self, network: HolochainP2pCell) -> Cascade<'a> {
-        Cascade::new(
-            self.source_chain.env().clone(),
-            &self.source_chain.elements(),
-            &self.meta_authored,
-            &self.element_integrated,
-            &self.meta_integrated,
-            &mut self.element_cache,
-            &mut self.meta_cache,
-            network,
-        )
-    }
-
-    /// Cascade without a network connection
-    pub fn cascade_local(&'a mut self) -> Cascade<'a> {
-        let authored_data = DbPair::new(&self.source_chain.elements(), &self.meta_authored);
-        let cache_data = DbPairMut::new(&mut self.element_cache, &mut self.meta_cache);
-        let integrated_data = DbPair::new(&self.element_integrated, &self.meta_integrated);
-        Cascade::empty()
-            .with_authored(authored_data)
-            .with_cache(cache_data)
-            .with_integrated(integrated_data)
-    }
-
-    pub fn env(&self) -> &EnvironmentRead {
-        self.meta_authored.env()
-    }
-}
-
-impl Workspace for CallZomeWorkspace {
-    fn flush_to_txn_ref(&mut self, writer: &mut Writer) -> WorkspaceResult<()> {
-        self.source_chain.flush_to_txn_ref(writer)?;
-        self.meta_authored.flush_to_txn_ref(writer)?;
-        self.element_cache.flush_to_txn_ref(writer)?;
-        self.meta_cache.flush_to_txn_ref(writer)?;
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -328,7 +257,7 @@ pub mod tests {
     use holo_hash::fixt::*;
     use holochain_p2p::HolochainP2pCellFixturator;
     use holochain_serialized_bytes::prelude::*;
-    use holochain_state::{env::ReadManager, test_utils::test_cell_env};
+    use holochain_lmdb::{env::ReadManager, test_utils::test_cell_env};
     use holochain_types::{cell::CellId, observability, test_utils::fake_agent_pubkey_1};
     use holochain_wasm_test_utils::TestWasm;
     use holochain_zome_types::entry::Entry;
@@ -424,7 +353,7 @@ pub mod tests {
     // - Check entry content matches entry schema
     //   Depending on the type of the commit, validate all possible validations for the
     //   DHT Op that would be produced by it
-    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation 
+    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation
     complete so we aren't duplicating the unit test inside sys val."]
     #[tokio::test]
     async fn calls_system_validation<'a>() {

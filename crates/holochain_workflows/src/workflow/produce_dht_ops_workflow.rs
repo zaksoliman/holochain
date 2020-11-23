@@ -5,7 +5,7 @@ use crate::core::state::{
     source_chain::SourceChain,
     workspace::{Workspace, WorkspaceResult},
 };
-use holochain_state::{
+use holochain_lmdb::{
     buffer::KvBufFresh,
     db::AUTHORED_DHT_OPS,
     prelude::{BufferedStore, EnvironmentRead, GetDb, Writer},
@@ -91,7 +91,7 @@ mod tests {
     use fallible_iterator::FallibleIterator;
     use holo_hash::*;
 
-    use holochain_state::{
+    use holochain_lmdb::{
         env::{ReadManager, WriteManager},
         test_utils::test_cell_env,
     };

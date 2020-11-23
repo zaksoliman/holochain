@@ -36,6 +36,8 @@ pub mod metadata;
 pub mod migrate_agent;
 #[allow(missing_docs)]
 pub mod post_commit;
+#[allow(missing_docs)]
+pub mod prelude;
 pub mod query;
 pub mod request;
 pub mod signature;
@@ -58,8 +60,8 @@ pub mod fixt;
 
 pub mod test_utils;
 
-pub use entry::Entry;
-pub use header::Header;
+pub use entry::{Entry, EntryHashed};
+pub use header::{Header, HeaderHashed};
 use holochain_serialized_bytes::prelude::*;
 pub use zome_io::*;
 

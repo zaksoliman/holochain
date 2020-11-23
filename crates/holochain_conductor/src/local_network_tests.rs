@@ -4,7 +4,7 @@ use hdk3::prelude::{CellId, WasmError};
 use holo_hash::AgentPubKey;
 use holochain_keystore::AgentPubKeyExt;
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::env::EnvironmentWrite;
+use holochain_lmdb::env::EnvironmentWrite;
 use holochain_types::{
     app::InstalledCell,
     dna::{DnaDef, DnaFile},

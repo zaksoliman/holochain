@@ -17,8 +17,8 @@ use crate::core::{
     },
 };
 use derive_more::Constructor;
-use holochain_state::prelude::*;
-use holochain_types::dna::DnaFile;
+use holochain_lmdb::prelude::*;
+use holochain_nucleus::dna::DnaFile;
 use holochain_types::prelude::*;
 use tracing::*;
 
@@ -112,7 +112,7 @@ pub mod tests {
         core::{state::source_chain::SourceChain, SourceChainResult},
     };
     use fallible_iterator::FallibleIterator;
-    use holochain_state::test_utils::test_cell_env;
+    use holochain_lmdb::test_utils::test_cell_env;
     use holochain_types::{
         observability,
         test_utils::{fake_agent_pubkey_1, fake_dna_file},

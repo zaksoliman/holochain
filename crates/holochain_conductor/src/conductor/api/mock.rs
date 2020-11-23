@@ -11,7 +11,7 @@ use crate::core::workflow::ZomeCallInvocationResult;
 use async_trait::async_trait;
 use holo_hash::DnaHash;
 use holochain_keystore::KeystoreSender;
-use holochain_types::dna::DnaFile;
+use holochain_nucleus::dna::DnaFile;
 use holochain_types::{autonomic::AutonomicCue, cell::CellId};
 use holochain_zome_types::entry_def::EntryDef;
 use mockall::mock;

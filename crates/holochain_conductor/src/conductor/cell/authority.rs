@@ -9,7 +9,7 @@ use crate::{
 use fallible_iterator::FallibleIterator;
 
 use holo_hash::{AgentPubKey, EntryHash, HeaderHash};
-use holochain_state::{
+use holochain_lmdb::{
     env::EnvironmentRead,
     env::{EnvironmentWrite, ReadManager},
     error::DatabaseError,
@@ -377,7 +377,7 @@ fn _show_agent_activity_read_times(env: EnvironmentRead, agent: AgentPubKey) {
     }
     let element_integrated = ElementBuf::vault(env.clone(), false).unwrap();
     let meta_integrated = MetadataBuf::vault(env.clone()).unwrap();
-    holochain_state::fresh_reader_test!(env, |r| {
+    holochain_lmdb::fresh_reader_test!(env, |r| {
         let now = std::time::Instant::now();
         let hashes = meta_integrated
             .get_activity_sequence(

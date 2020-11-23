@@ -4,11 +4,11 @@ use fallible_iterator::FallibleIterator;
 use holo_hash::{AgentPubKey, DnaHash};
 use holochain_p2p::kitsune_p2p::agent_store::AgentInfo;
 use holochain_p2p::kitsune_p2p::agent_store::AgentInfoSigned;
-use holochain_state::{buffer::KvStore, buffer::KvStoreT, fresh_reader};
-use holochain_state::{db::GetDb, prelude::Readable};
-use holochain_state::{env::EnvironmentRead, error::DatabaseError};
-use holochain_state::{env::EnvironmentWrite, error::DatabaseResult};
-use holochain_state::{env::WriteManager, key::BufKey};
+use holochain_lmdb::{buffer::KvStore, buffer::KvStoreT, fresh_reader};
+use holochain_lmdb::{db::GetDb, prelude::Readable};
+use holochain_lmdb::{env::EnvironmentRead, error::DatabaseError};
+use holochain_lmdb::{env::EnvironmentWrite, error::DatabaseResult};
+use holochain_lmdb::{env::WriteManager, key::BufKey};
 use std::convert::TryInto;
 
 const AGENT_KEY_LEN: usize = 64;
@@ -38,11 +38,11 @@ impl Ord for AgentKvKey {
 }
 
 impl std::convert::TryFrom<&AgentInfoSigned> for AgentKvKey {
-    type Error = holochain_state::error::DatabaseError;
+    type Error = holochain_lmdb::error::DatabaseError;
     fn try_from(agent_info_signed: &AgentInfoSigned) -> Result<Self, Self::Error> {
         let agent_info: AgentInfo = agent_info_signed
             .try_into()
-            .map_err(|_| holochain_state::error::DatabaseError::KeyConstruction)?;
+            .map_err(|_| holochain_lmdb::error::DatabaseError::KeyConstruction)?;
         Ok((&agent_info).into())
     }
 }
@@ -112,7 +112,7 @@ impl AsRef<KvStore<AgentKvKey, AgentInfoSigned>> for AgentKv {
 impl AgentKv {
     /// Constructor.
     pub fn new(env: EnvironmentRead) -> DatabaseResult<Self> {
-        let db = env.get_db(&*holochain_state::db::AGENT)?;
+        let db = env.get_db(&*holochain_lmdb::db::AGENT)?;
         Ok(Self(KvStore::new(db)))
     }
 
@@ -188,10 +188,10 @@ mod tests {
 
     use super::*;
     use fixt::prelude::*;
-    use holochain_state::env::ReadManager;
-    use holochain_state::env::WriteManager;
-    use holochain_state::test_utils::test_p2p_env;
-    use holochain_state::{buffer::KvStoreT, fresh_reader_test};
+    use holochain_lmdb::env::ReadManager;
+    use holochain_lmdb::env::WriteManager;
+    use holochain_lmdb::test_utils::test_p2p_env;
+    use holochain_lmdb::{buffer::KvStoreT, fresh_reader_test};
     use kitsune_p2p::fixt::AgentInfoFixturator;
     use kitsune_p2p::fixt::AgentInfoSignedFixturator;
     use kitsune_p2p::KitsuneBinType;

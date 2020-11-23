@@ -1,6 +1,6 @@
 use super::entry_def_store::EntryDefBufferKey;
 use fallible_iterator::FallibleIterator;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::CasBufFreshAsync,
     env::EnvironmentRead,
     error::{DatabaseError, DatabaseResult},

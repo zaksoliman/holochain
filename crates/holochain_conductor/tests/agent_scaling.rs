@@ -6,8 +6,8 @@ use holochain::{
 };
 use holochain_keystore::keystore_actor::KeystoreSenderExt;
 use holochain_serialized_bytes::prelude::*;
-use holochain_state::test_utils::test_environments;
-use holochain_types::dna::{DnaDef, DnaFile};
+use holochain_lmdb::test_utils::test_environments;
+use holochain_nucleus::dna::{DnaDef, DnaFile};
 use holochain_wasm_test_utils::TestWasm;
 use holochain_zome_types::{ExternInput, ZomeCallResponse};
 use unwrap_to::unwrap_to;

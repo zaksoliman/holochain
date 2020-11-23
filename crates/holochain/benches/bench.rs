@@ -1,7 +1,7 @@
-use ::fixt::prelude::*;
 use criterion::BenchmarkId;
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, Criterion};
+use fixt::prelude::*;
 use hdk3::prelude::*;
 use holo_hash::fixt::AgentPubKeyFixturator;
 use holochain::core::ribosome::RibosomeT;
@@ -33,7 +33,7 @@ static WASM_RIBOSOME: Lazy<Mutex<holochain::core::ribosome::wasm_ribosome::WasmR
         )
     });
 
-static CELL_ID: Lazy<Mutex<holochain_types::cell::CellId>> = Lazy::new(|| {
+static CELL_ID: Lazy<Mutex<holochain_zome_types::cell::CellId>> = Lazy::new(|| {
     Mutex::new(
         holochain_types::fixt::CellIdFixturator::new(Unpredictable)
             .next()

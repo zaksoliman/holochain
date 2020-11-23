@@ -26,9 +26,6 @@ pub struct CellConductorApi {
     cell_id: CellId,
 }
 
-/// A handle that cn only call zome functions to avoid
-/// making write lock calls
-pub type CellConductorReadHandle = Arc<dyn CellConductorReadHandleT>;
 
 impl CellConductorApi {
     /// Instantiate from a Conductor reference and a CellId to identify which Cell
@@ -141,20 +138,6 @@ pub trait CellConductorApiT: Clone + Send + Sync + Sized {
 
     /// Turn this into a call zome handle
     fn into_call_zome_handle(self) -> CellConductorReadHandle;
-}
-
-#[async_trait]
-/// A handle that cn only call zome functions to avoid
-/// making write lock calls
-pub trait CellConductorReadHandleT: Send + Sync {
-    /// Get this cell id
-    fn cell_id(&self) -> &CellId;
-    /// Invoke a zome function on a Cell
-    async fn call_zome(
-        &self,
-        invocation: ZomeCallInvocation,
-        workspace_lock: &CallZomeWorkspaceLock,
-    ) -> ConductorApiResult<ZomeCallInvocationResult>;
 }
 
 #[async_trait]

@@ -46,7 +46,7 @@ use hash_type::AnyDht;
 use holo_hash::*;
 use holochain_p2p::HolochainP2pCellT;
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::{
+use holochain_lmdb::{
     db::GetDb,
     env::{EnvironmentRead, EnvironmentWrite, ReadManager},
 };

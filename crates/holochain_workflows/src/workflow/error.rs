@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use holochain_p2p::HolochainP2pError;
-use holochain_state::error::DatabaseError;
+use holochain_lmdb::error::DatabaseError;
 use holochain_types::{dht_op::error::DhtOpError, prelude::*};
 use thiserror::Error;
 

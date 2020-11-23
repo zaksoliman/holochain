@@ -24,7 +24,7 @@ use error::{WorkflowError, WorkflowResult};
 use fallible_iterator::FallibleIterator;
 use holo_hash::DhtOpHash;
 use holochain_p2p::{HolochainP2pCell, HolochainP2pCellT};
-use holochain_state::{
+use holochain_lmdb::{
     buffer::{BufferedStore, KvBufFresh},
     db::INTEGRATION_LIMBO,
     fresh_reader,

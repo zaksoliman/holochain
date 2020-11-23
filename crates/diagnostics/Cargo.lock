@@ -474,7 +474,7 @@ dependencies = [
  "fallible-iterator",
  "holochain",
  "holochain_keystore",
- "holochain_state",
+ "holochain_lmdb",
  "holochain_types",
  "rkv",
  "structopt",
@@ -917,7 +917,7 @@ dependencies = [
  "holochain_legacy",
  "holochain_p2p",
  "holochain_serialized_bytes",
- "holochain_state",
+ "holochain_lmdb",
  "holochain_types",
  "holochain_wasm_test_utils",
  "holochain_wasmer_host",
@@ -1032,7 +1032,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "holochain_state"
+name = "holochain_lmdb"
 version = "0.0.1"
 dependencies = [
  "anyhow",

@@ -11,7 +11,7 @@ use crate::conductor::{api::CellConductorApiT, entry_def_store::get_entry_def};
 use fallible_iterator::FallibleIterator;
 use holochain_keystore::AgentPubKeyExt;
 use holochain_p2p::HolochainP2pCell;
-use holochain_state::{env::EnvironmentWrite, error::DatabaseResult, fresh_reader};
+use holochain_lmdb::{env::EnvironmentWrite, error::DatabaseResult, fresh_reader};
 use holochain_types::{dht_op::DhtOp, header::NewEntryHeaderRef, Entry};
 use holochain_zome_types::{
     element::ElementEntry, signature::Signature, validate::ValidationStatus,

@@ -144,7 +144,7 @@ async fn call_admin() {
     let original_dna_hash = dna.dna_hash().clone();
 
     // Make properties
-    let properties: holochain_types::dna::JsonProperties = serde_json::json!({
+    let properties: holochain_nucleus::dna::JsonProperties = serde_json::json!({
         "test": "example",
         "how_many": 42,
     })
@@ -177,7 +177,7 @@ async fn call_admin() {
     let tmp_wasm = dna.code().values().cloned().collect::<Vec<_>>();
     let mut tmp_dna = dna.dna().clone();
     tmp_dna.properties = properties.try_into().unwrap();
-    let dna = holochain_types::dna::DnaFile::new(tmp_dna, tmp_wasm)
+    let dna = holochain_nucleus::dna::DnaFile::new(tmp_dna, tmp_wasm)
         .await
         .unwrap();
 

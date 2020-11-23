@@ -26,7 +26,7 @@ use fallible_iterator::FallibleIterator;
 use holo_hash::*;
 use holochain_p2p::HolochainP2pCell;
 use holochain_p2p::HolochainP2pCellT;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::{BufferedStore, KvBufFresh},
     db::AUTHORED_DHT_OPS,
     fresh_reader,
@@ -189,7 +189,7 @@ mod tests {
     use futures::future::FutureExt;
     use holo_hash::fixt::*;
     use holochain_p2p::{actor::HolochainP2pSender, HolochainP2pRef};
-    use holochain_state::{
+    use holochain_lmdb::{
         buffer::BufferedStore,
         env::{EnvironmentWrite, ReadManager, WriteManager},
         error::DatabaseError,

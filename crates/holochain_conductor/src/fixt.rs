@@ -31,18 +31,18 @@ use crate::core::ribosome::ZomesToInvoke;
 use crate::core::state::metadata::LinkMetaVal;
 use crate::core::workflow::CallZomeWorkspace;
 use crate::core::workflow::CallZomeWorkspaceLock;
-use ::fixt::prelude::*;
+use fixt::prelude::*;
 pub use holo_hash::fixt::*;
 use holo_hash::EntryHash;
 use holo_hash::HeaderHash;
 use holo_hash::WasmHash;
 use holochain_keystore::keystore_actor::KeystoreSender;
+use holochain_lmdb::test_utils::test_keystore;
 use holochain_p2p::HolochainP2pCellFixturator;
-use holochain_state::test_utils::test_keystore;
-use holochain_types::dna::zome::Zome;
-use holochain_types::dna::DnaFile;
-use holochain_types::dna::Wasms;
-use holochain_types::dna::Zomes;
+use holochain_nucleus::dna::zome::Zome;
+use holochain_nucleus::dna::DnaFile;
+use holochain_nucleus::dna::Wasms;
+use holochain_nucleus::dna::Zomes;
 pub use holochain_types::fixt::*;
 use holochain_types::test_utils::fake_dna_zomes;
 use holochain_types::{cell::CellId, dna::wasm::DnaWasm};
@@ -287,7 +287,7 @@ fixturator!(
         //      It is assumed that this value is never really used in any "real"
         //      way, because previously, it was implemented as a null pointer
         //      wrapped in an UnsafeZomeCallWorkspace
-        let env = holochain_state::test_utils::test_cell_env();
+        let env = holochain_lmdb::test_utils::test_cell_env();
         CallZomeWorkspaceLock::new(CallZomeWorkspace::new(env.env().into()).unwrap())
     };
     curve Unpredictable {

@@ -22,7 +22,7 @@ use crate::core::{
 use error::WorkflowResult;
 use fallible_iterator::FallibleIterator;
 use holo_hash::{DhtOpHash, EntryHash, HeaderHash};
-use holochain_state::{
+use holochain_lmdb::{
     buffer::BufferedStore,
     buffer::KvBufFresh,
     db::{INTEGRATED_DHT_OPS, INTEGRATION_LIMBO},

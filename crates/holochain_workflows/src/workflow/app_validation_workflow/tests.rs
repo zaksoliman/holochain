@@ -15,7 +15,7 @@ use crate::{
 use fallible_iterator::FallibleIterator;
 use holo_hash::{AnyDhtHash, DhtOpHash, EntryHash, HeaderHash};
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::{env::EnvironmentWrite, fresh_reader_test};
+use holochain_lmdb::{env::EnvironmentWrite, fresh_reader_test};
 use holochain_types::{
     app::InstalledCell, cell::CellId, dht_op::DhtOpLight, dna::DnaDef, dna::DnaFile,
     test_utils::fake_agent_pubkey_1, test_utils::fake_agent_pubkey_2, validate::ValidationStatus,

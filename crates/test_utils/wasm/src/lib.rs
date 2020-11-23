@@ -1,8 +1,8 @@
-use holochain_types::dna::wasm::DnaWasm;
+use holochain_nucleus::dna::wasm::DnaWasm;
 pub extern crate strum;
 #[macro_use]
 extern crate strum_macros;
-use holochain_types::dna::zome::Zome;
+use holochain_nucleus::dna::zome::Zome;
 use holochain_zome_types::zome::ZomeName;
 
 const WASM_WORKSPACE_TARGET: &str = "wasm_workspace/target";
@@ -215,9 +215,10 @@ impl From<TestWasm> for Zome {
     fn from(test_wasm: TestWasm) -> Self {
         tokio_safe_block_on::tokio_safe_block_forever_on(async move {
             let dna_wasm: DnaWasm = test_wasm.into();
-            let (_, wasm_hash) = holochain_types::dna::wasm::DnaWasmHashed::from_content(dna_wasm)
-                .await
-                .into_inner();
+            let (_, wasm_hash) =
+                holochain_nucleus::dna::wasm::DnaWasmHashed::from_content(dna_wasm)
+                    .await
+                    .into_inner();
             Self { wasm_hash }
         })
     }

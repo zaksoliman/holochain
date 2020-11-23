@@ -8,8 +8,8 @@ use crate::{
 };
 use holo_hash::{AnyDhtHash, HeaderHash};
 use holochain_keystore::KeystoreError;
-use holochain_state::error::DatabaseError;
-use holochain_types::cell::CellId;
+use holochain_lmdb::error::DatabaseError;
+use holochain_zome_types::cell::CellId;
 use holochain_zome_types::signature::Signature;
 use holochain_zome_types::{
     header::{AppEntryType, EntryType},

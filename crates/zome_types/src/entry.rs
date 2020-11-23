@@ -8,7 +8,7 @@
 use crate::capability::CapClaim;
 use crate::capability::CapGrant;
 use crate::capability::ZomeCallCapGrant;
-use holo_hash::{hash_type, AgentPubKey, HashableContent, HashableContentBytes};
+use holo_hash::{hash_type, AgentPubKey, HashableContent, HashableContentBytes, HoloHashed};
 use holochain_serialized_bytes::prelude::*;
 
 mod app_entry_bytes;
@@ -83,6 +83,9 @@ impl Entry {
         Ok(Entry::App(AppEntryBytes::try_from(sb.try_into()?)?))
     }
 }
+
+/// Alias for an Entry with its hash.
+pub type EntryHashed = HoloHashed<Entry>;
 
 impl HashableContent for Entry {
     type HashType = hash_type::Entry;
