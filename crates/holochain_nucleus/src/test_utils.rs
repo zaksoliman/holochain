@@ -13,23 +13,6 @@ use std::path::PathBuf;
 
 pub use holochain_zome_types::test_utils::*;
 
-#[derive(Serialize, Deserialize, SerializedBytes)]
-struct FakeProperties {
-    test: String,
-}
-
-/// simple DnaWasm fixture
-pub fn fake_dna_wasm() -> DnaWasm {
-    DnaWasm::from(vec![0_u8])
-}
-
-/// simple Zome fixture
-pub fn fake_zome() -> Zome {
-    Zome {
-        wasm_hash: holo_hash::WasmHash::from_raw_32(vec![0; 32]),
-    }
-}
-
 /// A fixture example dna for unit testing.
 pub fn fake_dna_file(uuid: &str) -> DnaFile {
     fake_dna_zomes(uuid, vec![("test".into(), vec![].into())])
@@ -81,9 +64,4 @@ pub fn which_agent(key: &AgentPubKey) -> String {
         return "bob".to_string();
     }
     key
-}
-
-/// A fixture CapSecret for unit testing.
-pub fn fake_cap_secret() -> CapSecret {
-    [0; CAP_SECRET_BYTES].into()
 }

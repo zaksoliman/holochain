@@ -1,15 +1,13 @@
 [package]
-name = "holochain_elements"
+name = "holochain_types"
 version = "0.0.1"
-description = "Holochain types for Elements, Headers, and Entries"
+description = "Holochain types that didn't belong in holochain_zome_types (TODO: strengthen the identity of this crate)"
 license = "CAL-1.0"
 homepage = "https://github.com/holochain/holochain"
 documentation = "https://github.com/holochain/holochain"
 readme = "README.md"
 authors = [ "Holochain Core Dev Team <devcore@holochain.org>" ]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.26"
@@ -24,7 +22,7 @@ futures = "0.3"
 holo_hash = { version = "0.0.1", path = "../holo_hash" }
 holochain_keystore = { version = "0.0.1", path = "../keystore" }
 holochain_serialized_bytes = "=0.0.45"
-holochain_zome_types = { path = "../zome_types", features = ["fixturators"] }
+holochain_zome_types = { path = "../holochain_zome_types", features = ["fixturators"] }
 lazy_static = "1.4.0"
 must_future = "0.1.1"
 nanoid = "0.3"

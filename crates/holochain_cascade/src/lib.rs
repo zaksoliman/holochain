@@ -19,6 +19,7 @@ use holochain_p2p::{
     HolochainP2pCell,
 };
 use holochain_lmdb::{error::DatabaseResult, fresh_reader, prelude::*};
+use holochain_nucleus::state::cascade::{DbPair, DbPairMut};
 use holochain_types::{
     activity::{AgentActivity, ChainItems},
     chain::AgentActivityExt,
@@ -47,11 +48,6 @@ use tracing::*;
 use tracing_futures::Instrument;
 
 #[cfg(test)]
-mod authored_test;
-#[cfg(test)]
-mod network_tests;
-
-#[cfg(all(test, outdated_tests))]
 mod test;
 
 pub mod error;
@@ -108,31 +104,6 @@ macro_rules! search_all {
         }
         Ok(None)
     }};
-}
-
-/// A pair containing an element buf and metadata buf
-/// with the same prefix.
-/// The default IntegratedPrefix is for databases that don't
-/// actually use prefixes (like the cache). In this case we just
-/// choose the first one (IntegratedPrefix)
-#[derive(derive_more::Constructor)]
-pub struct DbPair<'a, M, P = IntegratedPrefix>
-where
-    P: PrefixType,
-    M: MetadataBufT<P>,
-{
-    pub element: &'a ElementBuf<P>,
-    pub meta: &'a M,
-}
-
-#[derive(derive_more::Constructor)]
-pub struct DbPairMut<'a, M, P = IntegratedPrefix>
-where
-    P: PrefixType,
-    M: MetadataBufT<P>,
-{
-    pub element: &'a mut ElementBuf<P>,
-    pub meta: &'a mut M,
 }
 
 pub struct Cascade<

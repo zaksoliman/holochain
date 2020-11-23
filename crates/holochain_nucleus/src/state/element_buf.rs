@@ -7,7 +7,7 @@
 /// using the ElementBuf for caching non-authored data, or for situations where
 /// it is known that private entries should be protected, such as when handling
 /// a get_entry request from the network.
-use crate::core::state::source_chain::SourceChainResult;
+use crate::source_chain::SourceChainResult;
 use holo_hash::{EntryHash, HasHash, HeaderHash};
 use holochain_lmdb::{
     buffer::CasBufFreshSync,

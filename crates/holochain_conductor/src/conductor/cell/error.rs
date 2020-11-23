@@ -10,8 +10,8 @@ use crate::{
         SourceChainError,
     },
 };
-use holochain_p2p::HolochainP2pError;
 use holochain_lmdb::error::DatabaseError;
+use holochain_p2p::HolochainP2pError;
 use holochain_types::{cell::CellId, header::error::HeaderError};
 use holochain_zome_types::header::conversions::WrongHeaderError;
 use std::path::PathBuf;
@@ -40,7 +40,7 @@ pub enum CellError {
     #[error(transparent)]
     WorkflowError(#[from] Box<WorkflowError>),
     #[error(transparent)]
-    WorkspaceError(#[from] crate::core::state::workspace::WorkspaceError),
+    WorkspaceError(#[from] holochain_nucleus::state::workspace::WorkspaceError),
     #[error(transparent)]
     RibosomeError(#[from] RibosomeError),
     #[error(transparent)]

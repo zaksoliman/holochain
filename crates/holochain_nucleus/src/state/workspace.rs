@@ -7,7 +7,8 @@ use super::source_chain::SourceChainError;
 use holochain_lmdb::{error::DatabaseError, prelude::Writer};
 use thiserror::Error;
 
-pub mod call_zome;
+mod call_zome;
+pub use call_zome::*;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
@@ -45,7 +46,7 @@ pub trait Workspace: Send + Sized {
 pub mod tests {
 
     use super::Workspace;
-    use crate::core::state::workspace::WorkspaceResult;
+    use crate::workspace::WorkspaceResult;
     use holochain_lmdb::{
         buffer::{BufferedStore, KvBufFresh},
         db::{GetDb, ELEMENT_VAULT_HEADERS, ELEMENT_VAULT_PUBLIC_ENTRIES},

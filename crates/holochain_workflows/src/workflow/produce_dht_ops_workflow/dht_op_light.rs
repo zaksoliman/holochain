@@ -1,4 +1,4 @@
-use crate::core::state::element_buf::ElementBuf;
+use holochain_nucleus::state::element_buf::ElementBuf;
 use error::{DhtOpConvertError, DhtOpConvertResult};
 use holo_hash::{EntryHash, HeaderHash};
 use holochain_types::{

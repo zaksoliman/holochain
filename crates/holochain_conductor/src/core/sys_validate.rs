@@ -24,7 +24,7 @@ use holochain_zome_types::{
 };
 use std::convert::TryInto;
 
-pub use crate::core::state::source_chain::{SourceChainError, SourceChainResult};
+pub use holochain_nucleus::state::source_chain::{SourceChainError, SourceChainResult};
 pub(super) use error::*;
 
 pub use holo_hash::*;

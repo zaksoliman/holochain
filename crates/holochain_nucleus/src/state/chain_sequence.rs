@@ -7,7 +7,7 @@
 ///
 /// When committing the ChainSequence db, a special step is taken to ensure source chain consistency.
 /// If the chain head has moved since the db was created, committing the transaction fails with a special error type.
-use crate::core::state::source_chain::{SourceChainError, SourceChainResult};
+use crate::source_chain::{SourceChainError, SourceChainResult};
 use fallible_iterator::DoubleEndedFallibleIterator;
 use holo_hash::HeaderHash;
 use holochain_lmdb::{
@@ -194,7 +194,7 @@ impl BufferedStore for ChainSequenceBuf {
 pub mod tests {
 
     use super::{BufferedStore, ChainSequenceBuf, SourceChainError};
-    use crate::core::state::source_chain::SourceChainResult;
+    use crate::source_chain::SourceChainResult;
     use holo_hash::HeaderHash;
     use holochain_lmdb::{
         env::{ReadManager, WriteManager},
@@ -202,8 +202,8 @@ pub mod tests {
         prelude::*,
         test_utils::test_cell_env,
     };
-    use observability;
     use matches::assert_matches;
+    use observability;
 
     #[tokio::test(threaded_scheduler)]
     async fn chain_sequence_scratch_awareness() -> DatabaseResult<()> {

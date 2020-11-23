@@ -1,5 +1,5 @@
 //! the _host_ types used to track the status/result of validating entries
-//! c.f. _guest_ types for validation callbacks and packages across the wasm boudary in zome_types
+//! c.f. _guest_ types for validation callbacks and packages across the wasm boudary in holochain_zome_types
 
 use holochain_serialized_bytes::prelude::*;
 use holochain_zome_types::validate::ValidationPackage;

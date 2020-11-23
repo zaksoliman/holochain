@@ -1,5 +1,7 @@
 pub mod call_zome_workspace_lock;
 
+pub use call_zome_workspace_lock::CallZomeWorkspaceLock;
+
 pub struct CallZomeWorkspace {
     pub source_chain: SourceChain,
     pub meta_authored: MetadataBuf<AuthoredPrefix>,

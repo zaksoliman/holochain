@@ -8,7 +8,7 @@
 
 Current version: 0.0.1
 
-zome_types provides the types needed by Holochain application developers in their zome code, nothing more.
+holochain_zome_types provides the types needed by Holochain application developers in their zome code, nothing more.
 
 This crate is intentionally kept as minimal as possible, since it is typically included as a dependency in Holochain Zomes, which are distributed as chunks of Wasm. In contrast, the [holochain_types crate](https://crates.io/crates/holochain_types) contains more types which are used by Holochain itself.
 

@@ -66,14 +66,14 @@ macro_rules! here {
 #[macro_export]
 macro_rules! meta_mock {
     () => {{
-        $crate::core::state::metadata::MockMetadataBuf::new()
+        $holochain_nucleus::state::metadata::MockMetadataBuf::new()
     }};
     ($fun:ident) => {{
         let d: Vec<holochain_types::metadata::TimedHeaderHash> = Vec::new();
         meta_mock!($fun, d)
     }};
     ($fun:ident, $data:expr) => {{
-        let mut metadata = $crate::core::state::metadata::MockMetadataBuf::new();
+        let mut metadata = $holochain_nucleus::state::metadata::MockMetadataBuf::new();
         metadata.$fun().returning({
             move |_| {
                 Ok(Box::new(fallible_iterator::convert(
@@ -88,7 +88,7 @@ macro_rules! meta_mock {
         metadata
     }};
     ($fun:ident, $data:expr, $match_fn:expr) => {{
-        let mut metadata = $crate::core::state::metadata::MockMetadataBuf::new();
+        let mut metadata = $holochain_nucleus::state::metadata::MockMetadataBuf::new();
         metadata.$fun().returning({
             move |a| {
                 if $match_fn(a) {

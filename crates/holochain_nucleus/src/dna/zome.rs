@@ -76,3 +76,22 @@ impl HostFnAccess {
         }
     }
 }
+
+impl From<TestWasm> for Zome {
+    fn from(test_wasm: TestWasm) -> Self {
+        tokio_safe_block_on::tokio_safe_block_forever_on(async move {
+            let dna_wasm: DnaWasm = test_wasm.into();
+            let (_, wasm_hash) =
+                holochain_nucleus::dna::wasm::DnaWasmHashed::from_content(dna_wasm)
+                    .await
+                    .into_inner();
+            Self { wasm_hash }
+        })
+    }
+}
+
+impl From<TestWasm> for (ZomeName, Zome) {
+    fn from(test_wasm: TestWasm) -> Self {
+        (test_wasm.into(), test_wasm.into())
+    }
+}

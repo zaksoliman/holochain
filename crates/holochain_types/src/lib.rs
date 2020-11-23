@@ -5,34 +5,13 @@
 #![deny(missing_docs)]
 
 pub mod activity;
-pub mod app;
-pub mod autonomic;
 pub mod cell;
 pub mod chain;
 pub mod db;
-pub mod dht_op;
-pub mod dna;
-pub mod element;
-pub mod entry;
 pub mod fixt;
-pub mod header;
 pub mod link;
 mod macros;
-pub mod metadata;
 pub mod prelude;
-pub mod timestamp;
-pub mod universal_map;
 pub mod validate;
-
-// #[cfg(test)]
-pub mod test_utils;
-
-#[doc(inline)]
-pub use entry::{Entry, EntryHashed};
-
-#[doc(inline)]
-pub use header::HeaderHashed;
-
-pub use timestamp::{Timestamp, TimestampKey};
 
 pub use observability;

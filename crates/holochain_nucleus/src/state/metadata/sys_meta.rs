@@ -7,9 +7,7 @@ pub enum MetaGetStatus<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::state::metadata::{
-        EntryDhtStatus, MetadataBuf, MetadataBufT, TimedHeaderHash,
-    };
+    use crate::metadata::{EntryDhtStatus, MetadataBuf, MetadataBufT, TimedHeaderHash};
     use ::fixt::prelude::*;
     use fallible_iterator::FallibleIterator;
     use header::Create;

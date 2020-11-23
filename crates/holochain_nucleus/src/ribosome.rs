@@ -30,6 +30,7 @@ use crate::ribosome::guest_callback::validate_link::ValidateLinkResult;
 use crate::ribosome::guest_callback::validation_package::ValidationPackageInvocation;
 use crate::ribosome::guest_callback::validation_package::ValidationPackageResult;
 use crate::ribosome::guest_callback::CallIterator;
+use crate::state::workspace::CallZomeWorkspaceLock;
 use crate::{conductor::interface::SignalBroadcaster, core::ribosome::error::RibosomeError};
 use crate::{
     conductor_read_handle::CellConductorReadHandle,
@@ -48,8 +49,6 @@ use holo_hash::AgentPubKey;
 use holochain_keystore::KeystoreSender;
 use holochain_p2p::HolochainP2pCell;
 use holochain_serialized_bytes::prelude::*;
-use holochain_state::workspace::CallZomeWorkspaceLock;
-use holochain_zome_types::cell::CellId;
 use holochain_wasm_test_utils::TestWasm;
 use holochain_zome_types::zome::FunctionName;
 use holochain_zome_types::zome::ZomeName;
@@ -247,7 +246,7 @@ pub trait Invocation: Clone {
     /// For example, if FnComponents was vec!["foo", "bar", "baz"] it would loop as "foo_bar_baz"
     /// then "foo_bar" then "foo". All of those three callbacks that are defined will be called
     /// _unless a definitive callback result is returned_.
-    /// @see CallbackResult::is_definitive() in zome_types.
+    /// @see CallbackResult::is_definitive() in holochain_zome_types.
     /// All of the individual callback results are then folded into a single overall result value
     /// as a From implementation on the invocation results structs (e.g. zome results vs. ribosome
     /// results).

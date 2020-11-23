@@ -1,5 +1,5 @@
 use crate::ribosome::{error::RibosomeResult, ZomeCallInvocation, ZomeCallInvocationResult};
-use holochain_state::workspace::call_zome::CallZomeWorkspaceLock;
+use crate::state::workspace::CallZomeWorkspaceLock;
 use holochain_zome_types::cell::CellId;
 use std::sync::Arc;
 

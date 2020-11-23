@@ -122,14 +122,14 @@ pub mod wasm_test {
     use super::create;
     use crate::core::ribosome::error::RibosomeError;
     use crate::core::ribosome::ZomeCallInvocation;
-    use crate::core::state::source_chain::ChainInvalidReason;
-    use crate::core::state::source_chain::SourceChainError;
-    use crate::core::state::source_chain::SourceChainResult;
     use crate::core::workflow::call_zome_workflow::CallZomeWorkspace;
     use crate::fixt::CallContextFixturator;
     use crate::fixt::EntryFixturator;
     use crate::fixt::WasmRibosomeFixturator;
     use crate::fixt::ZomeCallHostAccessFixturator;
+    use crate::state::source_chain::ChainInvalidReason;
+    use crate::state::source_chain::SourceChainError;
+    use crate::state::source_chain::SourceChainResult;
     use crate::test_utils::setup_app;
     use ::fixt::prelude::*;
     use hdk3::prelude::*;

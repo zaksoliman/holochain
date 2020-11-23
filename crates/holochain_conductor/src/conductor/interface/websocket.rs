@@ -250,7 +250,7 @@ pub mod test {
         state::ConductorState,
         Conductor, ConductorHandle,
     };
-    use crate::core::state::source_chain::SourceChainBuf;
+    use holochain_nucleus::state::source_chain::SourceChainBuf;
     use crate::fixt::WasmRibosomeFixturator;
     use futures::future::FutureExt;
     use holochain_serialized_bytes::prelude::*;

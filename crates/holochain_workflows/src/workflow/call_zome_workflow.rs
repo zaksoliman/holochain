@@ -5,9 +5,9 @@ use crate::conductor::interface::SignalBroadcaster;
 use crate::core::ribosome::error::RibosomeError;
 use crate::core::ribosome::ZomeCallInvocation;
 use crate::core::ribosome::{error::RibosomeResult, RibosomeT, ZomeCallHostAccess};
-use crate::core::state::metadata::MetadataBufT;
-use crate::core::state::source_chain::SourceChainError;
-use crate::core::state::workspace::Workspace;
+use holochain_nucleus::state::metadata::MetadataBufT;
+use holochain_nucleus::state::source_chain::SourceChainError;
+use holochain_nucleus::state::workspace::Workspace;
 use crate::core::{
     queue_consumer::{OneshotWriter, TriggerSender},
     state::{

@@ -32,7 +32,7 @@ holochain_lmdb = { version = "0.0.1", path = "../holochain_lmdb" }
 holochain_wasm_test_utils = { version = "0.0.1", path = "../test_utils/wasm" }
 holochain_wasmer_host = "=0.0.50"
 holochain_websocket = { version = "0.0.1", path = "../websocket" }
-holochain_zome_types = { version = "0.0.1", path = "../zome_types" }
+holochain_zome_types = { version = "0.0.1", path = "../holochain_zome_types" }
 human-panic = "1.0.3"
 lazy_static = "1.4.0"
 legacy = { path = "../legacy", package = "holochain_legacy" }
