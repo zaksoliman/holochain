@@ -153,7 +153,7 @@ pub mod wasm_test {
     /// we cannot commit before genesis
     async fn create_pre_genesis_test() {
         // test workspace boilerplate
-        let test_env = holochain_state::test_utils::test_cell_env();
+        let test_env = holochain_lmdb::test_utils::test_cell_env();
         let env = test_env.env();
         let workspace = CallZomeWorkspace::new(env.clone().into()).unwrap();
 
@@ -189,7 +189,7 @@ pub mod wasm_test {
     /// we can get an entry hash out of the fn directly
     async fn create_entry_test<'a>() {
         // test workspace boilerplate
-        let test_env = holochain_state::test_utils::test_cell_env();
+        let test_env = holochain_lmdb::test_utils::test_cell_env();
         let env = test_env.env();
         let mut workspace = CallZomeWorkspace::new(env.clone().into()).unwrap();
 
@@ -235,7 +235,7 @@ pub mod wasm_test {
     async fn ribosome_create_entry_test<'a>() {
         observability::test_run().ok();
         // test workspace boilerplate
-        let test_env = holochain_state::test_utils::test_cell_env();
+        let test_env = holochain_lmdb::test_utils::test_cell_env();
         let env = test_env.env();
         let mut workspace = CallZomeWorkspace::new(env.clone().into()).unwrap();
 

@@ -10,8 +10,8 @@ use crate::{
         SourceChainError,
     },
 };
+use holochain_lmdb::error::DatabaseError;
 use holochain_p2p::HolochainP2pError;
-use holochain_state::error::DatabaseError;
 use holochain_types::{cell::CellId, header::error::HeaderError};
 use holochain_zome_types::header::conversions::WrongHeaderError;
 use std::path::PathBuf;

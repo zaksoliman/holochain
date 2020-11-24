@@ -8,7 +8,7 @@ use crate::{
         integrate_dht_ops_workflow, IntegrateDhtOpsWorkspace,
     },
 };
-use holochain_state::env::EnvironmentWrite;
+use holochain_lmdb::env::EnvironmentWrite;
 
 use tokio::task::JoinHandle;
 use tracing::*;

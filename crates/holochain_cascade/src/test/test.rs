@@ -9,7 +9,7 @@ use crate::{
     test_utils::test_network,
 };
 use ::fixt::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     env::ReadManager, error::DatabaseResult, prelude::*, test_utils::test_cell_env,
 };
 use holochain_types::{

@@ -12,25 +12,25 @@ pub mod guest_callback;
 pub mod host_fn;
 pub mod wasm_ribosome;
 
-use crate::core::ribosome::guest_callback::entry_defs::EntryDefsResult;
-use crate::core::ribosome::guest_callback::init::InitInvocation;
-use crate::core::ribosome::guest_callback::init::InitResult;
-use crate::core::ribosome::guest_callback::migrate_agent::MigrateAgentInvocation;
-use crate::core::ribosome::guest_callback::migrate_agent::MigrateAgentResult;
-use crate::core::ribosome::guest_callback::post_commit::PostCommitInvocation;
-use crate::core::ribosome::guest_callback::post_commit::PostCommitResult;
-use crate::core::ribosome::guest_callback::validate::ValidateInvocation;
-use crate::core::ribosome::guest_callback::validate::ValidateResult;
-use crate::core::ribosome::guest_callback::validate_link::ValidateLinkHostAccess;
-use crate::core::ribosome::guest_callback::validate_link::ValidateLinkInvocation;
-use crate::core::ribosome::guest_callback::validate_link::ValidateLinkResult;
-use crate::core::ribosome::guest_callback::validation_package::ValidationPackageInvocation;
-use crate::core::ribosome::guest_callback::validation_package::ValidationPackageResult;
-use crate::core::ribosome::guest_callback::CallIterator;
-use crate::core::workflow::CallZomeWorkspaceLock;
 use crate::fixt::ExternInputFixturator;
 use crate::fixt::FunctionNameFixturator;
 use crate::fixt::ZomeNameFixturator;
+use crate::ribosome::guest_callback::entry_defs::EntryDefsResult;
+use crate::ribosome::guest_callback::init::InitInvocation;
+use crate::ribosome::guest_callback::init::InitResult;
+use crate::ribosome::guest_callback::migrate_agent::MigrateAgentInvocation;
+use crate::ribosome::guest_callback::migrate_agent::MigrateAgentResult;
+use crate::ribosome::guest_callback::post_commit::PostCommitInvocation;
+use crate::ribosome::guest_callback::post_commit::PostCommitResult;
+use crate::ribosome::guest_callback::validate::ValidateInvocation;
+use crate::ribosome::guest_callback::validate::ValidateResult;
+use crate::ribosome::guest_callback::validate_link::ValidateLinkHostAccess;
+use crate::ribosome::guest_callback::validate_link::ValidateLinkInvocation;
+use crate::ribosome::guest_callback::validate_link::ValidateLinkResult;
+use crate::ribosome::guest_callback::validation_package::ValidationPackageInvocation;
+use crate::ribosome::guest_callback::validation_package::ValidationPackageResult;
+use crate::ribosome::guest_callback::CallIterator;
+use crate::workflow::CallZomeWorkspaceLock;
 use crate::{
     conductor::api::CellConductorReadHandle,
     core::ribosome::guest_callback::entry_defs::EntryDefsInvocation,
@@ -523,7 +523,7 @@ impl std::fmt::Debug for MockRibosomeT {
 
 #[cfg(test)]
 pub mod wasm_test {
-    use crate::core::ribosome::FnComponents;
+    use crate::ribosome::FnComponents;
     use core::time::Duration;
 
     pub fn now() -> Duration {
@@ -542,7 +542,7 @@ pub mod wasm_test {
                 use holochain_p2p::HolochainP2pCellT;
                 // ensure type of test wasm
                 use std::convert::TryInto;
-                use $crate::core::ribosome::RibosomeT;
+                use $crate::ribosome::RibosomeT;
 
                 let ribosome =
                     $crate::fixt::WasmRibosomeFixturator::new($crate::fixt::curve::Zomes(vec![
@@ -568,8 +568,8 @@ pub mod wasm_test {
                 );
                 host_access.network = cell_network;
 
-                let invocation = $crate::core::ribosome::ZomeCallInvocationFixturator::new(
-                    $crate::core::ribosome::NamedInvocation(
+                let invocation = $crate::ribosome::ZomeCallInvocationFixturator::new(
+                    $crate::ribosome::NamedInvocation(
                         cell_id,
                         $test_wasm.into(),
                         $fn_name.into(),
@@ -588,11 +588,11 @@ pub mod wasm_test {
                     };
 
                 let output = match zome_invocation_response {
-                    crate::core::ribosome::ZomeCallResponse::Ok(guest_output) => {
+                    crate::ribosome::ZomeCallResponse::Ok(guest_output) => {
                         guest_output.into_inner().try_into().unwrap()
                     }
-                    crate::core::ribosome::ZomeCallResponse::Unauthorized => unreachable!(),
-                    crate::core::ribosome::ZomeCallResponse::NetworkError(_) => unreachable!(),
+                    crate::ribosome::ZomeCallResponse::Unauthorized => unreachable!(),
+                    crate::ribosome::ZomeCallResponse::NetworkError(_) => unreachable!(),
                 };
                 output
             })

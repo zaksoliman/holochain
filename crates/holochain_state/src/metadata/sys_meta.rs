@@ -15,7 +15,7 @@ mod tests {
     use header::Create;
     use holo_hash::fixt::*;
     use holo_hash::*;
-    use holochain_state::{prelude::*, test_utils::test_cell_env};
+    use holochain_lmdb::{prelude::*, test_utils::test_cell_env};
     use holochain_types::{
         fixt::{AppEntryTypeFixturator, HeaderBuilderCommonFixturator},
         header::NewEntryHeader,

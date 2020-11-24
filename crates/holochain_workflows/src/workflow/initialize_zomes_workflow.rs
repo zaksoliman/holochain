@@ -80,7 +80,7 @@ pub mod tests {
     use ::fixt::prelude::*;
     use fixt::Unpredictable;
     use holochain_p2p::HolochainP2pCellFixturator;
-    use holochain_state::test_utils::test_cell_env;
+    use holochain_lmdb::test_utils::test_cell_env;
     use holochain_zome_types::Header;
     use matches::assert_matches;
 

@@ -3,7 +3,7 @@ use fallible_iterator::FallibleIterator;
 use fixt::prelude::*;
 use hdk3::prelude::Create;
 use holo_hash::{AgentPubKey, HeaderHash};
-use holochain_state::{
+use holochain_lmdb::{
     env::ReadManager,
     test_utils::{test_cell_env, TestEnvironment},
 };

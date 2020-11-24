@@ -10,7 +10,7 @@
 use crate::core::state::source_chain::{SourceChainError, SourceChainResult};
 use fallible_iterator::DoubleEndedFallibleIterator;
 use holo_hash::HeaderHash;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::{BufferedStore, KvIntBufFresh, KvIntStore},
     db::{GetDb, CHAIN_SEQUENCE},
     error::{DatabaseError, DatabaseResult},
@@ -196,7 +196,7 @@ pub mod tests {
     use super::{BufferedStore, ChainSequenceBuf, SourceChainError};
     use crate::core::state::source_chain::SourceChainResult;
     use holo_hash::HeaderHash;
-    use holochain_state::{
+    use holochain_lmdb::{
         env::{ReadManager, WriteManager},
         error::DatabaseResult,
         prelude::*,

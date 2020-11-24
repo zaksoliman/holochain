@@ -1,6 +1,6 @@
 use super::{entry_def_store::error::EntryDefStoreError, interface::error::InterfaceError};
 use crate::{conductor::cell::error::CellError, core::workflow::error::WorkflowError};
-use holochain_state::error::DatabaseError;
+use holochain_lmdb::error::DatabaseError;
 use holochain_types::{app::InstalledAppId, cell::CellId};
 use std::path::PathBuf;
 use thiserror::Error;

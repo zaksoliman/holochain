@@ -5,7 +5,7 @@ use crate::{
     conductor::manager::ManagedTaskResult,
     core::workflow::app_validation_workflow::{app_validation_workflow, AppValidationWorkspace},
 };
-use holochain_state::env::EnvironmentWrite;
+use holochain_lmdb::env::EnvironmentWrite;
 
 use tokio::task::JoinHandle;
 use tracing::*;

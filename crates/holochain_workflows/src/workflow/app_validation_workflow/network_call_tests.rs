@@ -2,7 +2,7 @@ use fallible_iterator::FallibleIterator;
 use hdk3::prelude::{Element, EntryType, ValidationPackage};
 use holo_hash::HeaderHash;
 use holochain_p2p::{actor::GetActivityOptions, HolochainP2pCellT};
-use holochain_state::{env::EnvironmentRead, fresh_reader_test};
+use holochain_lmdb::{env::EnvironmentRead, fresh_reader_test};
 use holochain_types::{
     activity::{AgentActivity, ChainItems},
     HeaderHashed,

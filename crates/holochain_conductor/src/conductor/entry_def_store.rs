@@ -11,7 +11,7 @@ use error::{EntryDefStoreError, EntryDefStoreResult};
 use fallible_iterator::FallibleIterator;
 use holochain_serialized_bytes::prelude::*;
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::KvBufFresh,
     error::{DatabaseError, DatabaseResult},
     prelude::*,
@@ -218,7 +218,7 @@ mod tests {
     use super::EntryDefBufferKey;
     use crate::conductor::Conductor;
     use holo_hash::HasHash;
-    use holochain_state::test_utils::test_environments;
+    use holochain_lmdb::test_utils::test_environments;
     use holochain_types::{
         dna::{wasm::DnaWasmHashed, zome::Zome},
         test_utils::fake_dna_zomes,

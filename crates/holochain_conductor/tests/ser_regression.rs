@@ -8,7 +8,7 @@ use holochain::conductor::{
 };
 use holochain::core::ribosome::ZomeCallInvocation;
 use holochain::fixt::*;
-use holochain_state::test_utils::test_environments;
+use holochain_lmdb::test_utils::test_environments;
 use holochain_types::app::InstalledCell;
 use holochain_types::cell::CellId;
 use holochain_types::dna::DnaDef;

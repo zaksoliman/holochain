@@ -1,13 +1,13 @@
 //! # Validation Database Types
 
 use holo_hash::{AgentPubKey, AnyDhtHash, DhtOpHash};
-use holochain_serialized_bytes::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::KvBufFresh,
     db::VALIDATION_LIMBO,
     error::DatabaseResult,
     prelude::{EnvironmentRead, GetDb},
 };
+use holochain_serialized_bytes::prelude::*;
 use holochain_types::{dht_op::DhtOpLight, Timestamp};
 use shrinkwraprs::Shrinkwrap;
 

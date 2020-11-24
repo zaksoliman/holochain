@@ -18,7 +18,7 @@ use holochain_p2p::{
     actor::{GetLinksOptions, GetMetaOptions, GetOptions},
     HolochainP2pCell,
 };
-use holochain_state::{error::DatabaseResult, fresh_reader, prelude::*};
+use holochain_lmdb::{error::DatabaseResult, fresh_reader, prelude::*};
 use holochain_types::{
     activity::{AgentActivity, ChainItems},
     chain::AgentActivityExt,
@@ -45,16 +45,6 @@ use std::collections::HashSet;
 use std::collections::{BTreeMap, BTreeSet};
 use tracing::*;
 use tracing_futures::Instrument;
-
-#[cfg(test)]
-mod authored_test;
-#[cfg(test)]
-mod network_tests;
-
-#[cfg(all(test, outdated_tests))]
-mod test;
-
-pub mod error;
 
 /////////////////
 // Helper macros
@@ -1682,7 +1672,7 @@ where
     /// Get agent activity from agent activity authorities.
     /// Hashes are requested from the authority and cache for valid chains.
     /// Options:
-    /// - include_valid_activity will include the valid chain hashes.     
+    /// - include_valid_activity will include the valid chain hashes.
     /// - include_rejected_activity will include the valid chain hashes. (unimplemented)
     /// - include_full_headers will fetch the valid headers in parallel (requires include_valid_activity)
     /// Query:

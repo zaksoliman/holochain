@@ -4,7 +4,7 @@ use fallible_iterator::FallibleIterator;
 use holo_hash::*;
 use holochain_p2p::dht_arc::DhtArc;
 use holochain_serialized_bytes::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::KvBufFresh,
     db::INTEGRATED_DHT_OPS,
     error::{DatabaseError, DatabaseResult},
@@ -70,7 +70,7 @@ impl BufferedStore for IntegratedDhtOpsBuf {
     type Error = DatabaseError;
     fn flush_to_txn_ref(
         &mut self,
-        writer: &mut holochain_state::prelude::Writer,
+        writer: &mut holochain_lmdb::prelude::Writer,
     ) -> Result<(), Self::Error> {
         self.store.flush_to_txn_ref(writer)
     }
@@ -160,8 +160,8 @@ mod tests {
     use ::fixt::prelude::*;
     use chrono::{Duration, Utc};
     use holo_hash::fixt::{DhtOpHashFixturator, HeaderHashFixturator};
-    use holochain_state::test_utils::test_cell_env;
-    use holochain_state::{
+    use holochain_lmdb::test_utils::test_cell_env;
+    use holochain_lmdb::{
         buffer::BufferedStore,
         env::{ReadManager, WriteManager},
     };

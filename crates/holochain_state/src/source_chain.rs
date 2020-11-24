@@ -6,7 +6,7 @@
 pub use error::*;
 use fallible_iterator::FallibleIterator;
 use holo_hash::*;
-use holochain_state::{buffer::BufferedStore, error::DatabaseResult, fresh_reader, prelude::*};
+use holochain_lmdb::{buffer::BufferedStore, error::DatabaseResult, fresh_reader, prelude::*};
 use holochain_types::{prelude::*, EntryHashed};
 use holochain_zome_types::{
     capability::{CapAccess, CapGrant, CapSecret, GrantedFunction},
@@ -327,7 +327,7 @@ pub mod tests {
     use crate::fixt::*;
     use ::fixt::prelude::*;
     use hdk3::prelude::*;
-    use holochain_state::test_utils::test_cell_env;
+    use holochain_lmdb::test_utils::test_cell_env;
     use holochain_types::test_utils::fake_dna_hash;
     use holochain_zome_types::capability::{CapAccess, ZomeCallCapGrant};
     use std::collections::HashSet;

@@ -11,7 +11,7 @@ use fallible_iterator::FallibleIterator;
 use hdk3::prelude::LinkTag;
 use holo_hash::{AnyDhtHash, DhtOpHash, EntryHash, HeaderHash};
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::{fresh_reader_test, prelude::ReadManager};
+use holochain_lmdb::{fresh_reader_test, prelude::ReadManager};
 use holochain_types::{
     app::InstalledCell, cell::CellId, dht_op::DhtOpLight, dna::DnaDef, dna::DnaFile, fixt::*,
     test_utils::fake_agent_pubkey_1, test_utils::fake_agent_pubkey_2, validate::ValidationStatus,

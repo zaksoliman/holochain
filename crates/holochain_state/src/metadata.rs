@@ -7,8 +7,7 @@
 use fallible_iterator::FallibleIterator;
 use holo_hash::HasHash;
 use holo_hash::{AgentPubKey, AnyDhtHash, EntryHash, HeaderHash};
-use holochain_serialized_bytes::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::{KvBufUsed, KvvBufUsed},
     db::{
         CACHE_LINKS_META, CACHE_STATUS_META, CACHE_SYSTEM_META, META_VAULT_LINKS, META_VAULT_MISC,
@@ -18,6 +17,7 @@ use holochain_state::{
     fresh_reader,
     prelude::*,
 };
+use holochain_serialized_bytes::prelude::*;
 use holochain_types::metadata::{EntryDhtStatus, TimedHeaderHash};
 use holochain_types::{header::NewEntryHeader, link::WireLinkMetaKey};
 use holochain_types::{HeaderHashed, Timestamp};

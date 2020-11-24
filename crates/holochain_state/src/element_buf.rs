@@ -9,7 +9,7 @@
 /// a get_entry request from the network.
 use crate::core::state::source_chain::SourceChainResult;
 use holo_hash::{EntryHash, HasHash, HeaderHash};
-use holochain_state::{
+use holochain_lmdb::{
     buffer::CasBufFreshSync,
     db::{
         GetDb, ELEMENT_CACHE_ENTRIES, ELEMENT_CACHE_HEADERS, ELEMENT_VAULT_HEADERS,
@@ -334,7 +334,7 @@ mod tests {
     use holo_hash::*;
     use holochain_keystore::test_keystore::spawn_test_keystore;
     use holochain_keystore::AgentPubKeyExt;
-    use holochain_state::{prelude::*, test_utils::test_cell_env};
+    use holochain_lmdb::{prelude::*, test_utils::test_cell_env};
     use holochain_zome_types::entry_def::EntryVisibility;
 
     #[tokio::test(threaded_scheduler)]

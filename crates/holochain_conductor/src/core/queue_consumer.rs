@@ -29,7 +29,7 @@ use std::sync::{Arc, Once};
 
 use derive_more::{Constructor, Display, From};
 use futures::future::Either;
-use holochain_state::{
+use holochain_lmdb::{
     env::{EnvironmentWrite, WriteManager},
     prelude::Writer,
 };

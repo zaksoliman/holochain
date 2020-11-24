@@ -4,7 +4,7 @@
 //! Every Workflow has an associated Workspace type.
 
 use super::source_chain::SourceChainError;
-use holochain_state::{error::DatabaseError, prelude::Writer};
+use holochain_lmdb::{error::DatabaseError, prelude::Writer};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -44,7 +44,7 @@ pub mod tests {
 
     use super::Workspace;
     use crate::core::state::workspace::WorkspaceResult;
-    use holochain_state::{
+    use holochain_lmdb::{
         buffer::{BufferedStore, KvBufFresh},
         db::{GetDb, ELEMENT_VAULT_HEADERS, ELEMENT_VAULT_PUBLIC_ENTRIES},
         prelude::*,

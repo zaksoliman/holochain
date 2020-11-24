@@ -5,7 +5,7 @@ use crate::core::state::{
     source_chain::{SourceChainError, SourceChainResult},
 };
 use fallible_iterator::FallibleIterator;
-use holochain_state::{buffer::BufferedStore, error::DatabaseResult, fresh_reader, prelude::*};
+use holochain_lmdb::{buffer::BufferedStore, error::DatabaseResult, fresh_reader, prelude::*};
 use holochain_types::{
     dht_op::{produce_ops_from_element, DhtOp},
     element::{Element, SignedHeaderHashed, SignedHeaderHashedExt},
@@ -313,7 +313,7 @@ pub mod tests {
     use super::SourceChainBuf;
     use crate::core::state::source_chain::SourceChainResult;
     use fallible_iterator::FallibleIterator;
-    use holochain_state::{prelude::*, test_utils::test_cell_env};
+    use holochain_lmdb::{prelude::*, test_utils::test_cell_env};
     use holochain_types::{
         prelude::*,
         test_utils::{fake_agent_pubkey_1, fake_dna_file},

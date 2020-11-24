@@ -14,7 +14,7 @@ use holo_hash::{AgentPubKey, DnaHash};
 use holochain_keystore::KeystoreSender;
 use holochain_p2p::{actor::HolochainP2pRefToCell, HolochainP2pCell};
 use holochain_serialized_bytes::SerializedBytes;
-use holochain_state::{
+use holochain_lmdb::{
     env::EnvironmentWrite,
     test_utils::{test_environments, TestEnvironments},
 };

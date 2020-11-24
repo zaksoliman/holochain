@@ -5,7 +5,7 @@ use crate::fixt::{
 };
 use crate::here;
 use ::fixt::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     buffer::BufferedStore, env::EnvironmentWrite, fresh_reader_test, test_utils::test_cell_env,
 };
 use observability;

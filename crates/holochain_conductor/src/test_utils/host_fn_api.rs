@@ -24,7 +24,7 @@ use holochain_p2p::{
     HolochainP2pCell,
 };
 use holochain_serialized_bytes::prelude::*;
-use holochain_state::{
+use holochain_lmdb::{
     env::EnvironmentWrite,
     prelude::{GetDb, WriteManager},
 };

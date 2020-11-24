@@ -23,7 +23,7 @@ pub use call_zome_workspace_lock::CallZomeWorkspaceLock;
 use either::Either;
 use holochain_keystore::KeystoreSender;
 use holochain_p2p::HolochainP2pCell;
-use holochain_state::prelude::*;
+use holochain_lmdb::prelude::*;
 use holochain_types::element::Element;
 use holochain_zome_types::entry::GetOptions;
 use holochain_zome_types::header::Header;
@@ -328,7 +328,7 @@ pub mod tests {
     use holo_hash::fixt::*;
     use holochain_p2p::HolochainP2pCellFixturator;
     use holochain_serialized_bytes::prelude::*;
-    use holochain_state::{env::ReadManager, test_utils::test_cell_env};
+    use holochain_lmdb::{env::ReadManager, test_utils::test_cell_env};
     use holochain_types::{cell::CellId, observability, test_utils::fake_agent_pubkey_1};
     use holochain_wasm_test_utils::TestWasm;
     use holochain_zome_types::entry::Entry;
@@ -424,7 +424,7 @@ pub mod tests {
     // - Check entry content matches entry schema
     //   Depending on the type of the commit, validate all possible validations for the
     //   DHT Op that would be produced by it
-    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation 
+    #[ignore = "TODO: B-01100 Make sure this test is in the right place when SysValidation
     complete so we aren't duplicating the unit test inside sys val."]
     #[tokio::test]
     async fn calls_system_validation<'a>() {
