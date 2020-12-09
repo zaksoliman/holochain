@@ -396,7 +396,7 @@ async fn call_each_other(
     results
 }
 
-async fn check_gossip(
+pub async fn check_gossip(
     handle: &TestHandle,
     all_handles: &[&TestHandle],
     posts: &[HeaderHash],
@@ -440,7 +440,7 @@ async fn check_gossip(
     }
 }
 
-fn exchange_peer_info(envs: Vec<EnvironmentWrite>) {
+pub fn exchange_peer_info(envs: Vec<EnvironmentWrite>) {
     for (i, a) in envs.iter().enumerate() {
         for (j, b) in envs.iter().enumerate() {
             if i == j {
@@ -453,7 +453,7 @@ fn exchange_peer_info(envs: Vec<EnvironmentWrite>) {
 }
 
 #[tracing::instrument(skip(envs))]
-fn check_peers(envs: Vec<EnvironmentWrite>) {
+pub fn check_peers(envs: Vec<EnvironmentWrite>) {
     for (i, a) in envs.iter().enumerate() {
         let peers = all_agent_infos(a.clone().into()).unwrap();
         let num_peers = peers.len();
@@ -466,22 +466,22 @@ fn check_peers(envs: Vec<EnvironmentWrite>) {
 }
 
 #[derive(Shrinkwrap, Clone)]
-struct TestHandle {
+pub struct TestHandle {
     #[shrinkwrap(main_field)]
-    handle: ConductorHandle,
-    cell_id: CellId,
-    __tmpdir: Arc<TempDir>,
+    pub handle: ConductorHandle,
+    pub cell_id: CellId,
+    pub __tmpdir: Arc<TempDir>,
 }
 
 impl TestHandle {
-    async fn shutdown(self) {
+    pub async fn shutdown(self) {
         let shutdown = self.handle.take_shutdown_handle().await.unwrap();
         self.handle.shutdown().await;
         shutdown.await.unwrap();
     }
 }
 
-async fn shutdown(handles: Vec<TestHandle>) {
+pub async fn shutdown(handles: Vec<TestHandle>) {
     for h in handles {
         h.shutdown().await;
     }

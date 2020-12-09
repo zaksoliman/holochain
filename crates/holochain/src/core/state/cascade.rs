@@ -174,13 +174,15 @@ enum Search {
     NotInCascade,
 }
 
-impl<'a, Network, MetaVault, MetaAuthored, MetaCache>
-    Cascade<'a, Network, MetaVault, MetaAuthored, MetaCache>
+impl<'a, Network, MetaVault, MetaAuthored, MetaCache, MetaPending, MetaRejected>
+    Cascade<'a, Network, MetaVault, MetaAuthored, MetaCache, MetaPending, MetaRejected>
 where
     MetaCache: MetadataBufT,
     MetaVault: MetadataBufT,
     MetaAuthored: MetadataBufT<AuthoredPrefix>,
-    Network: HolochainP2pCellT + Clone,
+    MetaPending: MetadataBufT<PendingPrefix>,
+    MetaRejected: MetadataBufT<RejectedPrefix>,
+    Network: HolochainP2pCellT + Clone + 'static + Send,
 {
     /// Constructs a [Cascade], for the default use case of
     /// vault + cache + network
@@ -193,6 +195,8 @@ where
         meta_authored: &'a MetaAuthored,
         element_integrated: &'a ElementBuf,
         meta_integrated: &'a MetaVault,
+        element_rejected: &'a ElementBuf<RejectedPrefix>,
+        meta_rejected: &'a MetaRejected,
         element_cache: &'a mut ElementBuf,
         meta_cache: &'a mut MetaCache,
         network: Network,
@@ -205,6 +209,10 @@ where
             element: element_integrated,
             meta: meta_integrated,
         });
+        let rejected_data = Some(DbPair {
+            element: element_rejected,
+            meta: meta_rejected,
+        });
         let cache_data = Some(DbPairMut {
             element: element_cache,
             meta: meta_cache,
@@ -213,7 +221,7 @@ where
             env: Some(env),
             network: Some(network),
             pending_data: None,
-            rejected_data: None,
+            rejected_data,
             integrated_data,
             authored_data,
             cache_data,
@@ -1134,8 +1142,10 @@ where
         // If this agent is in the process of authoring then
         // there is no reason to go to the network
         if authoring {
+            debug!("authoring");
             oldest_live_element = self.get_oldest_live_element(&entry_hash)?;
         } else if authority {
+            debug!("authority");
             // Short circuit as the authority
             self.update_cache_from_integrated(entry_hash.clone().into(), options.clone().into())?;
             oldest_live_element = self.get_oldest_live_element(&entry_hash)?;
@@ -1143,10 +1153,12 @@ where
             // If the caller only needs the content we and we have the
             // content locally we can avoid the network call
             if let GetCall::Content = get_call {
+                debug!("content");
                 oldest_live_element = self.get_oldest_live_element(&entry_hash)?;
             }
             // Was not found locally so go to the network
             if let Search::NotInCascade = oldest_live_element {
+                debug!("not found doing network query");
                 // Update the cache from the network
                 self.fetch_element_via_entry(entry_hash.clone(), options.clone().into())
                     .await?;
@@ -1259,18 +1271,22 @@ where
         // If this agent is in the process of authoring then
         // there is no reason to go to the network
         if authoring {
+            debug!("authoring");
         } else if authority {
+            debug!("authority");
             // Short circuit. This makes sense for full sharding.
             self.update_cache_from_integrated(header_hash.clone().into(), options.clone().into())?;
         } else {
             // If the caller only needs the content we and we have the
             // content locally we can avoid the network call and return early.
             if let GetCall::Content = get_call {
+                debug!("content");
                 // Found local data return early.
                 if let Some(result) = self.dht_get_header_inner(header_hash.clone())? {
                     return Ok(Some(result));
                 }
             }
+            debug!("doing network query");
             // Network
             self.fetch_element_via_header(header_hash.clone(), options.into())
                 .await?;
@@ -1554,9 +1570,11 @@ where
         options: GetLinksOptions,
     ) -> CascadeResult<Vec<Link>> {
         if self.am_i_an_authority(key.base().clone().into()).await? {
+            debug!("authority");
             // Short circuit. This makes sense for full sharding.
             self.update_link_cache_from_integrated(key, options)?;
         } else {
+            debug!("network");
             // Update the cache from the network
             self.fetch_links(key.into(), options).await?;
         }
@@ -2094,6 +2112,7 @@ where
 
         let integrated_data = ok_or_return!(self.integrated_data.as_ref(), false);
         let rejected_data = ok_or_return!(self.rejected_data.as_ref(), false);
+        debug!(?hash);
         match *hash.hash_type() {
             AnyDht::Entry => Ok(integrated_data
                 .element

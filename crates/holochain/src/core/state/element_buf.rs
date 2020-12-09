@@ -136,6 +136,7 @@ where
     }
 
     pub fn contains_entry(&self, entry_hash: &EntryHash) -> DatabaseResult<bool> {
+        tracing::debug!(?entry_hash);
         Ok(if self.public_entries.contains(entry_hash)? {
             true
         } else {
