@@ -10,6 +10,8 @@ members = [
   "crates/monolith",
   # "crates/holochain",
   "crates/holochain_lmdb",
+  "crates/holochain_state",
+  "crates/cascade",
   "crates/holochain_p2p",
   "crates/holochain_keystore",
   "crates/holochain_types",

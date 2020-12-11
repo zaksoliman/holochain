@@ -298,7 +298,7 @@ mod slow_tests {
     use super::ValidateResult;
     use crate::holochain::core::ribosome::RibosomeT;
     use crate::holochain::core::ribosome::ZomesToInvoke;
-    use crate::holochain::core::state::source_chain::SourceChainResult;
+    use holochain_state::source_chain::SourceChainResult;
     use crate::holochain::core::workflow::call_zome_workflow::CallZomeWorkspace;
     use crate::holochain::fixt::curve::Zomes;
     use crate::holochain::fixt::*;

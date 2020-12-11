@@ -31,6 +31,7 @@ hdk3 = { version = "0.0.1", path = "../hdk3" }
 hdk3_derive = { version = "0.0.1", path = "../hdk3_derive" }
 holochain_keystore = { version = "0.0.1", path = "../holochain_keystore" }
 holochain_lmdb = { version = "0.0.1", path = "../holochain_lmdb" }
+holochain_state = { version = "0.0.1", path = "../holochain_state" }
 holochain_p2p = { version = "0.0.1", path = "../holochain_p2p" }
 holochain_types = { version = "0.0.1", path = "../holochain_types", features = ["test_utils"] }
 holochain_zome_types = { version = "0.0.1", path = "../holochain_zome_types" }

@@ -2,7 +2,7 @@ use crate::holochain::conductor::api::error::ConductorApiError;
 use crate::holochain::conductor::entry_def_store::error::EntryDefStoreError;
 use crate::holochain::core::ribosome::error::RibosomeError;
 use crate::holochain::core::ribosome::guest_callback::init::InitResult;
-use crate::holochain::core::state::cascade::error::CascadeError;
+use holochain_state::cascade::error::CascadeError;
 use crate::holochain::core::workflow::error::WorkflowError;
 use crate::holochain::core::workflow::produce_dht_ops_workflow::dht_op_light::error::DhtOpConvertError;
 use crate::holochain::core::SourceChainError;
@@ -42,7 +42,7 @@ pub enum CellError {
     #[error(transparent)]
     WorkflowError(#[from] Box<WorkflowError>),
     #[error(transparent)]
-    WorkspaceError(#[from] crate::holochain::core::state::workspace::WorkspaceError),
+    WorkspaceError(#[from] holochain_state::workspace::WorkspaceError),
     #[error(transparent)]
     RibosomeError(#[from] RibosomeError),
     #[error(transparent)]

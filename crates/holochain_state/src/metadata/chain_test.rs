@@ -1,4 +1,4 @@
-use crate::holochain::fixt::*;
+use holochain_zome_types::fixt::*;
 use fallible_iterator::FallibleIterator;
 use fixt::prelude::*;
 use hdk3::prelude::Create;

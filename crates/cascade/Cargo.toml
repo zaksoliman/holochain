@@ -1,0 +1,20 @@
+[package]
+name = "holochain_cascade"
+version = "0.0.1"
+license = "CAL-1.0"
+homepage = "https://github.com/holochain/holochain"
+documentation = "https://github.com/holochain/holochain"
+authors = [ "Holochain Core Dev Team <devcore@holochain.org>" ]
+edition = "2018"
+
+[dependencies]
+holochain_state = { version = "0.0.1", path = "../holochain_state" }
+holochain_lmdb = { version = "0.0.1", path = "../holochain_lmdb" }
+holochain_types = { version = "0.0.1", path = "../holochain_types", features = ["test_utils"] }
+holo_hash = { version = "0.0.1", path = "../holo_hash", features = ["full"] }
+holochain_p2p = { version = "0.0.1", path = "../holochain_p2p" }
+holochain_zome_types = { version = "0.0.1", path = "../holochain_zome_types" }
+fallible-iterator = "0.2.0"
+either = "1.5.0"
+tracing = "=0.1.21"
+tracing-futures = "0.2.4"

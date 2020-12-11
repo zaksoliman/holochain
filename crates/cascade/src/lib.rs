@@ -4,11 +4,11 @@
 //! where as retrieve only checks that where the data was found
 //! the appropriate validation has been run.
 
-use super::element_buf::ElementBuf;
-use super::metadata::ChainItemKey;
-use super::metadata::LinkMetaKey;
-use super::metadata::MetadataBuf;
-use super::metadata::MetadataBufT;
+use holochain_state::element_buf::ElementBuf;
+use holochain_state::metadata::ChainItemKey;
+use holochain_state::metadata::LinkMetaKey;
+use holochain_state::metadata::MetadataBuf;
+use holochain_state::metadata::MetadataBufT;
 use crate::holochain::core::workflow::integrate_dht_ops_workflow::integrate_single_metadata;
 use either::Either;
 use error::CascadeResult;
@@ -2154,13 +2154,13 @@ pub fn test_dbs_and_mocks(
     env: EnvironmentRead,
 ) -> (
     ElementBuf,
-    super::metadata::MockMetadataBuf,
+    holochain_state::metadata::MockMetadataBuf,
     ElementBuf,
-    super::metadata::MockMetadataBuf,
+    holochain_state::metadata::MockMetadataBuf,
 ) {
     let cas = ElementBuf::vault(env.clone().into(), true).unwrap();
     let element_cache = ElementBuf::cache(env.clone().into()).unwrap();
-    let metadata = super::metadata::MockMetadataBuf::new();
-    let metadata_cache = super::metadata::MockMetadataBuf::new();
+    let metadata = holochain_state::metadata::MockMetadataBuf::new();
+    let metadata_cache = holochain_state::metadata::MockMetadataBuf::new();
     (cas, metadata, element_cache, metadata_cache)
 }

@@ -33,8 +33,6 @@
 //! ```
 
 #[allow(missing_docs)]
-pub mod cascade;
-#[allow(missing_docs)]
 pub mod chain_sequence;
 pub mod dht_op_integration;
 #[allow(missing_docs)]
@@ -47,3 +45,7 @@ pub mod validation_receipts_db;
 #[allow(missing_docs)]
 pub mod wasm;
 pub mod workspace;
+
+#[allow(missing_docs)]
+#[cfg(test)]
+mod test_utils;

@@ -8,9 +8,9 @@ use holochain_types::HeaderHashed;
 
 use crate::holochain::core::ribosome::guest_callback::validation_package::ValidationPackageResult;
 use crate::holochain::core::ribosome::RibosomeT;
-use crate::holochain::core::state::cascade::Cascade;
-use crate::holochain::core::state::cascade::DbPair;
-use crate::holochain::core::state::cascade::DbPairMut;
+use holochain_state::cascade::Cascade;
+use holochain_state::cascade::DbPair;
+use holochain_state::cascade::DbPairMut;
 use crate::holochain::core::workflow::app_validation_workflow::validation_package::get_as_author_custom;
 use crate::holochain::core::workflow::app_validation_workflow::validation_package::get_as_author_full;
 use crate::holochain::core::workflow::app_validation_workflow::validation_package::get_as_author_sub_chain;

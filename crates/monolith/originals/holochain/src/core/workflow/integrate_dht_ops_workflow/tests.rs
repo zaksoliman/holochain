@@ -7,9 +7,9 @@ use crate::holochain::core::queue_consumer::TriggerSender;
 use crate::holochain::core::ribosome::guest_callback::entry_defs::EntryDefsResult;
 use crate::holochain::core::ribosome::host_fn;
 use crate::holochain::core::ribosome::MockRibosomeT;
-use crate::holochain::core::state::metadata::ChainItemKey;
-use crate::holochain::core::state::metadata::LinkMetaKey;
-use crate::holochain::core::state::workspace::WorkspaceError;
+use holochain_state::metadata::ChainItemKey;
+use holochain_state::metadata::LinkMetaKey;
+use holochain_state::workspace::WorkspaceError;
 use crate::holochain::core::workflow::CallZomeWorkspaceLock;
 use crate::holochain::fixt::CallContextFixturator;
 use crate::holochain::fixt::ZomeCallHostAccessFixturator;
@@ -1317,10 +1317,10 @@ mod slow_tests {
     use std::convert::TryInto;
     use std::time::Duration;
 
-    use crate::holochain::core::state::dht_op_integration::IntegratedDhtOpsStore;
-    use crate::holochain::core::state::metadata::LinkMetaKey;
-    use crate::holochain::core::state::metadata::MetadataBuf;
-    use crate::holochain::core::state::metadata::MetadataBufT;
+    use holochain_state::dht_op_integration::IntegratedDhtOpsStore;
+    use holochain_state::metadata::LinkMetaKey;
+    use holochain_state::metadata::MetadataBuf;
+    use holochain_state::metadata::MetadataBufT;
     use crate::holochain::fixt::*;
     use crate::holochain::test_utils::host_fn_caller::*;
     use crate::holochain::test_utils::setup_app;
