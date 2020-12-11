@@ -3,8 +3,8 @@
 
 use crate::holochain::conductor::api::error::ConductorApiError;
 use crate::holochain::conductor::interface::error::InterfaceError;
-use crate::holochain::core::state::cascade::error::CascadeError;
-use crate::holochain::core::state::source_chain::SourceChainError;
+use holochain_state::cascade::error::CascadeError;
+use holochain_state::source_chain::SourceChainError;
 use holo_hash::AnyDhtHash;
 use holochain_serialized_bytes::prelude::SerializedBytesError;
 use holochain_types::dna::error::DnaError;

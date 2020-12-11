@@ -5,12 +5,12 @@ use crate::holochain::conductor::error::CreateAppError;
 use crate::holochain::conductor::interface::error::InterfaceError;
 use crate::holochain::conductor::CellError;
 use crate::holochain::core::ribosome::error::RibosomeError;
-use crate::holochain::core::state::source_chain::SourceChainError;
-use crate::holochain::core::state::workspace::WorkspaceError;
 use crate::holochain::core::workflow::error::WorkflowError;
 use holo_hash::DnaHash;
-use holochain_serialized_bytes::prelude::*;
 use holochain_lmdb::error::DatabaseError;
+use holochain_serialized_bytes::prelude::*;
+use holochain_state::source_chain::SourceChainError;
+use holochain_state::workspace::WorkspaceError;
 use holochain_zome_types::cell::CellId;
 use thiserror::Error;
 

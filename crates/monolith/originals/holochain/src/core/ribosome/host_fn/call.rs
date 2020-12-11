@@ -65,7 +65,7 @@ pub mod wasm_test {
     use matches::assert_matches;
 
     use crate::holochain::conductor::{api::ZomeCall, ConductorHandle};
-    use crate::holochain::core::state::element_buf::ElementBuf;
+    use holochain_state::element_buf::ElementBuf;
     use crate::holochain::test_utils::conductor_setup::ConductorTestData;
     use crate::holochain::test_utils::install_app;
     use crate::holochain::test_utils::new_zome_call;

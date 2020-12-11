@@ -20,8 +20,8 @@ use holochain_lmdb::fresh_reader;
 use holochain_zome_types::*;
 use std::convert::TryInto;
 
-pub use crate::holochain::core::state::source_chain::SourceChainError;
-pub use crate::holochain::core::state::source_chain::SourceChainResult;
+pub use holochain_state::source_chain::SourceChainError;
+pub use holochain_state::source_chain::SourceChainResult;
 pub(super) use error::*;
 
 pub use holochain_types::element::Element;

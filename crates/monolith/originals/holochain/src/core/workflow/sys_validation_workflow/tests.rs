@@ -1,7 +1,7 @@
 use hdk3::prelude::LinkTag;
 use crate::holochain::conductor::ConductorHandle;
-use crate::holochain::core::state::element_buf::ElementBuf;
-use crate::holochain::core::state::validation_db::ValidationLimboStatus;
+use holochain_state::element_buf::ElementBuf;
+use holochain_state::validation_db::ValidationLimboStatus;
 use crate::holochain::core::workflow::incoming_dht_ops_workflow::IncomingDhtOpsWorkspace;
 use crate::holochain::test_utils::host_fn_api::*;
 use crate::holochain::test_utils::setup_app;

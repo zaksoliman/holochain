@@ -257,7 +257,7 @@ pub mod test {
     use crate::holochain::conductor::state::ConductorState;
     use crate::holochain::conductor::Conductor;
     use crate::holochain::conductor::ConductorHandle;
-    use crate::holochain::core::state::source_chain::SourceChainBuf;
+    use holochain_state::source_chain::SourceChainBuf;
     use crate::holochain::fixt::RealRibosomeFixturator;
     use crate::holochain::test_utils::conductor_setup::ConductorTestData;
     use holochain_types::app::InstallAppDnaPayload;

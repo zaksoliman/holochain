@@ -6,8 +6,8 @@ use holo_hash::EntryHash;
 use holochain_types::Entry;
 use crate::holochain_wasm_test_utils::TestWasm;
 
-use crate::holochain::core::state::element_buf::ElementBuf;
-use crate::holochain::core::state::source_chain::SourceChain;
+use holochain_state::element_buf::ElementBuf;
+use holochain_state::source_chain::SourceChain;
 use crate::holochain::test_utils::conductor_setup::ConductorTestData;
 use crate::holochain::test_utils::host_fn_api::*;
 use crate::holochain::test_utils::wait_for_integration;

@@ -28,6 +28,7 @@ use holochain_p2p::HolochainP2pCellT;
 use holochain_lmdb::error::DatabaseResult;
 use holochain_lmdb::fresh_reader;
 use holochain_lmdb::prelude::*;
+use holochain_state::cascade::{DbPair, DbPairMut};
 use holochain_types::activity::AgentActivity;
 use holochain_types::activity::ChainItems;
 use holochain_types::chain::AgentActivityExt;
@@ -126,31 +127,6 @@ macro_rules! search_all {
         }
         Ok(None)
     }};
-}
-
-/// A pair containing an element buf and metadata buf
-/// with the same prefix.
-/// The default IntegratedPrefix is for databases that don't
-/// actually use prefixes (like the cache). In this case we just
-/// choose the first one (IntegratedPrefix)
-#[derive(derive_more::Constructor)]
-pub struct DbPair<'a, M, P = IntegratedPrefix>
-where
-    P: PrefixType,
-    M: MetadataBufT<P>,
-{
-    pub element: &'a ElementBuf<P>,
-    pub meta: &'a M,
-}
-
-#[derive(derive_more::Constructor)]
-pub struct DbPairMut<'a, M, P = IntegratedPrefix>
-where
-    P: PrefixType,
-    M: MetadataBufT<P>,
-{
-    pub element: &'a mut ElementBuf<P>,
-    pub meta: &'a mut M,
 }
 
 pub struct Cascade<

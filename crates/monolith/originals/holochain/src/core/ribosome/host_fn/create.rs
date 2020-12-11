@@ -118,9 +118,9 @@ pub fn extract_entry_def(
 #[cfg(feature = "slow_tests")]
 pub mod wasm_test {
     use super::create;
-    use crate::holochain::core::state::source_chain::ChainInvalidReason;
-    use crate::holochain::core::state::source_chain::SourceChainError;
-    use crate::holochain::core::state::source_chain::SourceChainResult;
+    use holochain_state::source_chain::ChainInvalidReason;
+    use holochain_state::source_chain::SourceChainError;
+    use holochain_state::source_chain::SourceChainResult;
     use crate::holochain::core::workflow::call_zome_workflow::CallZomeWorkspace;
     use crate::holochain::fixt::CallContextFixturator;
     use crate::holochain::fixt::EntryFixturator;

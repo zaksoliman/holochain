@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use super::*;
 use crate::holochain::conductor::ConductorHandle;
-use crate::holochain::core::state::source_chain::SourceChain;
+use holochain_state::source_chain::SourceChain;
 use crate::holochain::test_utils::setup_app;
 use crate::holochain::test_utils::wait_for_integration;
 use ::fixt::prelude::*;

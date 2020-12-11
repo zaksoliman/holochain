@@ -1,7 +1,7 @@
 [package]
-name = "monolith"
+name = "holochain_state"
 version = "0.0.1"
-description = "Temporary crate with all crates"
+description = "TODO minimize deps"
 license = "CAL-1.0"
 homepage = "https://github.com/holochain/holochain"
 documentation = "https://github.com/holochain/holochain"
@@ -32,7 +32,6 @@ hdk3_derive = { version = "0.0.1", path = "../hdk3_derive" }
 holochain_keystore = { version = "0.0.1", path = "../holochain_keystore" }
 holochain_lmdb = { version = "0.0.1", path = "../holochain_lmdb" }
 holochain_p2p = { version = "0.0.1", path = "../holochain_p2p" }
-holochain_state = { version = "0.0.1", path = "../holochain_state" }
 holochain_types = { version = "0.0.1", path = "../holochain_types" }
 holochain_zome_types = { version = "0.0.1", path = "../holochain_zome_types" }
 human-panic = "1.0.3"
