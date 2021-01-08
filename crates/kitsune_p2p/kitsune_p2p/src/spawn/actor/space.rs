@@ -4,6 +4,7 @@ use ghost_actor::dependencies::tracing_futures::Instrument;
 use kitsune_p2p_types::codec::Codec;
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::sync::atomic::AtomicU64;
 
 /// if the user specifies None or zero (0) for remote_agent_count
 const DEFAULT_NOTIFY_REMOTE_AGENT_COUNT: u8 = 5;
@@ -114,9 +115,27 @@ impl gossip::GossipEventHandler for Space {
         &mut self,
         input: ReqOpHashesEvt,
     ) -> gossip::GossipEventHandlerResult<OpHashesAgentHashes> {
+        let mut total_calls = 0;
+        let mut total_bytes = 0.0;
+        let s = tracing::debug_span!("send_stat");
+        for (name, count) in &self.stats {
+            let bytes = count.0.load(std::sync::atomic::Ordering::SeqCst) as f64 / 1_000_000.0;
+            let calls = count.1.load(std::sync::atomic::Ordering::SeqCst);
+            total_calls += calls;
+            total_bytes += bytes;
+            s.in_scope(|| {
+                tracing::debug!(?name, ?bytes, ?calls);
+            });
+        }
+        let tls_overhead = (500 * total_calls) as f64 / 1_000_000.0;
+        s.in_scope(|| {
+            tracing::debug!(agent = ?input.from_agent, ?total_bytes, ?total_calls, ?tls_overhead);
+        });
         if self.local_joined_agents.contains(&input.to_agent) {
             let fut = local_req_op_hashes(&self.evt_sender, self.space.clone(), input);
-            Ok(async move { fut.await }.boxed().into())
+            Ok(async move { fut.await.map(|r| (NewOps::New(r.0), r.1)) }
+                .boxed()
+                .into())
         } else {
             let ReqOpHashesEvt {
                 to_agent,
@@ -128,6 +147,12 @@ impl gossip::GossipEventHandler for Space {
             let transport_tx = self.transport.clone();
             let evt_sender = self.evt_sender.clone();
             let space = self.space.clone();
+            let last_count = self
+                .last_counts
+                .entry(to_agent.clone())
+                .or_insert_with(|| Arc::new(AtomicU64::new(0)))
+                .clone();
+            let fetch_op_hashes_stat = self.stats.get("fetch_op_hashes").cloned().unwrap();
             Ok(async move {
                 // see if we have an entry for this agent in our agent_store
                 let info = match evt_sender
@@ -147,11 +172,18 @@ impl gossip::GossipEventHandler for Space {
                     dht_arc,
                     since_utc_epoch_s,
                     until_utc_epoch_s,
+                    last_count.load(std::sync::atomic::Ordering::SeqCst),
                 )
                 .encode_vec()?;
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
                 let (_, mut write, read) = transport_tx.create_channel(url).await?;
+                fetch_op_hashes_stat
+                    .0
+                    .fetch_add(data.len() as u64, std::sync::atomic::Ordering::SeqCst);
+                fetch_op_hashes_stat
+                    .1
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 write.write_and_close(data.to_vec()).await?;
                 let read = read.read_to_end().await;
                 let (_, read) = wire::Wire::decode_ref(&read)?;
@@ -160,7 +192,13 @@ impl gossip::GossipEventHandler for Space {
                     wire::Wire::FetchOpHashesResponse(wire::FetchOpHashesResponse {
                         hashes,
                         peer_hashes,
-                    }) => Ok((hashes, peer_hashes)),
+                    }) => {
+                        if let NewOps::New(hashes) = &hashes {
+                            last_count
+                                .store(hashes.len() as u64, std::sync::atomic::Ordering::SeqCst);
+                        }
+                        Ok((hashes, peer_hashes))
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -186,6 +224,7 @@ impl gossip::GossipEventHandler for Space {
             let transport_tx = self.transport.clone();
             let evt_sender = self.evt_sender.clone();
             let space = self.space.clone();
+            let fetch_op_data_stat = self.stats.get("fetch_op_data").cloned().unwrap();
             Ok(async move {
                 // see if we have an entry for this agent in our agent_store
                 let info = match evt_sender
@@ -204,6 +243,12 @@ impl gossip::GossipEventHandler for Space {
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
                 let (_, mut write, read) = transport_tx.create_channel(url).await?;
+                fetch_op_data_stat
+                    .0
+                    .fetch_add(data.len() as u64, std::sync::atomic::Ordering::SeqCst);
+                fetch_op_data_stat
+                    .1
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 write.write_and_close(data.to_vec()).await?;
                 let read = read.read_to_end().await;
                 let (_, read) = wire::Wire::decode_ref(&read)?;
@@ -238,6 +283,7 @@ impl gossip::GossipEventHandler for Space {
             let transport_tx = self.transport.clone();
             let evt_sender = self.evt_sender.clone();
             let space = self.space.clone();
+            let gossip_stat = self.stats.get("gossip").cloned().unwrap();
             Ok(async move {
                 // see if we have an entry for this agent in our agent_store
                 let info = match evt_sender
@@ -261,6 +307,12 @@ impl gossip::GossipEventHandler for Space {
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
                 let (_, mut write, read) = transport_tx.create_channel(url.clone()).await?;
+                gossip_stat
+                    .0
+                    .fetch_add(data.len() as u64, std::sync::atomic::Ordering::SeqCst);
+                gossip_stat
+                    .1
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 write.write_and_close(data.to_vec()).await?;
                 let read = read.read_to_end().await;
                 let (_, read) = wire::Wire::decode_ref(&read)?;
@@ -281,7 +333,7 @@ pub fn local_req_op_hashes(
     evt_sender: &futures::channel::mpsc::Sender<KitsuneP2pEvent>,
     space: Arc<KitsuneSpace>,
     input: ReqOpHashesEvt,
-) -> impl std::future::Future<Output = Result<OpHashesAgentHashes, KitsuneP2pError>> {
+) -> impl std::future::Future<Output = Result<LocalOpHashesAgentHashes, KitsuneP2pError>> {
     let ReqOpHashesEvt {
         to_agent,
         dht_arc,
@@ -570,6 +622,7 @@ impl KitsuneP2pHandler for Space {
 
         let discover_fut =
             discover::peer_discover(self, to_agent.clone(), from_agent.clone(), timeout_ms);
+        let call_stat = self.stats.get("call").cloned().unwrap();
 
         Ok(async move {
             match discover_fut.await {
@@ -587,6 +640,12 @@ impl KitsuneP2pHandler for Space {
                         payload.into(),
                     )
                     .encode_vec()?;
+                    call_stat
+                        .0
+                        .fetch_add(payload.len() as u64, std::sync::atomic::Ordering::SeqCst);
+                    call_stat
+                        .1
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     write.write_and_close(payload).await?;
                     let res = read.read_to_end().await;
                     let (_, res) = wire::Wire::decode_ref(&res)?;
@@ -687,6 +746,8 @@ pub(crate) struct Space {
     pub(crate) transport: ghost_actor::GhostSender<TransportListener>,
     pub(crate) local_joined_agents: HashSet<Arc<KitsuneAgent>>,
     pub(crate) config: Arc<KitsuneP2pConfig>,
+    pub(crate) last_counts: HashMap<Arc<KitsuneAgent>, Arc<AtomicU64>>,
+    pub(crate) stats: HashMap<&'static str, Arc<(AtomicU64, AtomicU64)>>,
 }
 
 impl Space {
@@ -708,6 +769,19 @@ impl Space {
             }
         });
 
+        let mut stats = HashMap::new();
+        stats.insert(
+            "fetch_op_hashes",
+            Arc::new((AtomicU64::new(0), AtomicU64::new(0))),
+        );
+        stats.insert(
+            "fetch_op_data",
+            Arc::new((AtomicU64::new(0), AtomicU64::new(0))),
+        );
+        stats.insert("gossip", Arc::new((AtomicU64::new(0), AtomicU64::new(0))));
+        stats.insert("call", Arc::new((AtomicU64::new(0), AtomicU64::new(0))));
+        stats.insert("notify", Arc::new((AtomicU64::new(0), AtomicU64::new(0))));
+
         Self {
             space,
             i_s,
@@ -715,6 +789,8 @@ impl Space {
             transport,
             local_joined_agents: HashSet::new(),
             config,
+            last_counts: HashMap::new(),
+            stats,
         }
     }
 
@@ -758,6 +834,7 @@ impl Space {
             })
             .collect::<Vec<_>>();
 
+        let call_stat = self.stats.get("call").cloned().unwrap();
         let remote_fut = discover::message_neighborhood(
             self,
             from_agent.clone(),
@@ -778,6 +855,7 @@ impl Space {
                 }),
                 _ => Err(()),
             },
+            call_stat,
         )
         .instrument(tracing::debug_span!("message_neighborhood", payload = ?payload.iter().take(5).collect::<Vec<_>>()));
 
@@ -840,6 +918,7 @@ impl Space {
             })
             .collect::<Vec<_>>();
 
+        let notify_stat = self.stats.get("notify").cloned().unwrap();
         let remote_fut = discover::message_neighborhood(
             self,
             from_agent.clone(),
@@ -857,6 +936,7 @@ impl Space {
                 wire::Wire::NotifyResp(_) => Ok(()),
                 _ => Err(()),
             },
+            notify_stat,
         );
 
         Ok(async move {

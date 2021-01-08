@@ -130,6 +130,11 @@ impl GossipData {
                 i64::MAX,
             ))
             .await?;
+        let op_hashes_from = match op_hashes_from {
+            NewOps::New(h) => h,
+            // Not currently used
+            NewOps::NoChange => return Ok(()),
+        };
         let op_hashes_from: S = HashSet::from_iter(op_hashes_from);
         let agent_info_from: A = HashSet::from_iter(agent_info_from);
         span.in_scope(|| {
@@ -147,6 +152,10 @@ impl GossipData {
                 i64::MAX,
             ))
             .await?;
+        let op_hashes_to = match op_hashes_to {
+            NewOps::New(h) => h,
+            NewOps::NoChange => return Ok(()),
+        };
         let op_hashes_to: S = HashSet::from_iter(op_hashes_to);
         let agent_info_to: A = HashSet::from_iter(agent_info_to);
         span.in_scope(|| {
@@ -185,6 +194,7 @@ impl GossipData {
 
         // fetch values that to_agent needs from from_agent
         if !to_needs.is_empty() || !to_needs_agents.is_empty() {
+            // dbg!(to_needs.len());
             if let Ok((r_ops, r_peers)) = self
                 .evt_send
                 .req_op_data(ReqOpDataEvt::new(
@@ -195,6 +205,7 @@ impl GossipData {
                 ))
                 .await
             {
+                // dbg!(r_ops.len());
                 if !r_ops.is_empty() || !r_peers.is_empty() {
                     if let Err(e) = self
                         .evt_send

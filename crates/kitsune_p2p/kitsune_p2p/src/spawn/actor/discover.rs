@@ -195,6 +195,7 @@ pub(crate) fn message_neighborhood<T, F>(
     _basis: Arc<KitsuneBasis>,
     payload: wire::Wire,
     accept_result_cb: F,
+    stat: Arc<(AtomicU64, AtomicU64)>,
 ) -> MustBoxFuture<'static, Vec<T>>
 where
     T: 'static + Send,
@@ -259,6 +260,7 @@ where
                         let mut payload = payload.clone();
                         let accept_result_cb = accept_result_cb.clone();
                         let out = out.clone();
+                        let stat_c = stat.clone();
                         tokio::task::spawn(async move {
                             let (_, mut write, read) = fut.await?;
                             match &mut payload {
@@ -271,6 +273,11 @@ where
                                 _ => panic!("cannot message {:?}", payload),
                             }
                             let payload = payload.encode_vec()?;
+                            stat_c.0.fetch_add(
+                                payload.len() as u64,
+                                std::sync::atomic::Ordering::SeqCst,
+                            );
+                            stat_c.1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                             write.write_and_close(payload).await?;
                             let res = read.read_to_end().await;
                             let (_, res) = wire::Wire::decode_ref(&res)?;

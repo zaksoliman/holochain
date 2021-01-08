@@ -12,6 +12,7 @@ use kitsune_p2p_types::transport::*;
 use kitsune_p2p_types::transport_pool::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 /// The bootstrap service is much more thoroughly documented in the default service implementation.
@@ -118,14 +119,84 @@ impl KitsuneP2pActor {
         }
 
         tokio::task::spawn({
+            let nanoid = nanoid::nanoid!();
+            let names = [
+                "call",
+                "notify",
+                "gossip",
+                "agent_info",
+                "fetch_hash",
+                "fetch_data",
+                "failure",
+            ];
+            let other_names = ["gossip_ops", "gossip_agents"];
+            let stats_in: HashMap<_, _> = names
+                .iter()
+                .map(|&name| (name, Arc::new((AtomicU64::new(0), AtomicU64::new(0)))))
+                .collect();
+            let stats_out: HashMap<_, _> = names
+                .iter()
+                .map(|&name| (name, Arc::new((AtomicU64::new(0), AtomicU64::new(0)))))
+                .collect();
+            let stats_other: HashMap<_, _> = other_names
+                .iter()
+                .map(|&name| (name, Arc::new((AtomicU64::new(0), AtomicU64::new(0)))))
+                .collect();
+
             let evt_sender = evt_sender.clone();
             t_event.for_each_concurrent(/* limit */ 10, move |event| {
                 let evt_sender = evt_sender.clone();
+                let stats_in = stats_in.clone();
+                let stats_out = stats_out.clone();
+                let stats_other = stats_other.clone();
+                let nanoid = nanoid.clone();
                 async move {
+                    let span = tracing::debug_span!("recv_stat");
+                    let mut total_bytes = 0.0;
+                    let mut total_calls = 0;
+                    span.in_scope(|| {
+                        for (stat, v) in &stats_in {
+                            let bytes = v.0.load(std::sync::atomic::Ordering::SeqCst) as f64
+                                / 1_000_000.0;
+                            let calls = v.1.load(std::sync::atomic::Ordering::SeqCst);
+                            tracing::debug!(?stat, recv_bytes = ?bytes, ?calls);
+                            total_bytes += bytes;
+                            total_calls += calls;
+                        }
+                        tracing::debug!(?nanoid, total_recv_bytes = ?total_bytes, total_recv_calls = ?total_calls);
+                    });
+                    let mut total_bytes = 0.0;
+                    let mut total_calls = 0;
+                    span.in_scope(|| {
+                        for (stat, v) in &stats_out {
+                            let bytes = v.0.load(std::sync::atomic::Ordering::SeqCst) as f64
+                                / 1_000_000.0;
+                            let calls = v.1.load(std::sync::atomic::Ordering::SeqCst);
+                            tracing::debug!(?stat, sent_bytes = ?bytes, ?calls);
+                            total_bytes += bytes;
+                            total_calls += calls;
+                        }
+                        let tls_overhead = (500 * total_calls) as f64 / 1_000_000.0;
+                        tracing::debug!(?nanoid, total_send_bytes = ?total_bytes, total_send_calls = ?total_calls, ?tls_overhead);
+                    });
+                    let mut total_a = 0;
+                    let mut total_b = 0;
+                    span.in_scope(|| {
+                        for (stat, v) in &stats_other {
+                            let a = v.0.load(std::sync::atomic::Ordering::SeqCst);
+                            let b = v.1.load(std::sync::atomic::Ordering::SeqCst);
+                            tracing::debug!(?stat, ?a, ?b);
+                            total_a += a;
+                            total_b += b;
+                        }
+                        tracing::debug!(?nanoid, ?total_a, ?total_b);
+                    });
+
                     let evt_sender = &evt_sender;
                     match event {
                         TransportEvent::IncomingChannel(_url, mut write, read) => {
                             let read = read.read_to_end().await;
+                            let stat_size = read.len() as u64;
                             use kitsune_p2p_types::codec::Codec;
                             let read = match wire::Wire::decode_ref(&read) {
                                 Err(err) => {
@@ -144,6 +215,8 @@ impl KitsuneP2pActor {
                                     data,
                                     ..
                                 }) => {
+                                    stats_in.get("call").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
                                     let res = match evt_sender
                                         .call(space, to_agent, from_agent, data.into())
                                         .await
@@ -159,6 +232,14 @@ impl KitsuneP2pActor {
                                     };
                                     let resp =
                                         wire::Wire::call_resp(res.into()).encode_vec().unwrap();
+                                    stats_out.get("call").unwrap().0.fetch_add(
+                                        resp.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_out.get("call").unwrap().1.fetch_add(
+                                        1,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let _ = write.write_and_close(resp).await;
                                 }
                                 wire::Wire::Notify(wire::Notify {
@@ -168,6 +249,8 @@ impl KitsuneP2pActor {
                                     data,
                                     ..
                                 }) => {
+                                    stats_in.get("notify").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
                                     if let Err(err) = evt_sender
                                         .notify(space, to_agent, from_agent, data.into())
                                         .await
@@ -179,6 +262,14 @@ impl KitsuneP2pActor {
                                         return;
                                     }
                                     let resp = wire::Wire::notify_resp().encode_vec().unwrap();
+                                    stats_out.get("notify").unwrap().0.fetch_add(
+                                        resp.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_out.get("notify").unwrap().1.fetch_add(
+                                        1,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let _ = write.write_and_close(resp).await;
                                 }
                                 wire::Wire::FetchOpHashes(wire::FetchOpHashes {
@@ -188,7 +279,10 @@ impl KitsuneP2pActor {
                                     dht_arc,
                                     since_utc_epoch_s,
                                     until_utc_epoch_s,
+                                    last_count,
                                 }) => {
+                                    stats_in.get("fetch_hash").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
                                     let input = ReqOpHashesEvt::new(
                                         from_agent,
                                         to_agent,
@@ -212,10 +306,27 @@ impl KitsuneP2pActor {
                                         }
                                         Ok(r) => r,
                                     };
+                                    let s = tracing::debug_span!("new_ops");
+                                    let hashes = if last_count == hashes.len() as u64 {
+                                        s.in_scope(|| tracing::debug!("No Change"));
+                                        NewOps::NoChange
+                                    } else {
+                                        s.in_scope(|| tracing::debug!(new_hashes = ?hashes.len()));
+                                        NewOps::New(hashes)
+                                    };
                                     let resp =
                                         wire::Wire::fetch_op_hashes_response(hashes, agent_hashes)
                                             .encode_vec()
                                             .expect("This encoding should never fail");
+                                    stats_out.get("fetch_hash").unwrap().0
+                                    .fetch_add(
+                                        resp.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_out.get("fetch_hash").unwrap().1.fetch_add(
+                                        1,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let _ = write.write_and_close(resp).await;
                                 }
                                 wire::Wire::FetchOpData(wire::FetchOpData {
@@ -225,6 +336,8 @@ impl KitsuneP2pActor {
                                     op_hashes,
                                     peer_hashes,
                                 }) => {
+                                    stats_in.get("fetch_data").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
                                     let input = ReqOpDataEvt::new(
                                         from_agent,
                                         to_agent,
@@ -249,14 +362,34 @@ impl KitsuneP2pActor {
                                         wire::Wire::fetch_op_data_response(op_data, agent_infos)
                                             .encode_vec()
                                             .expect("This encoding should never fail");
+                                    stats_out.get("fetch_data").unwrap().0
+                                    .fetch_add(
+                                        resp.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_out.get("fetch_data").unwrap().1.fetch_add(
+                                        1,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let _ = write.write_and_close(resp).await;
                                 }
                                 wire::Wire::AgentInfoQuery(q) => {
+                                    stats_in.get("agent_info").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
                                     match agent_info_query(q, evt_sender.clone()).await {
                                         Ok(r) => {
                                             let resp = wire::Wire::agent_info_query_resp(r)
                                                 .encode_vec()
                                                 .unwrap();
+                                            stats_out.get("agent_info").unwrap().0
+                                            .fetch_add(
+                                                resp.len() as u64,
+                                                std::sync::atomic::Ordering::SeqCst,
+                                            );
+                                            stats_out.get("agent_info").unwrap().1.fetch_add(
+                                                1,
+                                                std::sync::atomic::Ordering::SeqCst,
+                                            );
                                             let _ = write.write_and_close(resp).await;
                                         }
                                         Err(err) => {
@@ -274,6 +407,20 @@ impl KitsuneP2pActor {
                                     ops,
                                     agents,
                                 }) => {
+                                    // dbg!(stat_size);
+                                    // dbg!(ops.len());
+                                    // dbg!(agents.len());
+                                    stats_in.get("gossip").unwrap().0
+                                        .fetch_add(stat_size, std::sync::atomic::Ordering::SeqCst);
+                                    stats_other.get("gossip_ops").unwrap().0.fetch_add(
+                                        ops.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_other.get("gossip_agents").unwrap().0
+                                    .fetch_add(
+                                        agents.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let input = GossipEvt::new(
                                         from_agent,
                                         to_agent,
@@ -291,6 +438,15 @@ impl KitsuneP2pActor {
                                         return;
                                     }
                                     let resp = wire::Wire::gossip_resp().encode_vec().unwrap();
+                                    stats_out.get("gossip").unwrap().0
+                                    .fetch_add(
+                                        resp.len() as u64,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
+                                    stats_out.get("gossip").unwrap().1.fetch_add(
+                                        1,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    );
                                     let _ = write.write_and_close(resp).await;
                                 }
                                 _ => unimplemented!("{:?}", read),

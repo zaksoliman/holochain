@@ -49,8 +49,22 @@ pub struct GossipEvt {
     pub agents: Vec<AgentInfoSigned>,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Requesting new op hashes
+pub enum NewOps {
+    /// There is new hashes since last gossip
+    New(Hashes),
+    /// No new hashes
+    NoChange,
+}
+
+/// Dht Op hashes that an agent holds
+pub type Hashes = Vec<Arc<KitsuneOpHash>>;
+
 /// Dht op and agent hashes that the agent has information on.
-pub type OpHashesAgentHashes = (Vec<Arc<KitsuneOpHash>>, Vec<(Arc<KitsuneAgent>, u64)>);
+pub type OpHashesAgentHashes = (NewOps, Vec<(Arc<KitsuneAgent>, u64)>);
+/// Dht op and agent hashes that the agent has information on.
+pub type LocalOpHashesAgentHashes = (Hashes, Vec<(Arc<KitsuneAgent>, u64)>);
 /// The Dht op data and agent store information
 pub type OpDataAgentInfo = (Vec<(Arc<KitsuneOpHash>, Vec<u8>)>, Vec<AgentInfoSigned>);
 /// Local and remote neighbors.
