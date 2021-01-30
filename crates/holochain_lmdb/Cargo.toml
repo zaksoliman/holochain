@@ -40,7 +40,7 @@ tracing = "0.1.18"
 tracing-futures = "0.2"
 
 [dev-dependencies]
-observability = { version = "0.1" }
+observability = "0.1.2"
 
 [features]
 default = [ "lmdb_no_tls", "test_utils" ]
