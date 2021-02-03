@@ -115,9 +115,14 @@ impl TransportPoolHandler for Inner {
 
             crate::metrics::metric_task(async move {
                 while let Some(evt) = sub_event.next().await {
+                    let start = std::time::Instant::now();
                     if evt_send.send(evt).await.is_err() {
                         break;
                     }
+                    // let t = start.elapsed().as_millis();
+                    // // if t > 10 {
+                    //     println!("num_dispatch_s {}", t);
+                    // // }
                 }
 
                 <Result<(), ()>>::Ok(())
@@ -184,6 +189,8 @@ impl TransportListenerHandler for Inner {
         url: url2::Url2,
     ) -> TransportListenerHandlerResult<(url2::Url2, TransportChannelWrite, TransportChannelRead)>
     {
+        // let span = tracing::debug_span!("next_gossip", %url, msg = "pool");
+        // span.in_scope(|| tracing::debug!("handle_create_channel"));
         // TODO - right now requiring sub transport scheme to create channel
         //        would be nice to also accept a pool url && prioritize the
         //        sub-scheme.

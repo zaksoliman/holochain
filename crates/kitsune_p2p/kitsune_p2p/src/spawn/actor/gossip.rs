@@ -3,6 +3,7 @@
 
 use crate::types::actor::KitsuneP2pResult;
 use crate::types::gossip::*;
+use crate::types::metrics::KitsuneMetrics;
 use crate::*;
 use ghost_actor::dependencies::tracing;
 use ghost_actor::dependencies::tracing_futures;
@@ -78,14 +79,17 @@ struct GossipData {
     evt_send: futures::channel::mpsc::Sender<GossipEvent>,
     pending_gossip_list: Vec<(Arc<KitsuneAgent>, Arc<KitsuneAgent>)>,
     last_counts: HashMap<Arc<KitsuneAgent>, (u64, u64)>,
+    my_num: u64,
 }
 
 impl GossipData {
     pub fn new(evt_send: futures::channel::mpsc::Sender<GossipEvent>) -> Self {
+        let my_num = KitsuneMetrics::count_silent(KitsuneMetrics::GossipNum, 1);
         Self {
             evt_send,
             pending_gossip_list: Vec::new(),
             last_counts: HashMap::new(),
+            my_num,
         }
     }
 
@@ -120,7 +124,14 @@ impl GossipData {
     async fn process_next_gossip(&mut self) -> KitsuneP2pResult<()> {
         // !is_empty() checked above in take_action
         let (from_agent, to_agent) = self.pending_gossip_list.remove(0);
-        let span = tracing::debug_span!("next_gossip", ?from_agent, ?to_agent);
+        let from = format!("{:?}", from_agent);
+        let from = &from[(from.len() - 10)..];
+        let to = format!("{:?}", to_agent);
+        let to = &to[(to.len() - 10)..];
+        let span = tracing::debug_span!("next_gossip", %self.my_num, %from, %to);
+        let start = std::time::Instant::now();
+        let mut last = std::time::Instant::now();
+        let mut el: Vec<(&str, u64)> = Vec::new();
 
         // Get the last count for this interaction
         let last_count = self.last_counts.entry(to_agent.clone()).or_insert((0, 0));
@@ -163,9 +174,12 @@ impl GossipData {
 
         let op_hashes_from: S = HashSet::from_iter(op_hashes_from);
         let agent_info_from: A = HashSet::from_iter(agent_info_from);
-        span.in_scope(|| {
-            tracing::debug!(from_has_len = ?op_hashes_from.len());
-        });
+        // span.in_scope(|| {
+        //     tracing::debug!(from_has_len = ?op_hashes_from.len());
+        // });
+        el.push(("i_have", last.elapsed().as_secs()));
+        last = std::time::Instant::now();
+        let i_have = op_hashes_from.len();
 
         // we'll just fetch all with no constraints for now
         let (op_hashes_to, agent_info_to) = self
@@ -187,14 +201,18 @@ impl GossipData {
             // There's no new gossip from us or them
             // so our job is done.
             OpConsistency::Consistent => {
+                span.in_scope(|| tracing::debug!(took = %start.elapsed().as_secs(), "Consistent"));
                 return Ok(());
             }
         };
         let op_hashes_to: S = HashSet::from_iter(op_hashes_to);
         let agent_info_to: A = HashSet::from_iter(agent_info_to);
-        span.in_scope(|| {
-            tracing::debug!(to_has_len = ?op_hashes_to.len());
-        });
+        // span.in_scope(|| {
+        //     tracing::debug!(to_has_len = ?op_hashes_to.len());
+        // });
+        el.push(("they_have", last.elapsed().as_secs()));
+        last = std::time::Instant::now();
+        let they_have = op_hashes_to.len();
 
         // values that to_agent has, and from_agent needs
         let from_needs = op_hashes_to
@@ -206,10 +224,13 @@ impl GossipData {
             .cloned()
             .map(|(ai, _)| ai)
             .collect::<Vec<_>>();
-        span.in_scope(|| {
-            tracing::debug!(?from_needs_agents);
-            tracing::debug!(from_needs_len = ?from_needs.len());
-        });
+        // span.in_scope(|| {
+        //     tracing::debug!(?from_needs_agents);
+        //     tracing::debug!(from_needs_len = ?from_needs.len());
+        // });
+        el.push(("i_need", last.elapsed().as_secs()));
+        last = std::time::Instant::now();
+        let i_need = from_needs.len();
 
         // values that from_agent has, and to_agent needs
         let to_needs = op_hashes_from
@@ -221,10 +242,13 @@ impl GossipData {
             .cloned()
             .map(|(ai, _)| ai)
             .collect::<Vec<_>>();
-        span.in_scope(|| {
-            tracing::debug!(?to_needs_agents);
-            tracing::debug!(to_needs_len = ?to_needs.len());
-        });
+        el.push(("they_need", last.elapsed().as_secs()));
+        last = std::time::Instant::now();
+        let they_need = to_needs.len();
+        // span.in_scope(|| {
+        //     tracing::debug!(?to_needs_agents);
+        //     tracing::debug!(to_needs_len = ?to_needs.len());
+        // });
 
         // fetch values that to_agent needs from from_agent
         if !to_needs.is_empty() || !to_needs_agents.is_empty() {
@@ -238,6 +262,8 @@ impl GossipData {
                 ))
                 .await
             {
+                el.push(("get_my_ops", last.elapsed().as_secs()));
+                last = std::time::Instant::now();
                 if !r_ops.is_empty() || !r_peers.is_empty() {
                     if let Err(e) = self
                         .evt_send
@@ -253,6 +279,8 @@ impl GossipData {
                             tracing::error!(gossip_failed_to_send = ?e, ?to_agent);
                         });
                     }
+                    el.push(("send_my_ops", last.elapsed().as_secs()));
+                    last = std::time::Instant::now();
                 }
             }
         }
@@ -269,6 +297,8 @@ impl GossipData {
                 ))
                 .await
             {
+                el.push(("get_their_ops", last.elapsed().as_secs()));
+                last = std::time::Instant::now();
                 if !r_ops.is_empty() || !r_peers.is_empty() {
                     if let Err(e) = self
                         .evt_send
@@ -284,9 +314,20 @@ impl GossipData {
                             tracing::error!(gossip_failed_to_get_from = ?e, ?to_agent);
                         });
                     }
+                    el.push(("send_their_ops", last.elapsed().as_secs()));
                 }
             }
         }
+        span.in_scope(|| {
+            tracing::debug!(
+                took = %start.elapsed().as_secs(),
+                ?i_have,
+                ?they_have,
+                ?i_need,
+                ?they_need,
+                ?el,
+            )
+        });
 
         Ok(())
     }

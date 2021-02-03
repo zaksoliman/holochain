@@ -235,6 +235,9 @@ impl TransportListenerHandler for TransportListenerQuic {
         &mut self,
         url: Url2,
     ) -> TransportListenerHandlerResult<(Url2, TransportChannelWrite, TransportChannelRead)> {
+        let span = tracing::debug_span!("next_gossip", %url);
+        let mut last = std::time::Instant::now();
+        // span.in_scope(|| tracing::debug!("handle_create_channel"));
         // if we already have an open connection to the remote end,
         // just directly try to open the bi-stream channel.
         let maybe_bi = self.connections.get(&url).map(|con| con.open_bi());
@@ -246,6 +249,12 @@ impl TransportListenerHandler for TransportListenerQuic {
             if let Some(maybe_bi) = maybe_bi {
                 match maybe_bi.await {
                     Ok((bi_send, bi_recv)) => {
+                        span.in_scope(|| {
+                            let t = last.elapsed().as_secs();
+                            if t >= 10 {
+                                tracing::debug!("reuse_stream {}", t);
+                            }
+                        });
                         let (write, read) = tx_bi_chan(bi_send, bi_recv);
                         return Ok((url, write, read));
                     }
@@ -253,6 +262,10 @@ impl TransportListenerHandler for TransportListenerQuic {
                         // otherwise, we should drop any existing channel
                         // we have... it no longer works for us
                         i_s.drop_connection(url.clone()).await?;
+                        span.in_scope(|| {
+                            tracing::debug!("drop_stream {}", last.elapsed().as_secs())
+                        });
+                        last = std::time::Instant::now();
                     }
                 }
             }
@@ -260,8 +273,13 @@ impl TransportListenerHandler for TransportListenerQuic {
             // we did not successfully use an existing connection.
             // instead, try establishing a new one with a new channel.
             let addr = crate::url_to_addr(&url, crate::SCHEME).await?;
+            span.in_scope(|| tracing::debug!("url_to_addr{}", last.elapsed().as_secs()));
+            last = std::time::Instant::now();
             let maybe_con = i_s.raw_connect(addr).await?;
+            span.in_scope(|| tracing::debug!("raw_connect{}", last.elapsed().as_secs()));
+            last = std::time::Instant::now();
             let (url, write, read) = i_s.take_connecting(maybe_con, true).await?.unwrap();
+            span.in_scope(|| tracing::debug!("take_connecting {}", last.elapsed().as_secs()));
 
             Ok((url, write, read))
         }
@@ -374,6 +392,13 @@ mod danger {
     use std::sync::Arc;
 
     static TRANSPORT: Lazy<Arc<quinn::TransportConfig>> = Lazy::new(|| {
+        const EXPECTED_RTT: u64 = 100; // ms
+        const MAX_STREAM_BANDWIDTH: u64 = 12500 * 1000; // bytes/s
+                                                        // Window size needed to avoid pipeline
+                                                        // stalls
+        const STREAM_RWND: u64 = MAX_STREAM_BANDWIDTH / 1000 * EXPECTED_RTT;
+        // const MAX_DATAGRAM_SIZE: u64 = 1200;
+        const MULT: u64 = 10;
         let mut transport = quinn::TransportConfig::default();
 
         // We don't use uni streams in kitsune - only bidi streams
@@ -386,6 +411,14 @@ mod danger {
         // Disable spin bit - we'd like the extra privacy
         // any metrics we implement will be opt-in self reporting
         transport.allow_spin(false);
+
+        transport.stream_window_bidi(1000);
+
+        transport.crypto_buffer_size(1024 * 1024);
+
+        transport.receive_window( 8 * STREAM_RWND * MULT);
+        transport.send_window( 8 * STREAM_RWND * MULT);
+        transport.stream_receive_window(STREAM_RWND * MULT);
 
         // see also `keep_alive_interval`.
         // right now keep_alive_interval is None,
@@ -422,7 +455,11 @@ mod danger {
         let tcert_priv = PrivateKey::from_der(&cert_priv).map_err(TransportError::other)?;
 
         let mut transport_config = TransportConfig::default();
+        // transport_config.stream_window_bidi(1000);
         transport_config.stream_window_uni(0);
+        transport_config
+            .max_idle_timeout(Some(std::time::Duration::from_millis(30_000)))
+            .unwrap();
         let mut server_config = ServerConfig::default();
         server_config.transport = Arc::new(transport_config);
         let mut cfg_builder = ServerConfigBuilder::new(server_config);

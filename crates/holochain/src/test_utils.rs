@@ -411,10 +411,12 @@ async fn consistency_envs_others(
         let count = get_authored_ops(env).len();
         expected_count += count;
     }
+    let start = Some(std::time::Instant::now());
     for (i, &env) in all_cell_envs.iter().enumerate() {
         let mut others = all_cell_envs.to_vec();
         others.remove(i);
-        wait_for_integration_with_others(env, &others, expected_count, num_attempts, delay).await
+        wait_for_integration_with_others(env, &others, expected_count, num_attempts, delay, start)
+            .await
     }
 }
 
@@ -494,14 +496,22 @@ pub async fn wait_for_integration_with_others_10s(
     env: &EnvironmentWrite,
     others: &[&EnvironmentWrite],
     expected_count: usize,
+    start: Option<std::time::Instant>,
 ) {
     const NUM_ATTEMPTS: usize = 100;
     const DELAY_PER_ATTEMPT: std::time::Duration = std::time::Duration::from_millis(100);
-    wait_for_integration_with_others(env, others, expected_count, NUM_ATTEMPTS, DELAY_PER_ATTEMPT)
-        .await
+    wait_for_integration_with_others(
+        env,
+        others,
+        expected_count,
+        NUM_ATTEMPTS,
+        DELAY_PER_ATTEMPT,
+        start,
+    )
+    .await
 }
 
-#[tracing::instrument(skip(env, others))]
+#[tracing::instrument(skip(env, others, start))]
 /// Same as wait for integration but can print other states at the same time
 pub async fn wait_for_integration_with_others(
     env: &EnvironmentWrite,
@@ -509,27 +519,46 @@ pub async fn wait_for_integration_with_others(
     expected_count: usize,
     num_attempts: usize,
     delay: Duration,
+    start: Option<std::time::Instant>,
 ) {
     let mut last_total = 0;
-    for i in 0..num_attempts {
+    let this_start = std::time::Instant::now();
+    for _ in 0..num_attempts {
         let count = count_integration(env).await;
         let counts = get_counts(others).await;
+        let num_conductors = counts.len() + 1;
+        let total_expected = num_conductors * expected_count;
         let total: usize = counts.clone().into_iter().map(|(_, _, i)| i).sum();
+        let progress = if total_expected == 0 {
+            0.0
+        } else {
+            total as f64 / total_expected as f64 * 100.0
+        };
         let change = total.checked_sub(last_total).expect("LOST A VALUE");
         last_total = total;
         if count.2 == expected_count {
             return;
         } else {
-            let total_time_waited = delay * i as u32;
+            let time_waited = this_start.elapsed().as_secs();
+            let total_time_waited = start.map(|s| s.elapsed().as_secs()).unwrap_or(0);
+            let ops_per_s = if total_time_waited == 0 {
+                0.0
+            } else {
+                total as f64 / total_time_waited as f64
+            };
             tracing::debug!(
-                "Count: {}, val: {}, int: {}\nTime waited: {:?},\nCounts: {:?}\nTotal: {} change:{}\n",
+                "Count: {}, val: {}, int: {}\nTime waited: {}s Total {}s,\nCounts: {:?}\nTotal: {} out of {} {:.4}% change:{} {:.4}ops/s\n",
                 count.2,
                 count.1,
                 count.0,
+                time_waited,
                 total_time_waited,
                 counts,
                 total,
+                total_expected,
+                progress,
                 change,
+                ops_per_s,
             );
         }
         tokio::time::delay_for(delay).await;

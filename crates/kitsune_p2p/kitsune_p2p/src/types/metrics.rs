@@ -14,7 +14,8 @@ observability::metrics!(
     AgentInfoQueryResp,
     Gossip,
     GossipResp,
-    Fail
+    Fail,
+    GossipNum
 );
 
 /// Print all metrics as tracing events
@@ -69,6 +70,7 @@ pub fn print_all_metrics() {
                     )
                     .expect("Failed to print metrics");
                 }
+                _ => (),
             }
         }
         writeln!(

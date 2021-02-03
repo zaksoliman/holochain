@@ -200,16 +200,23 @@ impl<T: TransportListenerSender> TransportListenerSenderExt for T {
         data: Vec<u8>,
     ) -> ghost_actor::dependencies::must_future::MustBoxFuture<'static, TransportResult<Vec<u8>>>
     {
+        // static NUM: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let fut = self.create_channel(url);
         async move {
+            // let start = std::time::Instant::now();
+            // println!("Waiting {}: {}", String::from_utf8_lossy(&data), start.elapsed().as_millis());
             let (_url, mut write, read) = fut.await?;
             KitsuneTransportMetrics::count_filter(
                 KitsuneTransportMetrics::Write,
                 data.len(),
                 "transport",
             );
-            write.write_and_close(data).await?;
+            // let i = NUM.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // println!("Connected {} total {} : {}", String::from_utf8_lossy(&data), i, start.elapsed().as_millis());
+            write.write_and_close(data.clone()).await?;
+            // dbg!(format!("{}:{}", String::from_utf8_lossy(&data), start.elapsed().as_millis()));
             let r = read.read_to_end().await;
+            // dbg!(format!("{}:{}", String::from_utf8_lossy(&data), start.elapsed().as_millis()));
             KitsuneTransportMetrics::count_filter(
                 KitsuneTransportMetrics::Read,
                 r.len(),

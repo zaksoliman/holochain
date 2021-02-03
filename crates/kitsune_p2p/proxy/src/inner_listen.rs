@@ -81,7 +81,8 @@ pub async fn spawn_kitsune_proxy_listener(
 
         // Set up a timer to refresh our proxy contract at keepalive interval
         let i_s_c = i_s.clone();
-        metric_task(async move {
+        metric_task(
+            async move {
                 loop {
                     tokio::time::delay_for(std::time::Duration::from_millis(PROXY_KEEPALIVE_MS))
                         .await;
@@ -554,6 +555,8 @@ impl TransportListenerHandler for InnerListen {
         url: url2::Url2,
     ) -> TransportListenerHandlerResult<(url2::Url2, TransportChannelWrite, TransportChannelRead)>
     {
+        let span = tracing::debug_span!("next_gossip", %url, msg = "inner_listen");
+        let mut last = std::time::Instant::now();
         let short = self.this_url.short().to_string();
         let proxy_url = ProxyUrl::from(url);
         let tls_client_config = self.tls_client_config.clone();
@@ -562,10 +565,24 @@ impl TransportListenerHandler for InnerListen {
             let (mut write, read) = i_s
                 .create_low_level_channel(proxy_url.as_base().clone())
                 .await?;
+            span.in_scope(|| {
+                let t = last.elapsed().as_secs();
+                if t >= 10 {
+                    tracing::debug!("create_low_level_stream {}", t);
+                }
+            });
+            let mut last = std::time::Instant::now();
             write
                 .send(ProxyWire::chan_new(proxy_url.clone().into()))
                 .await
                 .map_err(TransportError::other)?;
+            span.in_scope(|| {
+                let t = last.elapsed().as_secs();
+                if t >= 10 {
+                    tracing::debug!("channel_new{}", t);
+                }
+            });
+            let mut last = std::time::Instant::now();
             let ((send1, recv1), (send2, recv2)) = create_transport_channel_pair();
             tls_cli::spawn_tls_client(
                 short,
@@ -578,6 +595,12 @@ impl TransportListenerHandler for InnerListen {
             )
             .await
             .map_err(TransportError::other)??;
+            span.in_scope(|| {
+                let t = last.elapsed().as_secs();
+                if t >= 10 {
+                    tracing::debug!("spawn_tls_client {}", t);
+                }
+            });
             Ok((proxy_url.into(), send2, recv2))
         }
         .boxed()

@@ -117,6 +117,12 @@ impl gossip::GossipEventHandler for Space {
             let transport_tx = self.transport.clone();
             let evt_sender = self.evt_sender.clone();
             let space = self.space.clone();
+            let from = format!("{:?}", from_agent);
+            let from = &from[(from.len() - 10)..];
+            let to = format!("{:?}", to_agent);
+            let to = &to[(to.len() - 10)..];
+            let span = tracing::debug_span!("next_gossip", %from, %to);
+            let mut last = std::time::Instant::now();
             Ok(async move {
                 // see if we have an entry for this agent in our agent_store
                 let info = match evt_sender
@@ -129,6 +135,8 @@ impl gossip::GossipEventHandler for Space {
                     None => return Err(KitsuneP2pError::RoutingAgentError(to_agent)),
                     Some(i) => i,
                 };
+                span.in_scope(|| tracing::debug!("get agent info {}", last.elapsed().as_secs()));
+                last = std::time::Instant::now();
                 let data = wire::Wire::fetch_op_hashes(
                     space,
                     from_agent,
@@ -141,10 +149,17 @@ impl gossip::GossipEventHandler for Space {
                 .encode_vec()?;
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
+
+                let url_disp = url.to_string();
                 let (_, mut write, read) = transport_tx.create_channel(url).await?;
+                span.in_scope(|| tracing::debug!("create channel {} \n {:?}", last.elapsed().as_secs(), url_disp));
+                last = std::time::Instant::now();
                 KitsuneMetrics::count(KitsuneMetrics::FetchOpHashes, data.len());
                 write.write_and_close(data.to_vec()).await?;
+                span.in_scope(|| tracing::debug!("write {}", last.elapsed().as_secs()));
+                last = std::time::Instant::now();
                 let read = read.read_to_end().await;
+                span.in_scope(|| tracing::debug!("read {}", last.elapsed().as_secs()));
                 let (_, read) = wire::Wire::decode_ref(&read)?;
                 match read {
                     wire::Wire::Failure(wire::Failure { reason }) => Err(reason.into()),

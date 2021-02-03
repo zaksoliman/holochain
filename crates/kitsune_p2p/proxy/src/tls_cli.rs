@@ -40,6 +40,9 @@ async fn tls_client(
     mut write: futures::channel::mpsc::Sender<ProxyWire>,
     read: futures::channel::mpsc::Receiver<ProxyWire>,
 ) -> TransportResult<()> {
+    let span =
+        tracing::debug_span!("next_gossip", %short, msg = "tls_client", id = %nanoid::nanoid!());
+    let mut last = std::time::Instant::now();
     let mut setup_send = Some(setup_send);
     let res: TransportResult<()> = async {
         let nr = webpki::DNSNameRef::try_from_ascii_str("stub.stub").unwrap();
@@ -69,6 +72,12 @@ async fn tls_client(
                 if let Some(setup_send) = setup_send.take() {
                     if expected_proxy_url == remote_proxy_url {
                         tracing::info!("{}: CLI: CONNECTED TLS: {}", short, remote_proxy_url);
+                        span.in_scope(|| {
+                            let t = last.elapsed().as_secs();
+                            if t >= 10 {
+                                tracing::debug!("spawn_tls_client {}", t);
+                            }
+                        });
                         let _ = setup_send.send(Ok(()));
                     } else {
                         let msg = format!(
@@ -89,21 +98,50 @@ async fn tls_client(
                     .send(ProxyWire::chan_send(data.into()))
                     .await
                     .map_err(TransportError::other)?;
+                // span.in_scope(|| {
+                //     let t = last.elapsed().as_secs();
+                //     if t >= 10 {
+                //         tracing::debug!("wants write {}", t);
+                //     }
+                // });
             }
 
             if wants_write_close && !cli.is_handshaking() {
                 tracing::trace!("{}: CLI closing outgoing", short);
                 write.close().await.map_err(TransportError::other)?;
+                // span.in_scope(|| {
+                //     let t = last.elapsed().as_secs();
+                //     if t >= 10 {
+                //         tracing::debug!("wants write close {}", t);
+                //     }
+                // });
             }
 
-            match merge.next().await {
+            let r = match tokio::time::timeout(std::time::Duration::from_secs(5), merge.next()).await {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+            // match merge.next().await {
+            match r {
                 Some(Left(Some(data))) => {
                     tracing::trace!("{}: CLI outgoing {} bytes", short, data.len());
                     cli.write_all(&data).map_err(TransportError::other)?;
+                    // span.in_scope(|| {
+                    //     let t = last.elapsed().as_secs();
+                    //     if t >= 10 {
+                    //         tracing::debug!("cli outgoing {}", t);
+                    //     }
+                    // });
                 }
                 Some(Left(None)) => {
                     tracing::trace!("{}: CLI wants close outgoing", short);
                     wants_write_close = true;
+                    // span.in_scope(|| {
+                    //     let t = last.elapsed().as_secs();
+                    //     if t >= 10 {
+                    //         tracing::debug!("cli close outgoing {}", t);
+                    //     }
+                    // });
                 }
                 Some(Right(Some(wire))) => match wire {
                     ProxyWire::ChanSend(data) => {
@@ -116,6 +154,12 @@ async fn tls_client(
                         in_pre.set_position(0);
                         in_pre.get_mut().extend_from_slice(&data.channel_data);
                         let in_buf_len = in_pre.get_ref().len();
+                        // span.in_scope(|| {
+                        //     let t = last.elapsed().as_secs();
+                        //     if t >= 5 {
+                        //         tracing::debug!("cli incoming before {}", t);
+                        //     }
+                        // });
                         loop {
                             if in_pre.position() >= in_buf_len as u64 {
                                 break;
@@ -130,11 +174,23 @@ async fn tls_client(
                                 send.send(buf[..size].to_vec()).await?;
                             }
                         }
+                        // span.in_scope(|| {
+                        //     let t = last.elapsed().as_secs();
+                        //     if t >= 10 {
+                        //         tracing::debug!("cli incoming {}", t);
+                        //     }
+                        // });
                     }
                     _ => return Err(format!("invalid wire: {:?}", wire).into()),
                 },
                 Some(Right(None)) => {
                     send.close().await?;
+                    // span.in_scope(|| {
+                    //     let t = last.elapsed().as_secs();
+                    //     if t >= 10 {
+                    //         tracing::debug!("close send {}", t);
+                    //     }
+                    // });
                 }
                 None => return Ok(()),
             }
