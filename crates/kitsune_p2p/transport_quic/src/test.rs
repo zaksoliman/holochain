@@ -113,7 +113,7 @@ mod tests {
 
         let (mut tx, mut rx) = tokio::sync::mpsc::channel(NUM_CONNECTIONS * NUM_MESSAGES);
 
-        metric_task(async move {
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(NUM_CONNECTIONS), async move {
             // let mut num = 0;
             while let Some(evt) = events1.next().await {
                 // num += 1;
@@ -129,7 +129,7 @@ mod tests {
             TransportResult::Ok(())
         });
 
-        metric_task(async move {
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(NUM_CONNECTIONS), async move {
             // tokio::time::delay_for(std::time::Duration::from_secs(20)).await;
             println!("Starting recv");
             // let mut num = 0;
@@ -161,7 +161,10 @@ mod tests {
                     // println!("Got response {}", n + 1);
                     TransportResult::Ok(r)
                 };
-                jhs.push(metric_task(task));
+                jhs.push(metric_task_warn_limit(
+                    spawn_pressure::spawn_limit!(NUM_CONNECTIONS),
+                    task,
+                ));
             }
         }
         // let bound2 = listener2.bound_url().await.unwrap();
