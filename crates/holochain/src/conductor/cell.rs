@@ -742,15 +742,10 @@ impl Cell {
     /// Delete all data associated with this Cell by deleting the associated
     /// LMDB environment. Completely reverses Cell creation.
     #[tracing::instrument(skip(self))]
-    pub async fn destroy(self) -> CellResult<()> {
-        let path = self.env.path().clone();
+    pub fn destroy(self) -> Result<(), RemoveError> {
         // Remove db from global map
         // Delete directory
-        self.env
-            .remove()
-            .await
-            .map_err(|e| CellError::Cleanup(e.to_string(), path))?;
-        Ok(())
+        self.env.remove()
     }
 
     /// Instantiate a Ribosome for use by this Cell's workflows

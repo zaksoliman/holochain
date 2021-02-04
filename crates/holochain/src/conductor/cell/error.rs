@@ -6,12 +6,11 @@ use crate::core::workflow::error::WorkflowError;
 use crate::core::workflow::produce_dht_ops_workflow::dht_op_light::error::DhtOpConvertError;
 use crate::core::SourceChainError;
 use holochain_cascade::error::CascadeError;
-use holochain_lmdb::error::DatabaseError;
+use holochain_lmdb::{env::RemoveError, error::DatabaseError};
 use holochain_p2p::HolochainP2pError;
 use holochain_types::prelude::*;
 use holochain_zome_types::cell::CellId;
 
-use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -31,9 +30,9 @@ pub enum CellError {
     #[error("This cell has not had a successful genesis and cannot be created")]
     CellWithoutGenesis(CellId),
     #[error(
-        "The cell failed to cleanup its environment because: {0}. Recommend manually deleting the database at: {1}"
+        "The cell failed to cleanup its environment. Recommend manually deleting the database. Cause: {0}"
     )]
-    Cleanup(String, PathBuf),
+    Cleanup(RemoveError),
     #[error(transparent)]
     DnaError(#[from] DnaError),
     #[error(transparent)]

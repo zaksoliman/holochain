@@ -17,6 +17,7 @@ use parking_lot::RwLockReadGuard;
 use rkv::EnvironmentFlags;
 use rkv::Rkv;
 use shrinkwraprs::Shrinkwrap;
+use snafu::ResultExt;
 use std::collections::hash_map;
 use std::collections::HashMap;
 use std::path::Path;
@@ -198,14 +199,21 @@ impl EnvironmentWrite {
     }
 
     /// Remove the db and directory
-    pub async fn remove(self) -> DatabaseResult<()> {
+    pub fn remove(self) -> Result<(), RemoveError> {
         let mut map = ENVIRONMENTS.write();
         map.remove(&self.0.path);
         // TODO remove this db from the DB_MAP_MAP?
         // remove the directory
-        std::fs::remove_dir_all(&self.0.path)?;
-        Ok(())
+        std::fs::remove_dir_all(&self.0.path).context(RemoveContext { path: self.0.path })
     }
+}
+
+/// The error returned by `EnvironmentWrite::remove`
+#[derive(snafu::Snafu, Debug)]
+#[snafu(display("Failed to remove specific database directory at path {}: {}", path.display(), source))]
+pub struct RemoveError {
+    source: std::io::Error,
+    path: PathBuf,
 }
 
 /// The various types of LMDB environment, used to specify the list of databases to initialize

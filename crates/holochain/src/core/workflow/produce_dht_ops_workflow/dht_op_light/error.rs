@@ -1,4 +1,3 @@
-use crate::core::SourceChainError;
 use holo_hash::AnyDhtHash;
 use holo_hash::HeaderHash;
 use holochain_cascade::error::CascadeError;

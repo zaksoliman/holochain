@@ -415,7 +415,9 @@ where
                     EnvironmentKind::Cell(cell_id),
                     keystore.clone(),
                 )?;
-                env.remove().await?;
+                if let Err(e) = env.remove() {
+                    tracing::warn!("Failed to clean up cell database directory: {}", e)
+                }
             }
 
             // match needed to avoid Debug requirement on unwrap_err
@@ -499,7 +501,7 @@ where
 
                     // Join all the cell create tasks for this app
                     // and seperate any errors
-                    let (success, errors): (Vec<_>, Vec<_>) =
+                    let (success, mut errors): (Vec<_>, Vec<_>) =
                         futures::future::join_all(cells_tasks)
                             .await
                             .into_iter()
@@ -510,11 +512,9 @@ where
                     // If there was errors, cleanup and return the errors
                     if !errors.is_empty() {
                         for cell in success {
-                            // Error needs to capture which app failed
-                            cell.0.destroy().await.map_err(|e| CreateAppError::Failed {
-                                installed_app_id: installed_app_id.clone(),
-                                errors: vec![e],
-                            })?;
+                            cell.0
+                                .destroy()
+                                .unwrap_or_else(|e| errors.push(Err(CellError::Cleanup(e))));
                         }
                         // match needed to avoid Debug requirement on unwrap_err
                         let errors = errors
@@ -524,6 +524,7 @@ where
                                 Ok(_) => unreachable!("Safe because of the partition"),
                             })
                             .collect();
+                        // Error needs to capture which app failed
                         Err(CreateAppError::Failed {
                             installed_app_id,
                             errors,

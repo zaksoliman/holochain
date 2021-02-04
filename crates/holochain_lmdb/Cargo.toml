@@ -32,6 +32,7 @@ rmp-serde = "0.14.3"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 shrinkwraprs = "0.3.0"
+snafu = "0.6.10"
 tempdir = "0.3.7"
 thiserror = "1.0.22"
 tokio = { version = "0.2.11", features = [ "macros", "rt-threaded", "rt-util", "sync" ] }

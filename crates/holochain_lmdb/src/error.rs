@@ -67,9 +67,6 @@ pub enum DatabaseError {
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 
-    #[error("Failue to remove directory")]
-    DirectoryError(#[from] std::io::Error),
-
     #[error(transparent)]
     KeystoreError(#[from] holochain_keystore::KeystoreError),
 
