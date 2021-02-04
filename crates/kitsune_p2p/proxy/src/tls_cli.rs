@@ -2,11 +2,15 @@ use crate::*;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use ghost_actor::dependencies::tracing;
+use kitsune_p2p_types::dependencies::spawn_pressure;
+use observability::tracing::Instrument;
 use rustls::Session;
 use std::io::Read;
 use std::io::Write;
 
-pub(crate) fn spawn_tls_client(
+const MAX_CLIENTS: usize = 1000;
+
+pub(crate) async fn spawn_tls_client(
     short: String,
     expected_proxy_url: ProxyUrl,
     tls_client_config: Arc<rustls::ClientConfig>,
@@ -16,16 +20,20 @@ pub(crate) fn spawn_tls_client(
     read: futures::channel::mpsc::Receiver<ProxyWire>,
 ) -> tokio::sync::oneshot::Receiver<TransportResult<()>> {
     let (setup_send, setup_recv) = tokio::sync::oneshot::channel();
-    metric_task(tls_client(
-        short,
-        setup_send,
-        expected_proxy_url,
-        tls_client_config,
-        send,
-        recv,
-        write,
-        read,
-    ));
+    metric_task(
+        spawn_pressure::spawn_limit!(MAX_CLIENTS),
+        tls_client(
+            short,
+            setup_send,
+            expected_proxy_url,
+            tls_client_config,
+            send,
+            recv,
+            write,
+            read,
+        ),
+    )
+    .await;
     setup_recv
 }
 
@@ -171,7 +179,9 @@ async fn tls_client(
                                 if size == 0 {
                                     break;
                                 }
-                                send.send(buf[..size].to_vec()).await?;
+                                send.send(buf[..size].to_vec())
+                                    .instrument(tracing::debug_span!("incoming_send"))
+                                    .await?;
                             }
                         }
                         // span.in_scope(|| {
@@ -184,13 +194,9 @@ async fn tls_client(
                     _ => return Err(format!("invalid wire: {:?}", wire).into()),
                 },
                 Some(Right(None)) => {
-                    send.close().await?;
-                    // span.in_scope(|| {
-                    //     let t = last.elapsed().as_secs();
-                    //     if t >= 10 {
-                    //         tracing::debug!("close send {}", t);
-                    //     }
-                    // });
+                    send.close()
+                        .instrument(tracing::debug_span!("incoming_close"))
+                        .await?;
                 }
                 None => return Ok(()),
             }

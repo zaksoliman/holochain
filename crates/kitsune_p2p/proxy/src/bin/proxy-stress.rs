@@ -2,12 +2,14 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_proxy::*;
 use kitsune_p2p_transport_quic::*;
+use kitsune_p2p_types::dependencies::spawn_pressure;
+use kitsune_p2p_types::metrics::metric_task_warn_limit;
 use kitsune_p2p_types::{
     dependencies::{ghost_actor, url2},
-    metrics::metric_task,
     transport::*,
     transport_mem::*,
 };
+use observability::tracing::Instrument;
 use structopt::StructOpt;
 
 /// Proxy transport selector
@@ -49,15 +51,29 @@ pub struct Opt {
     #[structopt(short = "i", long, default_value = "200")]
     request_interval_ms: u32,
 
+    /// Interval between requests per node
+    #[structopt(short, long, default_value = "200")]
+    channel_interval_ms: u32,
+
     /// How long nodes should delay before responding
     #[structopt(short = "d", long, default_value = "200")]
     process_delay_ms: u32,
+
+    /// Grow connections instead of sending messages
+    #[structopt(short, long)]
+    grow: bool,
 }
 
 #[tokio::main]
 async fn main() {
-    observability::init_fmt(observability::Output::Compact)
+    observability::init_fmt(observability::Output::DeadLock)
         .expect("Failed to start contextual logging");
+    tokio::spawn(async {
+        loop {
+            observability::tick_deadlock_catcher();
+            tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+        }
+    });
 
     if let Err(e) = inner().await {
         eprintln!("{:?}", e);
@@ -115,13 +131,14 @@ async fn inner() -> TransportResult<()> {
     let opt = Opt::from_args();
 
     println!("{:#?}", opt);
+    kitsune_p2p_types::metrics::init_sys_info_poll();
 
     let (listener, mut events) = gen_proxy_con(&opt.transport).await?;
 
     let proxy_url = listener.bound_url().await?;
     println!("Proxy Url: {}", proxy_url);
 
-    metric_task(async move {
+    metric_task_warn_limit(spawn_pressure::spawn_limit!(10000), async move {
         while let Some(evt) = events.next().await {
             match evt {
                 TransportEvent::IncomingChannel(url, mut write, _read) => {
@@ -136,7 +153,7 @@ async fn inner() -> TransportResult<()> {
     let (metric_send, mut metric_recv) =
         futures::channel::mpsc::channel((opt.node_count + 10) as usize);
 
-    metric_task({
+    metric_task_warn_limit(spawn_pressure::spawn_limit!(10000), {
         let mut metric_send = metric_send.clone();
         async move {
             loop {
@@ -150,7 +167,7 @@ async fn inner() -> TransportResult<()> {
         }
     });
 
-    metric_task(async move {
+    metric_task_warn_limit(spawn_pressure::spawn_limit!(10000), async move {
         let mut last_disp = std::time::Instant::now();
         let mut rtime = Vec::new();
         while let Some(metric) = metric_recv.next().await {
@@ -173,12 +190,21 @@ async fn inner() -> TransportResult<()> {
     println!("Responder Url: {}", con_url);
 
     for _ in 0..opt.node_count {
-        metric_task(client_loop(
-            opt.clone(),
-            proxy_url.clone(),
-            con_url.clone(),
-            metric_send.clone(),
-        ));
+        if opt.grow {
+            metric_task_warn_limit(
+                spawn_pressure::spawn_limit!(10000),
+                client_loop_grow(opt.clone(), proxy_url.clone(), con_url.clone()),
+            );
+        }
+        metric_task_warn_limit(
+            spawn_pressure::spawn_limit!(10000),
+            client_loop(
+                opt.clone(),
+                proxy_url.clone(),
+                con_url.clone(),
+                metric_send.clone(),
+            ),
+        );
     }
 
     // wait for ctrl-c
@@ -193,7 +219,7 @@ async fn gen_client(
 
     let con_url = con.bound_url().await?;
 
-    metric_task(async move {
+    metric_task_warn_limit(spawn_pressure::spawn_limit!(10000), async move {
         let process_delay_ms = opt.process_delay_ms as u64;
         events
             .for_each_concurrent(
@@ -205,11 +231,15 @@ async fn gen_client(
                                 process_delay_ms,
                             ))
                             .await;
-                            let _ = write.write_and_close(b"".to_vec()).await;
+                            let _ = write
+                                .write_and_close(b"".to_vec())
+                                .instrument(tracing::debug_span!("responder"))
+                                .await;
                         }
                     }
                 },
             )
+            .instrument(tracing::debug_span!("resp_loop"))
             .await;
         <Result<(), ()>>::Ok(())
     });
@@ -241,5 +271,42 @@ async fn client_loop(
             ))
             .await
             .map_err(TransportError::other)?;
+    }
+}
+
+async fn client_loop_grow(
+    opt: Opt,
+    proxy_url: url2::Url2,
+    con_url: url2::Url2,
+) -> TransportResult<()> {
+    let (con, _my_url) = gen_client(opt.clone(), proxy_url).await?;
+
+    loop {
+        tokio::time::delay_for(std::time::Duration::from_millis(
+            opt.channel_interval_ms as u64,
+        ))
+        .await;
+
+        let request_interval_ms = opt.request_interval_ms;
+
+        let channel = con
+            .create_channel(con_url.clone())
+            .instrument(tracing::debug_span!("create_channel"))
+            .await?;
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), async move {
+            tokio::time::delay_for(std::time::Duration::from_millis(request_interval_ms as u64))
+                .await;
+            let (_, mut write, read) = channel;
+            write
+                .write_and_close(b"".to_vec())
+                .instrument(tracing::debug_span!("writing_to_channel"))
+                .await?;
+            read.read_to_end()
+                .instrument(tracing::debug_span!("reading_from_channel"))
+                .await;
+            <Result<(), ()>>::Ok(())
+        });
+        let d = con.debug().await?;
+        println!("{}", d);
     }
 }
