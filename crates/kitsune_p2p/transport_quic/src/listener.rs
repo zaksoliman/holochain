@@ -4,6 +4,7 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_types::dependencies::ghost_actor;
+use kitsune_p2p_types::dependencies::ghost_actor::dependencies::tracing::Instrument;
 use kitsune_p2p_types::dependencies::ghost_actor::GhostControlSender;
 use kitsune_p2p_types::dependencies::serde_json;
 use kitsune_p2p_types::dependencies::spawn_pressure;
@@ -25,15 +26,25 @@ async fn tx_bi_chan(
     let (write_send, mut write_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     let write_send = write_send.sink_map_err(TransportError::other);
     metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
-        while let Some(data) = write_recv.next().await {
+        while let Some(data) = write_recv
+            .next()
+            .instrument(tracing::debug_span!("write_recv"))
+            .await
+        {
             bi_send
                 .write_all(&data)
+                .instrument(tracing::debug_span!("bi_send"))
                 .await
                 .map_err(TransportError::other)?;
         }
-        bi_send.finish().await.map_err(TransportError::other)?;
+        bi_send
+            .finish()
+            .instrument(tracing::debug_span!("bi_send_finish"))
+            .await
+            .map_err(TransportError::other)?;
         TransportResult::Ok(())
     })
+    .instrument(tracing::debug_span!("write_loop"))
     .await;
     let (mut read_send, read_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
@@ -177,27 +188,37 @@ impl ListenerInnerHandler for TransportListenerQuic {
 
             // pass any incoming channels off to our actor
             let url_clone = url.clone();
-            metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
-                while let Some(Ok((bi_send, bi_recv))) = bi_streams.next().await {
-                    let (write, read) = tx_bi_chan(bi_send, bi_recv).await;
-                    if incoming_channel_sender
-                        .send(TransportEvent::IncomingChannel(
-                            url_clone.clone(),
-                            write,
-                            read,
-                        ))
+            metric_task(
+                spawn_pressure::spawn_limit!(MAX_CHANNELS),
+                async move {
+                    while let Some(Ok((bi_send, bi_recv))) = bi_streams
+                        .next()
+                        .instrument(tracing::debug_span!("next_bi_stream"))
                         .await
-                        .is_err()
                     {
-                        break;
+                        let (write, read) = tx_bi_chan(bi_send, bi_recv).await;
+                        if incoming_channel_sender
+                            .send(TransportEvent::IncomingChannel(
+                                url_clone.clone(),
+                                write,
+                                read,
+                            ))
+                            .instrument(tracing::debug_span!("send_incoming_channel"))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
                     }
+                    <Result<(), ()>>::Ok(())
                 }
-                <Result<(), ()>>::Ok(())
-            })
+                .instrument(tracing::debug_span!("handle_take_connecting_async_inner")),
+            )
             .await;
 
             Ok(out.map(move |(write, read)| (url, write, read)))
         }
+        .instrument(tracing::debug_span!("handle_take_connecting_async"))
         .boxed()
         .into())
     }
@@ -272,6 +293,7 @@ impl TransportListenerHandler for TransportListenerQuic {
 
             Ok((url, write, read))
         }
+        .instrument(tracing::debug_span!("handle_create_channel_async"))
         .boxed()
         .into())
     }
@@ -310,7 +332,9 @@ pub async fn spawn_transport_listener_quic(
         incoming
             .for_each_concurrent(10, |maybe_con| async {
                 let res: TransportResult<()> = async {
-                    i_s.take_connecting(maybe_con, false).await?;
+                    i_s.take_connecting(maybe_con, false)
+                        .instrument(tracing::debug_span!("send_take_connecting"))
+                        .await?;
                     Ok(())
                 }
                 .await;
@@ -318,6 +342,7 @@ pub async fn spawn_transport_listener_quic(
                     ghost_actor::dependencies::tracing::error!(?err);
                 }
             })
+            .instrument(tracing::debug_span!("waiting_for_incoming"))
             .await;
 
         // Our incoming connections ended,

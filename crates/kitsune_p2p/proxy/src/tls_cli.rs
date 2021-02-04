@@ -3,6 +3,7 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_types::dependencies::spawn_pressure;
+use observability::tracing::Instrument;
 use rustls::Session;
 use std::io::Read;
 use std::io::Write;
@@ -134,14 +135,18 @@ async fn tls_client(
                                 if size == 0 {
                                     break;
                                 }
-                                send.send(buf[..size].to_vec()).await?;
+                                send.send(buf[..size].to_vec())
+                                    .instrument(tracing::debug_span!("incoming_send"))
+                                    .await?;
                             }
                         }
                     }
                     _ => return Err(format!("invalid wire: {:?}", wire).into()),
                 },
                 Some(Right(None)) => {
-                    send.close().await?;
+                    send.close()
+                        .instrument(tracing::debug_span!("incoming_close"))
+                        .await?;
                 }
                 None => return Ok(()),
             }

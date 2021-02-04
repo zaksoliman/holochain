@@ -9,6 +9,7 @@ use kitsune_p2p_types::{
     transport::*,
     transport_mem::*,
 };
+use observability::tracing::Instrument;
 use structopt::StructOpt;
 
 /// Proxy transport selector
@@ -50,6 +51,10 @@ pub struct Opt {
     #[structopt(short = "i", long, default_value = "200")]
     request_interval_ms: u32,
 
+    /// Interval between requests per node
+    #[structopt(short, long, default_value = "200")]
+    channel_interval_ms: u32,
+
     /// How long nodes should delay before responding
     #[structopt(short = "d", long, default_value = "200")]
     process_delay_ms: u32,
@@ -61,8 +66,14 @@ pub struct Opt {
 
 #[tokio::main]
 async fn main() {
-    observability::init_fmt(observability::Output::Compact)
+    observability::init_fmt(observability::Output::DeadLock)
         .expect("Failed to start contextual logging");
+    tokio::spawn(async {
+        loop {
+            observability::tick_deadlock_catcher();
+            tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+        }
+    });
 
     if let Err(e) = inner().await {
         eprintln!("{:?}", e);
@@ -220,11 +231,15 @@ async fn gen_client(
                                 process_delay_ms,
                             ))
                             .await;
-                            let _ = write.write_and_close(b"".to_vec()).await;
+                            let _ = write
+                                .write_and_close(b"".to_vec())
+                                .instrument(tracing::debug_span!("responder"))
+                                .await;
                         }
                     }
                 },
             )
+            .instrument(tracing::debug_span!("resp_loop"))
             .await;
         <Result<(), ()>>::Ok(())
     });
@@ -266,15 +281,31 @@ async fn client_loop_grow(
 ) -> TransportResult<()> {
     let (con, _my_url) = gen_client(opt.clone(), proxy_url).await?;
 
-    let mut cons = Vec::new();
     loop {
         tokio::time::delay_for(std::time::Duration::from_millis(
-            opt.request_interval_ms as u64,
+            opt.channel_interval_ms as u64,
         ))
         .await;
 
-        let c = con.create_channel(con_url.clone()).await?;
-        cons.push(c);
+        let request_interval_ms = opt.request_interval_ms;
+
+        let channel = con
+            .create_channel(con_url.clone())
+            .instrument(tracing::debug_span!("create_channel"))
+            .await?;
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), async move {
+            tokio::time::delay_for(std::time::Duration::from_millis(request_interval_ms as u64))
+                .await;
+            let (_, mut write, read) = channel;
+            write
+                .write_and_close(b"".to_vec())
+                .instrument(tracing::debug_span!("writing_to_channel"))
+                .await?;
+            read.read_to_end()
+                .instrument(tracing::debug_span!("reading_from_channel"))
+                .await;
+            <Result<(), ()>>::Ok(())
+        });
         let d = con.debug().await?;
         println!("{}", d);
     }

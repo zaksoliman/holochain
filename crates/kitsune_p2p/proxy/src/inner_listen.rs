@@ -4,6 +4,7 @@ use futures::stream::StreamExt;
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_types::dependencies::serde_json;
 use kitsune_p2p_types::dependencies::spawn_pressure;
+use observability::tracing::Instrument;
 use std::collections::HashMap;
 
 /// How often should NAT nodes refresh their proxy contract?
@@ -89,7 +90,11 @@ pub async fn spawn_kitsune_proxy_listener(
             loop {
                 tokio::time::delay_for(std::time::Duration::from_millis(PROXY_KEEPALIVE_MS)).await;
 
-                if let Err(e) = i_s_c.req_proxy(proxy_url.clone()).await {
+                if let Err(e) = i_s_c
+                    .req_proxy(proxy_url.clone())
+                    .instrument(tracing::debug_span!("req_proxy"))
+                    .await
+                {
                     tracing::error!(msg = "renewing proxy failed", ?proxy_url, ?e);
                     // either we failed because the actor is already shutdown
                     // or the remote end rejected us.
@@ -116,7 +121,10 @@ pub async fn spawn_kitsune_proxy_listener(
                     // spawn so we can process incoming requests in parallel
                     let i_s = i_s.clone();
                     metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
-                        let _ = i_s.incoming_channel(url, write, read).await;
+                        let _ = i_s
+                            .incoming_channel(url, write, read)
+                            .instrument(tracing::debug_span!("send_incoming_channel"))
+                            .await;
                         <Result<(), ()>>::Ok(())
                     })
                     .await;
@@ -273,21 +281,28 @@ impl InternalHandler for InnerListen {
         Ok(async move {
             let mut read = read.await;
             let mut write = write.await;
-            match read.next().await {
+            match read
+                .next()
+                .instrument(tracing::debug_span!("read_incoming_channel"))
+                .await
+            {
                 Some(ProxyWire::ReqProxy(p)) => {
                     tracing::debug!("{}: req proxy: {:?}", short, p.cert_digest);
                     i_s.incoming_req_proxy(base_url, p.cert_digest, write, read)
+                        .instrument(tracing::debug_span!("send_incoming_req_proxy"))
                         .await?;
                 }
                 Some(ProxyWire::ChanNew(c)) => {
                     tracing::debug!("{}: chan new: {:?}", short, c.proxy_url);
                     i_s.incoming_chan_new(base_url, c.proxy_url.into(), write, read)
+                        .instrument(tracing::debug_span!("send_incoming_chan_new"))
                         .await?;
                 }
                 e => {
                     tracing::error!("{}: invalid message {:?}", short, e);
                     write
                         .send(ProxyWire::failure(format!("invalid message {:?}", e)))
+                        .instrument(tracing::debug_span!("write_error"))
                         .await
                         .map_err(TransportError::other)?;
                 }
