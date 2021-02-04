@@ -28,8 +28,6 @@ pub enum DhtOpConvertError {
     #[error("The Header: {0} is the wrong type for this DhtOp: {1}")]
     HeaderMismatch(String, String),
     #[error(transparent)]
-    SourceChainError(#[from] SourceChainError),
-    #[error(transparent)]
     CascadeError(#[from] CascadeError),
     #[error(transparent)]
     DhtOpError(#[from] DhtOpError),

@@ -285,7 +285,7 @@ impl SourceChain {
     /// Query Headers in the source chain.
     /// This returns a Vec rather than an iterator because it is intended to be
     /// used by the `query` host function, which crosses the wasm boundary
-    pub fn query(&self, query: &ChainQueryFilter) -> SourceChainResult<Vec<Element>> {
+    pub fn query(&self, query: &ChainQueryFilter) -> DatabaseResult<Vec<Element>> {
         let include_entries = query.include_entries;
         self.iter_back()
             .filter(|shh| Ok(query.check(shh.header())))

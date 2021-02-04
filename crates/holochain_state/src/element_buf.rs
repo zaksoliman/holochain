@@ -198,7 +198,7 @@ where
     /// - if it is a public entry, but the entry cannot be found, return error
     /// - if it is a private entry and cannot be found, return error
     /// - if it is a private entry but the private DB is disabled, return None
-    fn get_entry_from_header(&self, header: &Header) -> SourceChainResult<Option<Entry>> {
+    fn get_entry_from_header(&self, header: &Header) -> DatabaseResult<Option<Entry>> {
         Ok(match header.entry_data() {
             None => None,
             Some((entry_hash, entry_type)) => {
@@ -221,7 +221,7 @@ where
     }
 
     /// given a header address return the full chain element for that address
-    pub fn get_element(&self, header_address: &HeaderHash) -> SourceChainResult<Option<Element>> {
+    pub fn get_element(&self, header_address: &HeaderHash) -> DatabaseResult<Option<Element>> {
         if let Some(signed_header) = self.get_header(header_address)? {
             let maybe_entry = self.get_entry_from_header(signed_header.header())?;
             Ok(Some(Element::new(signed_header, maybe_entry)))

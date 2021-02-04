@@ -62,7 +62,7 @@ impl SourceChainBuf {
         self.sequence.len() >= 3
     }
 
-    pub fn get_at_index(&self, i: u32) -> SourceChainResult<Option<Element>> {
+    pub fn get_at_index(&self, i: u32) -> DatabaseResult<Option<Element>> {
         if let Some(address) = self.sequence.get(i)? {
             self.get_element(&address)
         } else {
@@ -70,7 +70,7 @@ impl SourceChainBuf {
         }
     }
 
-    pub fn get_element(&self, k: &HeaderHash) -> SourceChainResult<Option<Element>> {
+    pub fn get_element(&self, k: &HeaderHash) -> DatabaseResult<Option<Element>> {
         debug!("GET {:?}", k);
         self.elements.get_element(k)
     }
@@ -288,7 +288,7 @@ impl<'a> SourceChainBackwardIterator<'a> {
 
 impl<'a> FallibleIterator for SourceChainBackwardIterator<'a> {
     type Item = SignedHeaderHashed;
-    type Error = SourceChainError;
+    type Error = DatabaseError;
 
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         match &self.current {
