@@ -65,16 +65,10 @@ pub enum DatabaseError {
     SerializedBytes(#[from] SerializedBytesError),
 
     #[error(transparent)]
-    Other(#[from] anyhow::Error),
-
-    #[error(transparent)]
     KeystoreError(#[from] holochain_keystore::KeystoreError),
 
     #[error("Empty keys cannot be used with lmdb")]
     EmptyKey,
-
-    #[error("Key range must be not empty and start < end")]
-    InvalidKeyRange,
 
     #[error("Unable to construct a value key")]
     KeyConstruction,
