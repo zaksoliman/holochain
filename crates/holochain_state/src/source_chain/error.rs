@@ -21,12 +21,6 @@ pub enum SourceChainError {
     )]
     InvalidStructure(ChainInvalidReason),
 
-    #[error("The source chain's head is pointing to an address which has no content.")]
-    MissingHead,
-
-    #[error("The content at address {0} is malformed and can't be deserialized.")]
-    MalformedEntry(EntryHash),
-
     #[error("Serialization error: {0}")]
     SerializationError(#[from] SerializedBytesError),
 
