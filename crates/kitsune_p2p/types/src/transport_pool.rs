@@ -7,6 +7,7 @@ use futures::stream::StreamExt;
 use ghost_actor::dependencies::must_future::MustBoxFuture;
 use ghost_actor::dependencies::tracing;
 use ghost_actor::GhostControlSender;
+use observability::tracing::Instrument;
 use std::collections::HashMap;
 
 const MAX_TRANSPORTS: usize = 1000;
@@ -204,7 +205,15 @@ impl TransportListenerHandler for Inner {
         let scheme = url.scheme().to_string();
         match self.sub_listeners.get(&scheme) {
             None => Err(format!("no sub-transport matching scheme '{}' in pool", scheme).into()),
-            Some(s) => Ok(s.create_channel(url)),
+            Some(s) => {
+                let fut = s.create_channel(url);
+                Ok(async move {
+                    fut.instrument(tracing::debug_span!("create_channel_in_transport_pool"))
+                        .await
+                }
+                .boxed()
+                .into())
+            }
         }
     }
 }

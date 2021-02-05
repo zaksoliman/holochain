@@ -51,7 +51,7 @@ pub struct Opt {
     #[structopt(short = "i", long, default_value = "200")]
     request_interval_ms: u32,
 
-    /// Interval between requests per node
+    /// Interval between new channels per node
     #[structopt(short, long, default_value = "200")]
     channel_interval_ms: u32,
 
@@ -66,14 +66,16 @@ pub struct Opt {
 
 #[tokio::main]
 async fn main() {
-    observability::init_fmt(observability::Output::DeadLock)
-        .expect("Failed to start contextual logging");
-    tokio::spawn(async {
-        loop {
-            observability::tick_deadlock_catcher();
-            tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
-        }
-    });
+    if std::env::var_os("RUST_LOG").is_some() {
+        observability::init_fmt(observability::Output::DeadLock)
+            .expect("Failed to start contextual logging");
+        tokio::spawn(async {
+            loop {
+                observability::tick_deadlock_catcher();
+                tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+            }
+        });
+    }
 
     if let Err(e) = inner().await {
         eprintln!("{:?}", e);
@@ -193,18 +195,24 @@ async fn inner() -> TransportResult<()> {
         if opt.grow {
             metric_task_warn_limit(
                 spawn_pressure::spawn_limit!(10000),
-                client_loop_grow(opt.clone(), proxy_url.clone(), con_url.clone()),
+                client_loop_grow(
+                    opt.clone(),
+                    proxy_url.clone(),
+                    con_url.clone(),
+                    metric_send.clone(),
+                ),
+            );
+        } else {
+            metric_task_warn_limit(
+                spawn_pressure::spawn_limit!(10000),
+                client_loop(
+                    opt.clone(),
+                    proxy_url.clone(),
+                    con_url.clone(),
+                    metric_send.clone(),
+                ),
             );
         }
-        metric_task_warn_limit(
-            spawn_pressure::spawn_limit!(10000),
-            client_loop(
-                opt.clone(),
-                proxy_url.clone(),
-                con_url.clone(),
-                metric_send.clone(),
-            ),
-        );
     }
 
     // wait for ctrl-c
@@ -224,19 +232,22 @@ async fn gen_client(
         events
             .for_each_concurrent(
                 /* limit */ (opt.node_count + 10) as usize,
-                move |evt| async move {
-                    match evt {
-                        TransportEvent::IncomingChannel(_url, mut write, _read) => {
-                            tokio::time::delay_for(std::time::Duration::from_millis(
-                                process_delay_ms,
-                            ))
-                            .await;
-                            let _ = write
-                                .write_and_close(b"".to_vec())
-                                .instrument(tracing::debug_span!("responder"))
+                move |evt| {
+                    async move {
+                        match evt {
+                            TransportEvent::IncomingChannel(_url, mut write, _read) => {
+                                tokio::time::delay_for(std::time::Duration::from_millis(
+                                    process_delay_ms,
+                                ))
                                 .await;
+                                let _ = write
+                                    .write_and_close(b"".to_vec())
+                                    .instrument(tracing::debug_span!("responder"))
+                                    .await;
+                            }
                         }
                     }
+                    .instrument(tracing::debug_span!("resp_loop_inner"))
                 },
             )
             .instrument(tracing::debug_span!("resp_loop"))
@@ -278,9 +289,20 @@ async fn client_loop_grow(
     opt: Opt,
     proxy_url: url2::Url2,
     con_url: url2::Url2,
+    metric_send: futures::channel::mpsc::Sender<Metric>,
 ) -> TransportResult<()> {
     let (con, _my_url) = gen_client(opt.clone(), proxy_url).await?;
 
+    metric_task_warn_limit::<(), (), _>(spawn_pressure::spawn_limit!(1000), {
+        let con = con.clone();
+        async move {
+            loop {
+                tokio::time::delay_for(std::time::Duration::from_secs(4)).await;
+                let d = con.debug().await?;
+                println!("{}", d);
+            }
+        }
+    });
     loop {
         tokio::time::delay_for(std::time::Duration::from_millis(
             opt.channel_interval_ms as u64,
@@ -288,25 +310,40 @@ async fn client_loop_grow(
         .await;
 
         let request_interval_ms = opt.request_interval_ms;
+        let process_delay_ms = opt.process_delay_ms;
 
         let channel = con
             .create_channel(con_url.clone())
-            .instrument(tracing::debug_span!("create_channel"))
+            .instrument(tracing::debug_span!("create_channel_from_test"))
             .await?;
-        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), async move {
-            tokio::time::delay_for(std::time::Duration::from_millis(request_interval_ms as u64))
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), {
+            let mut metric_send = metric_send.clone();
+            async move {
+                tokio::time::delay_for(std::time::Duration::from_millis(
+                    request_interval_ms as u64,
+                ))
                 .await;
-            let (_, mut write, read) = channel;
-            write
-                .write_and_close(b"".to_vec())
-                .instrument(tracing::debug_span!("writing_to_channel"))
-                .await?;
-            read.read_to_end()
-                .instrument(tracing::debug_span!("reading_from_channel"))
-                .await;
-            <Result<(), ()>>::Ok(())
+                let (_, mut write, read) = channel;
+                let start = std::time::Instant::now();
+                write
+                    .write_and_close(b"".to_vec())
+                    .instrument(tracing::debug_span!("writing_to_channel"))
+                    .await?;
+                read.read_to_end()
+                    .instrument(tracing::debug_span!("reading_from_channel"))
+                    .await;
+                metric_send
+                    .send(Metric::RequestOverhead(
+                        (start.elapsed().as_millis() as u64)
+                            .checked_sub(process_delay_ms as u64)
+                            .unwrap_or(0),
+                    ))
+                    .await
+                    .map_err(TransportError::other)?;
+                <Result<(), ()>>::Ok(())
+            }
         });
-        let d = con.debug().await?;
-        println!("{}", d);
+        // let d = con.debug().await?;
+        // println!("{}", d);
     }
 }

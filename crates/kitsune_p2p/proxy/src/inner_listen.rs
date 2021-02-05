@@ -125,6 +125,7 @@ pub async fn spawn_kitsune_proxy_listener(
                             .await;
                         <Result<(), ()>>::Ok(())
                     })
+                    .instrument(tracing::debug_span!("send_incoming_channel_task"))
                     .await;
                 }
             }
@@ -470,7 +471,9 @@ impl InternalHandler for InnerListen {
     )> {
         let fut = self.sub_sender.create_channel(base_url);
         Ok(async move {
-            let (_url, write, read) = fut.await?;
+            let (_url, write, read) = fut
+                .instrument(tracing::debug_span!("create_channel_in_create_low_level"))
+                .await?;
             let write = wire_write::wrap_wire_write(write).await;
             let read = wire_read::wrap_wire_read(read).await;
             Ok((write, read))
@@ -579,7 +582,7 @@ impl TransportListenerHandler for InnerListen {
     ) -> TransportListenerHandlerResult<(url2::Url2, TransportChannelWrite, TransportChannelRead)>
     {
         let span = tracing::debug_span!("next_gossip", %url, msg = "inner_listen");
-        let mut last = std::time::Instant::now();
+        let last = std::time::Instant::now();
         let short = self.this_url.short().to_string();
         let proxy_url = ProxyUrl::from(url);
         let tls_client_config = self.tls_client_config.clone();
@@ -587,6 +590,7 @@ impl TransportListenerHandler for InnerListen {
         Ok(async move {
             let (mut write, read) = i_s
                 .create_low_level_channel(proxy_url.as_base().clone())
+                .instrument(tracing::debug_span!("create_low_level_create_channel_inner_listener"))
                 .await?;
             span.in_scope(|| {
                 let t = last.elapsed().as_secs();
@@ -594,7 +598,7 @@ impl TransportListenerHandler for InnerListen {
                     tracing::debug!("create_low_level_stream {}", t);
                 }
             });
-            let mut last = std::time::Instant::now();
+            let last = std::time::Instant::now();
             write
                 .send(ProxyWire::chan_new(proxy_url.clone().into()))
                 .await
@@ -605,7 +609,7 @@ impl TransportListenerHandler for InnerListen {
                     tracing::debug!("channel_new{}", t);
                 }
             });
-            let mut last = std::time::Instant::now();
+            let last = std::time::Instant::now();
             let ((send1, recv1), (send2, recv2)) = create_transport_channel_pair();
             tls_cli::spawn_tls_client(
                 short,

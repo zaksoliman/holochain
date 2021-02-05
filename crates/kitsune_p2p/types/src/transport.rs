@@ -3,6 +3,8 @@
 use futures::future::FutureExt;
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
+use observability::tracing;
+use observability::tracing::Instrument;
 
 observability::metrics!(KitsuneTransportMetrics, Write, Read);
 
@@ -205,7 +207,9 @@ impl<T: TransportListenerSender> TransportListenerSenderExt for T {
         async move {
             // let start = std::time::Instant::now();
             // println!("Waiting {}: {}", String::from_utf8_lossy(&data), start.elapsed().as_millis());
-            let (_url, mut write, read) = fut.await?;
+            let (_url, mut write, read) = fut
+                .instrument(tracing::debug_span!("create_channel_in_request"))
+                .await?;
             KitsuneTransportMetrics::count_filter(
                 KitsuneTransportMetrics::Write,
                 data.len(),

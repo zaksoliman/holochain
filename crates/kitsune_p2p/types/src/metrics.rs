@@ -1,7 +1,7 @@
 //! Utilities for helping with metric tracking.
 
 use futures::FutureExt;
-use spawn_pressure::spawn_attempt_limit;
+use spawn_pressure::spawn_queue_limit;
 use spawn_pressure::SpawnLimit;
 use std::sync::{
     atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -28,9 +28,9 @@ where
     E: 'static + Send + std::fmt::Debug,
     F: 'static + Send + std::future::Future<Output = Result<T, E>>,
 {
-    let spawn = spawn_attempt_limit(limit, metric_inner(f).boxed());
-    if !spawn.is_spawned() {
-        match limit.show_location() {
+    spawn_queue_limit(
+        limit,
+        || match limit.show_location() {
             Some((file, line)) => {
                 observability::tracing::error!(
                     "Spawning task at {}:{} beyond limit {}",
@@ -42,9 +42,27 @@ where
             None => {
                 observability::tracing::error!("Spawning task beyond limit {}", limit.show_limit());
             }
-        }
-    }
-    spawn.finish().await
+        },
+        metric_inner(f).boxed(),
+    )
+    .await
+    // let spawn = spawn_attempt_limit(limit, metric_inner(f).boxed());
+    // if !spawn.is_spawned() {
+    //     match limit.show_location() {
+    //         Some((file, line)) => {
+    //             observability::tracing::error!(
+    //                 "Spawning task at {}:{} beyond limit {}",
+    //                 file,
+    //                 line,
+    //                 limit.show_limit()
+    //             );
+    //         }
+    //         None => {
+    //             observability::tracing::error!("Spawning task beyond limit {}", limit.show_limit());
+    //         }
+    //     }
+    // }
+    // spawn.finish().await
 }
 
 /// Same as metric task but will never

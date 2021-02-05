@@ -151,8 +151,17 @@ impl gossip::GossipEventHandler for Space {
                 let url = info.as_urls_ref().get(0).unwrap().clone();
 
                 let url_disp = url.to_string();
-                let (_, mut write, read) = transport_tx.create_channel(url).await?;
-                span.in_scope(|| tracing::debug!("create channel {} \n {:?}", last.elapsed().as_secs(), url_disp));
+                let (_, mut write, read) = transport_tx
+                    .create_channel(url)
+                    .instrument(tracing::debug_span!("create_channel_in_req_op_hashes"))
+                    .await?;
+                span.in_scope(|| {
+                    tracing::debug!(
+                        "create channel {} \n {:?}",
+                        last.elapsed().as_secs(),
+                        url_disp
+                    )
+                });
                 last = std::time::Instant::now();
                 KitsuneMetrics::count(KitsuneMetrics::FetchOpHashes, data.len());
                 write.write_and_close(data.to_vec()).await?;
@@ -209,7 +218,10 @@ impl gossip::GossipEventHandler for Space {
                         .encode_vec()?;
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
-                let (_, mut write, read) = transport_tx.create_channel(url).await?;
+                let (_, mut write, read) = transport_tx
+                    .create_channel(url)
+                    .instrument(tracing::debug_span!("create_channel_in_req_op_data"))
+                    .await?;
                 KitsuneMetrics::count(KitsuneMetrics::FetchOpData, data.len());
                 write.write_and_close(data.to_vec()).await?;
                 let read = read.read_to_end().await;
@@ -267,7 +279,10 @@ impl gossip::GossipEventHandler for Space {
                 .encode_vec()?;
                 let info = types::agent_store::AgentInfo::try_from(&info)?;
                 let url = info.as_urls_ref().get(0).unwrap().clone();
-                let (_, mut write, read) = transport_tx.create_channel(url.clone()).await?;
+                let (_, mut write, read) = transport_tx
+                    .create_channel(url.clone())
+                    .instrument(tracing::debug_span!("create_channel_in_gossip_ops"))
+                    .await?;
                 KitsuneMetrics::count(KitsuneMetrics::Gossip, data.len());
                 write.write_and_close(data.to_vec()).await?;
                 let read = read.read_to_end().await;

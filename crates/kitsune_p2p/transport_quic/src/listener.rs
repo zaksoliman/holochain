@@ -9,6 +9,7 @@ use kitsune_p2p_types::dependencies::ghost_actor::GhostControlSender;
 use kitsune_p2p_types::dependencies::serde_json;
 use kitsune_p2p_types::dependencies::spawn_pressure;
 use kitsune_p2p_types::dependencies::url2;
+use kitsune_p2p_types::metrics::metric_task_warn_limit;
 use kitsune_p2p_types::transport::*;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -25,7 +26,7 @@ async fn tx_bi_chan(
 ) -> (TransportChannelWrite, TransportChannelRead) {
     let (write_send, mut write_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     let write_send = write_send.sink_map_err(TransportError::other);
-    metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
+    metric_task_warn_limit(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
         while let Some(data) = write_recv
             .next()
             .instrument(tracing::debug_span!("write_recv"))
@@ -43,14 +44,13 @@ async fn tx_bi_chan(
             .await
             .map_err(TransportError::other)?;
         TransportResult::Ok(())
-    })
-    .instrument(tracing::debug_span!("write_loop"))
-    .await;
+    });
     let (mut read_send, read_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
         let mut buf = [0_u8; 4096];
         while let Some(read) = bi_recv
             .read(&mut buf)
+            .instrument(tracing::debug_span!("bi_read"))
             .await
             .map_err(TransportError::other)?
         {
@@ -60,6 +60,7 @@ async fn tx_bi_chan(
             tracing::debug!("QUIC received {} bytes", read);
             read_send
                 .send(buf[0..read].to_vec())
+                .instrument(tracing::debug_span!("bi_read_send"))
                 .await
                 .map_err(TransportError::other)?;
         }
@@ -168,13 +169,24 @@ impl ListenerInnerHandler for TransportListenerQuic {
                 connection: con,
                 mut bi_streams,
                 ..
-            } = maybe_con.await.map_err(TransportError::other)?;
+            } = maybe_con
+                .instrument(tracing::debug_span!("maybe_con"))
+                .await
+                .map_err(TransportError::other)?;
 
             // if we are making an outgoing connection
             // we also need to make an initial channel
             let out = if with_channel {
-                let (bi_send, bi_recv) = con.open_bi().await.map_err(TransportError::other)?;
-                Some(tx_bi_chan(bi_send, bi_recv).await)
+                let (bi_send, bi_recv) = con
+                    .open_bi()
+                    .instrument(tracing::debug_span!("open_bi"))
+                    .await
+                    .map_err(TransportError::other)?;
+                Some(
+                    tx_bi_chan(bi_send, bi_recv)
+                        .instrument(tracing::debug_span!("tx_bi_chan"))
+                        .await,
+                )
             } else {
                 None
             };
@@ -184,7 +196,9 @@ impl ListenerInnerHandler for TransportListenerQuic {
             tracing::debug!("QUIC handle connection: {}", url);
 
             // pass the connection off to our actor
-            i_s.set_connection(url.clone(), con).await?;
+            i_s.set_connection(url.clone(), con)
+                .instrument(tracing::debug_span!("next_bi_stream"))
+                .await?;
 
             // pass any incoming channels off to our actor
             let url_clone = url.clone();
@@ -214,11 +228,12 @@ impl ListenerInnerHandler for TransportListenerQuic {
                 }
                 .instrument(tracing::debug_span!("handle_take_connecting_async_inner")),
             )
+            .instrument(tracing::debug_span!("handle_take_connecting_metric"))
             .await;
 
             Ok(out.map(move |(write, read)| (url, write, read)))
         }
-        .instrument(tracing::debug_span!("handle_take_connecting_async"))
+        // .instrument(tracing::debug_span!("handle_take_connecting_async"))
         .boxed()
         .into())
     }
@@ -263,9 +278,6 @@ impl TransportListenerHandler for TransportListenerQuic {
         &mut self,
         url: Url2,
     ) -> TransportListenerHandlerResult<(Url2, TransportChannelWrite, TransportChannelRead)> {
-        let span = tracing::debug_span!("next_gossip", %url);
-        let mut last = std::time::Instant::now();
-        // span.in_scope(|| tracing::debug!("handle_create_channel"));
         // if we already have an open connection to the remote end,
         // just directly try to open the bi-stream channel.
         let maybe_bi = self.connections.get(&url).map(|con| con.open_bi());
@@ -275,43 +287,38 @@ impl TransportListenerHandler for TransportListenerQuic {
             // if we already had a connection and the bi-stream
             // channel is successfully opened, return early using that
             if let Some(maybe_bi) = maybe_bi {
-                match maybe_bi.await {
+                match maybe_bi.instrument(tracing::debug_span!("maybe_bi")).await {
                     Ok((bi_send, bi_recv)) => {
-                        span.in_scope(|| {
-                            let t = last.elapsed().as_secs();
-                            if t >= 10 {
-                                tracing::debug!("reuse_stream {}", t);
-                            }
-                        });
-                        let (write, read) = tx_bi_chan(bi_send, bi_recv).await;
+                        let (write, read) = tx_bi_chan(bi_send, bi_recv)
+                            .instrument(tracing::debug_span!("tx_bi_chan"))
+                            .await;
                         return Ok((url, write, read));
                     }
                     Err(_) => {
                         // otherwise, we should drop any existing channel
                         // we have... it no longer works for us
                         i_s.drop_connection(url.clone()).await?;
-                        span.in_scope(|| {
-                            tracing::debug!("drop_stream {}", last.elapsed().as_secs())
-                        });
-                        last = std::time::Instant::now();
                     }
                 }
             }
 
             // we did not successfully use an existing connection.
             // instead, try establishing a new one with a new channel.
-            let addr = crate::url_to_addr(&url, crate::SCHEME).await?;
-            span.in_scope(|| tracing::debug!("url_to_addr{}", last.elapsed().as_secs()));
-            last = std::time::Instant::now();
-            let maybe_con = i_s.raw_connect(addr).await?;
-            span.in_scope(|| tracing::debug!("raw_connect{}", last.elapsed().as_secs()));
-            last = std::time::Instant::now();
-            let (url, write, read) = i_s.take_connecting(maybe_con, true).await?.unwrap();
-            span.in_scope(|| tracing::debug!("take_connecting {}", last.elapsed().as_secs()));
+            let addr = crate::url_to_addr(&url, crate::SCHEME)
+                .instrument(tracing::debug_span!("url_to_addr"))
+                .await?;
+            let maybe_con = i_s
+                .raw_connect(addr)
+                .instrument(tracing::debug_span!("raw_connect"))
+                .await?;
+            let (url, write, read) = i_s
+                .take_connecting(maybe_con, true)
+                .instrument(tracing::debug_span!("take_connecting_in_create_channel"))
+                .await?
+                .unwrap();
 
             Ok((url, write, read))
         }
-        .instrument(tracing::debug_span!("handle_create_channel_async"))
         .boxed()
         .into())
     }
@@ -348,17 +355,20 @@ pub async fn spawn_transport_listener_quic(
     let i_s = internal_sender.clone();
     metric_task(spawn_pressure::spawn_limit!(MAX_TRANSPORTS), async move {
         incoming
-            .for_each_concurrent(10, |maybe_con| async {
-                let res: TransportResult<()> = async {
-                    i_s.take_connecting(maybe_con, false)
-                        .instrument(tracing::debug_span!("send_take_connecting"))
-                        .await?;
-                    Ok(())
+            .for_each_concurrent(10, |maybe_con| {
+                async {
+                    let res: TransportResult<()> = async {
+                        i_s.take_connecting(maybe_con, false)
+                            .instrument(tracing::debug_span!("send_take_connecting"))
+                            .await?;
+                        Ok(())
+                    }
+                    .await;
+                    if let Err(err) = res {
+                        ghost_actor::dependencies::tracing::error!(?err);
+                    }
                 }
-                .await;
-                if let Err(err) = res {
-                    ghost_actor::dependencies::tracing::error!(?err);
-                }
+                .instrument(tracing::debug_span!("waiting_for_incoming_for_loop"))
             })
             .instrument(tracing::debug_span!("waiting_for_incoming"))
             .await;
