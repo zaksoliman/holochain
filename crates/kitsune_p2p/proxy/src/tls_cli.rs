@@ -20,6 +20,9 @@ pub(crate) async fn spawn_tls_client(
     read: futures::channel::mpsc::Receiver<ProxyWire>,
 ) -> tokio::sync::oneshot::Receiver<TransportResult<()>> {
     let (setup_send, setup_recv) = tokio::sync::oneshot::channel();
+    // static count: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    // let c = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    // dbg!(c);
     metric_task(
         spawn_pressure::spawn_limit!(MAX_CLIENTS),
         tls_client(
@@ -31,7 +34,8 @@ pub(crate) async fn spawn_tls_client(
             recv,
             write,
             read,
-        ),
+        )
+        .instrument(tracing::debug_span!("tls_client")),
     )
     .await;
     setup_recv
@@ -48,9 +52,6 @@ async fn tls_client(
     mut write: futures::channel::mpsc::Sender<ProxyWire>,
     read: futures::channel::mpsc::Receiver<ProxyWire>,
 ) -> TransportResult<()> {
-    let span =
-        tracing::debug_span!("next_gossip", %short, msg = "tls_client", id = %nanoid::nanoid!());
-    let mut last = std::time::Instant::now();
     let mut setup_send = Some(setup_send);
     let res: TransportResult<()> = async {
         let nr = webpki::DNSNameRef::try_from_ascii_str("stub.stub").unwrap();
@@ -80,12 +81,6 @@ async fn tls_client(
                 if let Some(setup_send) = setup_send.take() {
                     if expected_proxy_url == remote_proxy_url {
                         tracing::info!("{}: CLI: CONNECTED TLS: {}", short, remote_proxy_url);
-                        span.in_scope(|| {
-                            let t = last.elapsed().as_secs();
-                            if t >= 10 {
-                                tracing::debug!("spawn_tls_client {}", t);
-                            }
-                        });
                         let _ = setup_send.send(Ok(()));
                     } else {
                         let msg = format!(
@@ -104,55 +99,40 @@ async fn tls_client(
                 tracing::trace!("{}: CLI tls wants write {} bytes", short, data.len());
                 write
                     .send(ProxyWire::chan_send(data.into()))
+                    .instrument(tracing::debug_span!("send_proxy_wire"))
                     .await
                     .map_err(TransportError::other)?;
-                // span.in_scope(|| {
-                //     let t = last.elapsed().as_secs();
-                //     if t >= 10 {
-                //         tracing::debug!("wants write {}", t);
-                //     }
-                // });
             }
 
             if wants_write_close && !cli.is_handshaking() {
                 tracing::trace!("{}: CLI closing outgoing", short);
-                write.close().await.map_err(TransportError::other)?;
-                // span.in_scope(|| {
-                //     let t = last.elapsed().as_secs();
-                //     if t >= 10 {
-                //         tracing::debug!("wants write close {}", t);
-                //     }
-                // });
+                write
+                    .close()
+                    .instrument(tracing::debug_span!("close_write"))
+                    .await
+                    .map_err(TransportError::other)?;
             }
 
-            let r = match tokio::time::timeout(std::time::Duration::from_secs(5), merge.next()).await {
-                Ok(r) => r,
-                Err(_) => continue,
-            };
-            // match merge.next().await {
-            match r {
+            let s = tracing::debug_span!("down_from_here");
+            let _g = s;
+
+            match merge
+                .next()
+                .instrument(tracing::debug_span!("merge_next"))
+                .await
+            {
                 Some(Left(Some(data))) => {
                     tracing::trace!("{}: CLI outgoing {} bytes", short, data.len());
                     cli.write_all(&data).map_err(TransportError::other)?;
-                    // span.in_scope(|| {
-                    //     let t = last.elapsed().as_secs();
-                    //     if t >= 10 {
-                    //         tracing::debug!("cli outgoing {}", t);
-                    //     }
-                    // });
                 }
                 Some(Left(None)) => {
                     tracing::trace!("{}: CLI wants close outgoing", short);
                     wants_write_close = true;
-                    // span.in_scope(|| {
-                    //     let t = last.elapsed().as_secs();
-                    //     if t >= 10 {
-                    //         tracing::debug!("cli close outgoing {}", t);
-                    //     }
-                    // });
                 }
                 Some(Right(Some(wire))) => match wire {
                     ProxyWire::ChanSend(data) => {
+                        let s = tracing::debug_span!("proxy_chan_send");
+                        let _g = s;
                         tracing::trace!(
                             "{}: CLI incoming encrypted {} bytes",
                             short,
@@ -162,19 +142,19 @@ async fn tls_client(
                         in_pre.set_position(0);
                         in_pre.get_mut().extend_from_slice(&data.channel_data);
                         let in_buf_len = in_pre.get_ref().len();
-                        // span.in_scope(|| {
-                        //     let t = last.elapsed().as_secs();
-                        //     if t >= 5 {
-                        //         tracing::debug!("cli incoming before {}", t);
-                        //     }
-                        // });
                         loop {
+                            let s = tracing::debug_span!("proxy_chan_send_loop");
+                            let _g = s;
+                            let start = std::time::Instant::now();
                             if in_pre.position() >= in_buf_len as u64 {
                                 break;
                             }
                             cli.read_tls(&mut in_pre).map_err(TransportError::other)?;
                             cli.process_new_packets().map_err(TransportError::other)?;
+                            let start2 = std::time::Instant::now();
                             while let Ok(size) = cli.read(&mut buf) {
+                                let s = tracing::debug_span!("proxy_chan_send_while");
+                                let _g = s;
                                 tracing::trace!("{}: CLI incoming decrypted {} bytes", short, size);
                                 if size == 0 {
                                     break;
@@ -183,13 +163,15 @@ async fn tls_client(
                                     .instrument(tracing::debug_span!("incoming_send"))
                                     .await?;
                             }
+                            let t = start.elapsed();
+                            if t.as_micros() > 1 {
+                                dbg!(t);
+                            }
+                            let t2 = start2.elapsed();
+                            if t2.as_micros() > 1 {
+                                dbg!(t2);
+                            }
                         }
-                        // span.in_scope(|| {
-                        //     let t = last.elapsed().as_secs();
-                        //     if t >= 10 {
-                        //         tracing::debug!("cli incoming {}", t);
-                        //     }
-                        // });
                     }
                     _ => return Err(format!("invalid wire: {:?}", wire).into()),
                 },
@@ -202,6 +184,7 @@ async fn tls_client(
             }
         }
     }
+    .instrument(tracing::debug_span!("tls_cli_loop"))
     .await;
 
     if let Err(e) = res {

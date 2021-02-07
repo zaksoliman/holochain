@@ -122,14 +122,9 @@ impl TransportPoolHandler for Inner {
 
             crate::metrics::metric_task(spawn_pressure::spawn_limit!(500), async move {
                 while let Some(evt) = sub_event.next().await {
-                    let start = std::time::Instant::now();
                     if evt_send.send(evt).await.is_err() {
                         break;
                     }
-                    // let t = start.elapsed().as_millis();
-                    // // if t > 10 {
-                    //     println!("num_dispatch_s {}", t);
-                    // // }
                 }
 
                 <Result<(), ()>>::Ok(())

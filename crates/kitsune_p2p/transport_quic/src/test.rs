@@ -3,6 +3,7 @@ mod tests {
 
     use crate::*;
     use futures::stream::StreamExt;
+    use kitsune_p2p_types::dependencies::ghost_actor::dependencies::observability;
     use kitsune_p2p_types::dependencies::spawn_pressure;
     use kitsune_p2p_types::metrics::metric_task_warn_limit;
     use kitsune_p2p_types::transport::*;
@@ -169,12 +170,165 @@ mod tests {
         }
         // let bound2 = listener2.bound_url().await.unwrap();
         // println!("listener2 bound to: {}", bound2);
-        for (i, jh) in jhs.into_iter().enumerate() {
+        for (_, jh) in jhs.into_iter().enumerate() {
             // println!("Trying to recv {}", i);
-            let resp = jh.await.unwrap().unwrap();
+            let _resp = jh.await.unwrap().unwrap();
             // println!("{} got resp: {}", i, String::from_utf8_lossy(&resp));
 
             // assert_eq!("echo: hello", &String::from_utf8_lossy(&resp));
+        }
+    }
+
+    #[tokio::test(threaded_scheduler)]
+    async fn transfer_rate_stream() {
+        use futures::SinkExt;
+        let (listener1, _events1) = spawn_transport_listener_quic(
+            ConfigListenerQuic::default().set_override_host(Some("127.0.0.1")),
+        )
+        .await
+        .unwrap();
+
+        let bound1 = listener1.bound_url().await.unwrap();
+        assert_eq!("127.0.0.1", bound1.host_str().unwrap());
+        println!("listener1 bound to: {}", bound1);
+
+        let (listener2, mut events2) = spawn_transport_listener_quic(ConfigListenerQuic::default())
+            .await
+            .unwrap();
+
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), async move {
+            while let Some(evt) = events2.next().await {
+                match evt {
+                    TransportEvent::IncomingChannel(url, mut write, mut read) => {
+                        // println!("events2 incoming connection: {}", url,);
+                        // let data = read.read_to_end().await;
+                        loop {
+                            let data = read.next().await.unwrap();
+                            // println!("message from {} : {}", url, String::from_utf8_lossy(&data),);
+                            let data =
+                                format!("echo: {}", String::from_utf8_lossy(&data)).into_bytes();
+                            write.send(data).await?;
+                        }
+                    }
+                }
+            }
+            TransportResult::Ok(())
+        });
+
+        let bound2 = listener2.bound_url().await.unwrap();
+        println!("listener2 bound to: {}", bound2);
+
+        let mut num = 0;
+        let size = b"hello".to_vec().len();
+        let t = std::time::Instant::now();
+        let (_, mut write, mut read) = listener1.create_channel(bound2).await.unwrap();
+        loop {
+            num += 1;
+            let t2 = std::time::Instant::now();
+            // let resp = listener1
+            //     .request(bound2.clone(), b"hello".to_vec())
+            //     .await
+            //     .unwrap();
+            write.send(b"hello".to_vec()).await.unwrap();
+            let resp = read.next().await.unwrap();
+
+            let size = resp.len() + size * 8;
+            let el = t.elapsed();
+            let avg = el / num;
+            let latency = t2.elapsed();
+            let mps = num.checked_div(el.as_secs() as u32).unwrap_or(0);
+            let mut mbps = (size * num as usize)
+                .checked_div(el.as_secs() as usize)
+                .unwrap_or(0);
+            mbps /= 1000;
+
+            println!(
+                "messages per s: {}, {}Mbps, latency {:?}, avg latency {:?}, total {}, el {}",
+                mps,
+                mbps,
+                latency,
+                avg,
+                num,
+                el.as_secs()
+            );
+            assert_eq!("echo: hello", &String::from_utf8_lossy(&resp));
+        }
+    }
+    #[tokio::test(threaded_scheduler)]
+    async fn transfer_rate_request() {
+        if std::env::var_os("RUST_LOG").is_some() {
+            observability::init_fmt(observability::Output::DeadLock)
+                .expect("Failed to start contextual logging");
+            tokio::spawn(async {
+                loop {
+                    observability::tick_deadlock_catcher();
+                    tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+                }
+            });
+        }
+        let (listener1, _events1) = spawn_transport_listener_quic(
+            ConfigListenerQuic::default().set_override_host(Some("127.0.0.1")),
+        )
+        .await
+        .unwrap();
+
+        let bound1 = listener1.bound_url().await.unwrap();
+        assert_eq!("127.0.0.1", bound1.host_str().unwrap());
+        println!("listener1 bound to: {}", bound1);
+
+        let (listener2, mut events2) = spawn_transport_listener_quic(ConfigListenerQuic::default())
+            .await
+            .unwrap();
+
+        metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), async move {
+            while let Some(evt) = events2.next().await {
+                match evt {
+                    TransportEvent::IncomingChannel(url, mut write, mut read) => {
+                        // println!("events2 incoming connection: {}", url,);
+                        let data = read.read_to_end().await;
+                        // println!("message from {} : {}", url, String::from_utf8_lossy(&data),);
+                        let data = format!("echo: {}", String::from_utf8_lossy(&data)).into_bytes();
+                        write.write_and_close(data).await?;
+                    }
+                }
+            }
+            TransportResult::Ok(())
+        });
+
+        let bound2 = listener2.bound_url().await.unwrap();
+        println!("listener2 bound to: {}", bound2);
+
+        let mut num = 0;
+        let size = b"hello".to_vec().len();
+        let t = std::time::Instant::now();
+        loop {
+            num += 1;
+            let t2 = std::time::Instant::now();
+            let resp = listener1
+                .request(bound2.clone(), b"hello".to_vec())
+                .await
+                .unwrap();
+
+            let size = resp.len() + size * 8;
+            let el = t.elapsed();
+            let avg = el / num;
+            let latency = t2.elapsed();
+            let mps = num.checked_div(el.as_secs() as u32).unwrap_or(0);
+            let mut mbps = (size * num as usize)
+                .checked_div(el.as_secs() as usize)
+                .unwrap_or(0);
+            mbps /= 1000;
+
+            // println!(
+            //     "messages per s: {}, {}Mbps, latency {:?}, avg latency {:?}, total {}, el {}",
+            //     mps,
+            //     mbps,
+            //     latency,
+            //     avg,
+            //     num,
+            //     el.as_secs()
+            // );
+            assert_eq!("echo: hello", &String::from_utf8_lossy(&resp));
         }
     }
 }

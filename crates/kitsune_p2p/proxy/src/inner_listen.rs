@@ -76,13 +76,22 @@ pub async fn spawn_kitsune_proxy_listener(
     // if we want to be proxied, we need to connect to our proxy
     // and manage that connection contract
     if let Some(proxy_url) = proxy_url {
-        if let Err(e) = i_s.req_proxy(proxy_url.clone()).await {
+        let s = tracing::debug_span!("here_req_proxy");
+        let _g = s.enter();
+        dbg!(&proxy_url);
+        if let Err(e) = i_s
+            .req_proxy(proxy_url.clone())
+            .instrument(tracing::debug_span!("req_proxy_upper"))
+            .await
+        {
             tracing::error!(
                 msg = "Request proxy failed. Check proxy_url / network status.",
                 ?proxy_url,
                 ?e
             );
         }
+        std::mem::drop(_g);
+        std::mem::drop(s);
 
         // Set up a timer to refresh our proxy contract at keepalive interval
         let i_s_c = i_s.clone();
@@ -386,7 +395,8 @@ impl InternalHandler for InnerListen {
                     read,
                 );
                 return Ok(async move {
-                    f.await;
+                    f.instrument(tracing::debug_span!("tls_server_blocked"))
+                        .await;
                     Ok(())
                 }
                 .boxed()
@@ -399,6 +409,7 @@ impl InternalHandler for InnerListen {
                             "Dropped message to {}",
                             dest_proxy_url.as_full_str()
                         )))
+                        .instrument(tracing::debug_span!("dropped_message"))
                         .await
                         .map_err(TransportError::other)?;
                     Ok(())
@@ -422,6 +433,7 @@ impl InternalHandler for InnerListen {
                             "Dropped message to {}",
                             dest_proxy_url.as_full_str()
                         )))
+                        .instrument(tracing::debug_span!("dropped_message2"))
                         .await
                         .map_err(TransportError::other)?;
                     Ok(())
@@ -435,29 +447,42 @@ impl InternalHandler for InnerListen {
         Ok(async move {
             let url = dest_proxy_url.clone();
             let res = async move {
-                let (mut fwd_write, fwd_read) = fut.await?;
+                let (mut fwd_write, fwd_read) = fut
+                    .instrument(tracing::debug_span!("create_low_level_channel"))
+                    .await?;
                 fwd_write
                     .send(ProxyWire::chan_new(url.into()))
+                    .instrument(tracing::debug_span!("send_chan_new"))
                     .await
                     .map_err(TransportError::other)?;
                 TransportResult::Ok((fwd_write, fwd_read))
             }
+            .instrument(tracing::debug_span!("outer"))
             .await;
             let (fwd_write, fwd_read) = match res {
                 Err(e) => {
-                    let _ = i_s.prune_bad_proxy_to(dest_proxy_url).await;
+                    let _ = i_s
+                        .prune_bad_proxy_to(dest_proxy_url)
+                        .instrument(tracing::debug_span!("prune_bad"))
+                        .await;
                     write
                         .send(ProxyWire::failure(format!("{:?}", e)))
+                        .instrument(tracing::debug_span!("send_fail"))
                         .await
                         .map_err(TransportError::other)?;
                     return Ok(());
                 }
                 Ok(t) => t,
             };
-            cross_join_channel_forward(fwd_write, read).await;
-            cross_join_channel_forward(write, fwd_read).await;
+            cross_join_channel_forward(fwd_write, read)
+                .instrument(tracing::debug_span!("cross_join1"))
+                .await;
+            cross_join_channel_forward(write, fwd_read)
+                .instrument(tracing::debug_span!("cross_join2"))
+                .await;
             Ok(())
         }
+        .instrument(tracing::debug_span!("handle_incoming_chan_new"))
         .boxed()
         .into())
     }
@@ -472,12 +497,13 @@ impl InternalHandler for InnerListen {
         let fut = self.sub_sender.create_channel(base_url);
         Ok(async move {
             let (_url, write, read) = fut
-                .instrument(tracing::debug_span!("create_channel_in_create_low_level"))
+                .instrument(tracing::debug_span!("create_channel"))
                 .await?;
             let write = wire_write::wrap_wire_write(write).await;
             let read = wire_read::wrap_wire_read(read).await;
             Ok((write, read))
         }
+        .instrument(tracing::debug_span!("handle_create_low_level_channel"))
         .boxed()
         .into())
     }
@@ -520,7 +546,9 @@ impl InternalHandler for InnerListen {
         let fut = self.i_s.create_low_level_channel(proxy_url.into_base());
         let i_s = self.i_s.clone();
         Ok(async move {
-            let (mut write, mut read) = fut.await?;
+            let (mut write, mut read) = fut
+                .instrument(tracing::debug_span!("create_low_level_channel"))
+                .await?;
 
             write
                 .send(ProxyWire::req_proxy(cert_digest.to_vec().into()))
@@ -540,6 +568,7 @@ impl InternalHandler for InnerListen {
             i_s.set_proxy_url(proxy_url.into()).await?;
             Ok(())
         }
+        .instrument(tracing::debug_span!("handle_req_proxy"))
         .boxed()
         .into())
     }
@@ -590,7 +619,7 @@ impl TransportListenerHandler for InnerListen {
         Ok(async move {
             let (mut write, read) = i_s
                 .create_low_level_channel(proxy_url.as_base().clone())
-                .instrument(tracing::debug_span!("create_low_level_create_channel_inner_listener"))
+                .instrument(tracing::debug_span!("create_low_level_channel"))
                 .await?;
             span.in_scope(|| {
                 let t = last.elapsed().as_secs();
@@ -620,7 +649,9 @@ impl TransportListenerHandler for InnerListen {
                 write,
                 read,
             )
+            .instrument(tracing::debug_span!("tls_client_blocked"))
             .await
+            .instrument(tracing::debug_span!("tls_client_setup"))
             .await
             .map_err(TransportError::other)??;
             span.in_scope(|| {
@@ -631,6 +662,7 @@ impl TransportListenerHandler for InnerListen {
             });
             Ok((proxy_url.into(), send2, recv2))
         }
+        .instrument(tracing::debug_span!("handle_create_channel"))
         .boxed()
         .into())
     }

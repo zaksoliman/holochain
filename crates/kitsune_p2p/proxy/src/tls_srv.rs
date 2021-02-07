@@ -3,6 +3,7 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_types::dependencies::spawn_pressure;
+use observability::tracing::Instrument;
 use rustls::Session;
 use std::io::Read;
 use std::io::Write;
@@ -26,7 +27,8 @@ pub(crate) async fn spawn_tls_server(
             evt_send,
             write,
             read,
-        ),
+        )
+        .instrument(tracing::debug_span!("tls_server")),
     )
     .await;
 }
@@ -75,6 +77,7 @@ async fn tls_server(
                         send2.take().unwrap(),
                         recv2.take().unwrap(),
                     ))
+                    .instrument(tracing::debug_span!("send_incoming_chan"))
                     .await
                     .map_err(TransportError::other)?;
             }
@@ -85,16 +88,25 @@ async fn tls_server(
                 tracing::trace!("{}: SRV tls wants write {} bytes", short, data.len());
                 write
                     .send(ProxyWire::chan_send(data.into()))
+                    .instrument(tracing::debug_span!("send_incoming_proxy_chan"))
                     .await
                     .map_err(TransportError::other)?;
             }
 
             if wants_write_close && !srv.is_handshaking() {
                 tracing::trace!("{}: SRV closing outgoing", short);
-                write.close().await.map_err(TransportError::other)?;
+                write
+                    .close()
+                    .instrument(tracing::debug_span!("close_tls"))
+                    .await
+                    .map_err(TransportError::other)?;
             }
 
-            match merge.next().await {
+            match merge
+                .next()
+                .instrument(tracing::debug_span!("merge_tls_server"))
+                .await
+            {
                 Some(Left(Some(data))) => {
                     tracing::trace!("{}: SRV outgoing {} bytes", short, data.len());
                     srv.write_all(&data).map_err(TransportError::other)?;
@@ -126,25 +138,33 @@ async fn tls_server(
                                 if size == 0 {
                                     break;
                                 }
-                                send1.send(buf[..size].to_vec()).await?;
+                                send1
+                                    .send(buf[..size].to_vec())
+                                    .instrument(tracing::debug_span!("send_from_tls_srv"))
+                                    .await?;
                             }
                         }
                     }
                     _ => return Err(format!("invalid wire: {:?}", wire).into()),
                 },
                 Some(Right(None)) => {
-                    send1.close().await?;
+                    send1
+                        .close()
+                        .instrument(tracing::debug_span!("send1_from_tls_srv"))
+                        .await?;
                 }
                 None => return Ok(()),
             }
         }
     }
+    .instrument(tracing::debug_span!("tls_srv_loop"))
     .await;
 
     if let Err(e) = res {
         tracing::error!("{} SRV: ERROR: {:?}", short, e);
         let _ = write
             .send(ProxyWire::failure(format!("{:?}", e)))
+            .instrument(tracing::debug_span!("send_error_from_tls_srv"))
             .await
             .map_err(TransportError::other);
     }

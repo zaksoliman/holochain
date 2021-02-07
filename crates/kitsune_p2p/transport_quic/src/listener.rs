@@ -26,7 +26,7 @@ async fn tx_bi_chan(
 ) -> (TransportChannelWrite, TransportChannelRead) {
     let (write_send, mut write_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     let write_send = write_send.sink_map_err(TransportError::other);
-    metric_task_warn_limit(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
+    metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
         while let Some(data) = write_recv
             .next()
             .instrument(tracing::debug_span!("write_recv"))
@@ -44,7 +44,7 @@ async fn tx_bi_chan(
             .await
             .map_err(TransportError::other)?;
         TransportResult::Ok(())
-    });
+    }).await;
     let (mut read_send, read_recv) = futures::channel::mpsc::channel::<Vec<u8>>(10);
     metric_task(spawn_pressure::spawn_limit!(MAX_CHANNELS), async move {
         let mut buf = [0_u8; 4096];
@@ -197,7 +197,7 @@ impl ListenerInnerHandler for TransportListenerQuic {
 
             // pass the connection off to our actor
             i_s.set_connection(url.clone(), con)
-                .instrument(tracing::debug_span!("next_bi_stream"))
+                .instrument(tracing::debug_span!("set_connection"))
                 .await?;
 
             // pass any incoming channels off to our actor
@@ -233,7 +233,7 @@ impl ListenerInnerHandler for TransportListenerQuic {
 
             Ok(out.map(move |(write, read)| (url, write, read)))
         }
-        // .instrument(tracing::debug_span!("handle_take_connecting_async"))
+        .instrument(tracing::debug_span!("handle_take_connecting_async"))
         .boxed()
         .into())
     }
@@ -284,14 +284,17 @@ impl TransportListenerHandler for TransportListenerQuic {
 
         let i_s = self.internal_sender.clone();
         Ok(async move {
+            tracing::debug!("before");
             // if we already had a connection and the bi-stream
             // channel is successfully opened, return early using that
             if let Some(maybe_bi) = maybe_bi {
                 match maybe_bi.instrument(tracing::debug_span!("maybe_bi")).await {
                     Ok((bi_send, bi_recv)) => {
+                        tracing::debug!("after_maybe_bi");
                         let (write, read) = tx_bi_chan(bi_send, bi_recv)
                             .instrument(tracing::debug_span!("tx_bi_chan"))
                             .await;
+                        tracing::debug!("after_tx_bi_chan");
                         return Ok((url, write, read));
                     }
                     Err(_) => {
@@ -302,6 +305,7 @@ impl TransportListenerHandler for TransportListenerQuic {
                 }
             }
 
+            tracing::debug!("NEW_CHANNEL");
             // we did not successfully use an existing connection.
             // instead, try establishing a new one with a new channel.
             let addr = crate::url_to_addr(&url, crate::SCHEME)
@@ -319,6 +323,8 @@ impl TransportListenerHandler for TransportListenerQuic {
 
             Ok((url, write, read))
         }
+        .instrument(tracing::debug_span!("the_create_channel"))
+        .instrument(tracing::debug_span!("the_create_channel2"))
         .boxed()
         .into())
     }
@@ -370,7 +376,6 @@ pub async fn spawn_transport_listener_quic(
                 }
                 .instrument(tracing::debug_span!("waiting_for_incoming_for_loop"))
             })
-            .instrument(tracing::debug_span!("waiting_for_incoming"))
             .await;
 
         // Our incoming connections ended,
@@ -459,7 +464,7 @@ mod danger {
         // any metrics we implement will be opt-in self reporting
         transport.allow_spin(false);
 
-        transport.stream_window_bidi(1000);
+        transport.stream_window_bidi(100);
 
         transport.crypto_buffer_size(1024 * 1024);
 

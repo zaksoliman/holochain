@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
+
 use futures::{sink::SinkExt, stream::StreamExt};
 use ghost_actor::dependencies::tracing;
 use kitsune_p2p_proxy::*;
@@ -153,7 +156,7 @@ async fn inner() -> TransportResult<()> {
     });
 
     let (metric_send, mut metric_recv) =
-        futures::channel::mpsc::channel((opt.node_count + 10) as usize);
+        futures::channel::mpsc::channel((opt.node_count * 10) as usize);
 
     metric_task_warn_limit(spawn_pressure::spawn_limit!(10000), {
         let mut metric_send = metric_send.clone();
@@ -178,6 +181,7 @@ async fn inner() -> TransportResult<()> {
                 _ => (),
             }
             if last_disp.elapsed().as_millis() > 5000 {
+                dbg!(rtime.len());
                 last_disp = std::time::Instant::now();
                 let cnt = rtime.len() as f64;
                 let mut avg = rtime.drain(..).fold(0.0_f64, |acc, x| acc + (x as f64));
@@ -191,6 +195,8 @@ async fn inner() -> TransportResult<()> {
     let (_con, con_url) = gen_client(opt.clone(), proxy_url.clone()).await?;
     println!("Responder Url: {}", con_url);
 
+    let mut num = Arc::new(AtomicUsize::new(0));
+    let t = Arc::new(std::time::Instant::now());
     for _ in 0..opt.node_count {
         if opt.grow {
             metric_task_warn_limit(
@@ -200,6 +206,8 @@ async fn inner() -> TransportResult<()> {
                     proxy_url.clone(),
                     con_url.clone(),
                     metric_send.clone(),
+                    num.clone(),
+                    t.clone(),
                 ),
             );
         } else {
@@ -235,13 +243,16 @@ async fn gen_client(
                 move |evt| {
                     async move {
                         match evt {
-                            TransportEvent::IncomingChannel(_url, mut write, _read) => {
+                            TransportEvent::IncomingChannel(_url, mut write, read) => {
                                 tokio::time::delay_for(std::time::Duration::from_millis(
                                     process_delay_ms,
                                 ))
                                 .await;
+                                let data = read.read_to_end().await;
+                                let data = format!("echo: {}", String::from_utf8_lossy(&data))
+                                    .into_bytes();
                                 let _ = write
-                                    .write_and_close(b"".to_vec())
+                                    .write_and_close(data)
                                     .instrument(tracing::debug_span!("responder"))
                                     .await;
                             }
@@ -250,7 +261,6 @@ async fn gen_client(
                     .instrument(tracing::debug_span!("resp_loop_inner"))
                 },
             )
-            .instrument(tracing::debug_span!("resp_loop"))
             .await;
         <Result<(), ()>>::Ok(())
     });
@@ -290,6 +300,8 @@ async fn client_loop_grow(
     proxy_url: url2::Url2,
     con_url: url2::Url2,
     metric_send: futures::channel::mpsc::Sender<Metric>,
+    num: Arc<AtomicUsize>,
+    t: Arc<std::time::Instant>,
 ) -> TransportResult<()> {
     let (con, _my_url) = gen_client(opt.clone(), proxy_url).await?;
 
@@ -303,6 +315,7 @@ async fn client_loop_grow(
             }
         }
     });
+    let size = b"hello".to_vec().len();
     loop {
         tokio::time::delay_for(std::time::Duration::from_millis(
             opt.channel_interval_ms as u64,
@@ -312,37 +325,67 @@ async fn client_loop_grow(
         let request_interval_ms = opt.request_interval_ms;
         let process_delay_ms = opt.process_delay_ms;
 
+        let start = std::time::Instant::now();
         let channel = con
             .create_channel(con_url.clone())
             .instrument(tracing::debug_span!("create_channel_from_test"))
             .await?;
         metric_task_warn_limit(spawn_pressure::spawn_limit!(1000), {
             let mut metric_send = metric_send.clone();
+            let num = num.clone();
+            let t = t.clone();
             async move {
                 tokio::time::delay_for(std::time::Duration::from_millis(
                     request_interval_ms as u64,
                 ))
                 .await;
                 let (_, mut write, read) = channel;
-                let start = std::time::Instant::now();
+                let num = num.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
                 write
-                    .write_and_close(b"".to_vec())
+                    .write_and_close(b"hello".to_vec())
                     .instrument(tracing::debug_span!("writing_to_channel"))
                     .await?;
-                read.read_to_end()
+                let resp = read
+                    .read_to_end()
                     .instrument(tracing::debug_span!("reading_from_channel"))
                     .await;
-                metric_send
-                    .send(Metric::RequestOverhead(
-                        (start.elapsed().as_millis() as u64)
-                            .checked_sub(process_delay_ms as u64)
-                            .unwrap_or(0),
-                    ))
-                    .await
-                    .map_err(TransportError::other)?;
+                let size = resp.len() + size * 8;
+                let el = t.elapsed();
+                let avg: std::time::Duration = el / num as u32;
+                let latency = start.elapsed();
+                let mps = num.checked_div(el.as_secs() as usize).unwrap_or(0);
+                let mut mbps = (size * num as usize)
+                    .checked_div(el.as_secs() as usize)
+                    .unwrap_or(0);
+                mbps /= 1000;
+
+                println!(
+                    "messages per s: {}, {}Mbps, latency {:?}, avg latency {:?}, total {}, el {}",
+                    mps,
+                    mbps,
+                    latency,
+                    avg,
+                    num,
+                    el.as_secs()
+                );
+                // metric_send
+                //     .send(Metric::RequestOverhead(
+                //         (start.elapsed().as_millis() as u64)
+                //             .checked_sub(process_delay_ms as u64)
+                //             .unwrap_or_else(|| {
+                //                 dbg!("FAIL");
+                //                 0
+                //             }),
+                //     ))
+                //     .await
+                //     .map_err(TransportError::other)?;
                 <Result<(), ()>>::Ok(())
             }
-        });
+            .instrument(tracing::debug_span!("sender_outer"))
+        })
+        .await
+        .unwrap()
+        .unwrap();
         // let d = con.debug().await?;
         // println!("{}", d);
     }

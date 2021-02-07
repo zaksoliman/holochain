@@ -1144,17 +1144,12 @@ async fn p2p_event_task(
             async move {
                 let cell_id =
                     CellId::new(evt.dna_hash().clone(), evt.target_agent_as_ref().clone());
-                let start = std::time::Instant::now();
                 if let Err(e) = handle.dispatch_holochain_p2p_event(&cell_id, evt).await {
                     tracing::error!(
                         message = "error dispatching network event",
                         error = ?e,
                     );
                 }
-                // let t = start.elapsed().as_millis();
-                // // if t > 10 {
-                //     println!("num_dispatch_s {}", t);
-                // // }
             }
             .in_current_span()
         })

@@ -28,41 +28,73 @@ where
     E: 'static + Send + std::fmt::Debug,
     F: 'static + Send + std::future::Future<Output = Result<T, E>>,
 {
-    spawn_queue_limit(
+    metric_task_warn_limit(limit, f)
+}
+
+/// Blocks before spawning past limit
+pub async fn metric_task_block<T, E, F>(
+    limit: &'static SpawnLimit,
+    f: F,
+) -> tokio::task::JoinHandle<Result<T, E>>
+where
+    T: 'static + Send,
+    E: 'static + Send + std::fmt::Debug,
+    F: 'static + Send + std::future::Future<Output = Result<T, E>>,
+{
+    let mut full = false;
+    let ref mut full_ref = full;
+    let start = std::time::Instant::now();
+    let r = spawn_queue_limit(
         limit,
-        || match limit.show_location() {
-            Some((file, line)) => {
-                observability::tracing::error!(
-                    "Spawning task at {}:{} beyond limit {}",
-                    file,
-                    line,
-                    limit.show_limit()
-                );
-            }
-            None => {
-                observability::tracing::error!("Spawning task beyond limit {}", limit.show_limit());
+        || {
+            *full_ref = true;
+            match limit.show_location() {
+                Some((file, line)) => {
+                    observability::tracing::error!(
+                        "Spawning task at {}:{} hit limit {}",
+                        file,
+                        line,
+                        limit.show_limit()
+                    );
+                }
+                None => {
+                    observability::tracing::error!(
+                        "Spawning task hit limit {}",
+                        limit.show_limit()
+                    );
+                }
             }
         },
         metric_inner(f).boxed(),
     )
-    .await
-    // let spawn = spawn_attempt_limit(limit, metric_inner(f).boxed());
-    // if !spawn.is_spawned() {
-    //     match limit.show_location() {
-    //         Some((file, line)) => {
-    //             observability::tracing::error!(
-    //                 "Spawning task at {}:{} beyond limit {}",
-    //                 file,
-    //                 line,
-    //                 limit.show_limit()
-    //             );
-    //         }
-    //         None => {
-    //             observability::tracing::error!("Spawning task beyond limit {}", limit.show_limit());
-    //         }
-    //     }
-    // }
-    // spawn.finish().await
+    .await;
+    if full {
+        let t = start.elapsed();
+        // if t.as_secs() > 1 {
+        match limit.show_location() {
+            Some((file, line)) => {
+                let msg = format!(
+                    "Spawning task at {}:{} hit limit {}",
+                    file,
+                    line,
+                    limit.show_limit()
+                );
+                observability::tracing::error!(
+                    ?msg,
+                    waited = ?t,
+                );
+            }
+            None => {
+                let msg = format!("Spawning task hit limit {}", limit.show_limit());
+                observability::tracing::error!(
+                    ?msg,
+                    waited = ?t,
+                );
+            }
+        }
+        // }
+    }
+    r
 }
 
 /// Same as metric task but will never

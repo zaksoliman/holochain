@@ -130,6 +130,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-shim"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d20fdac7156779a1a30d970e838195558b4810dd06aa69e7c7461bdc518edf9b"
+dependencies = [
+ "crossbeam",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -208,6 +217,18 @@ name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
+
+[[package]]
+name = "bitvec"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7ba35e9565969edb811639dbebfe34edc0368e472c5018474c8eb2543397f81"
+dependencies = [
+ "funty",
+ "radium",
+ "tap",
+ "wyz",
+]
 
 [[package]]
 name = "blake2b_simd"
@@ -593,13 +614,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69323bff1fb41c635347b8ead484a5ca6c3f11914d784170b158d8449ab07f8e"
+dependencies = [
+ "cfg-if 0.1.10",
+ "crossbeam-channel 0.4.4",
+ "crossbeam-deque 0.7.3",
+ "crossbeam-epoch 0.8.2",
+ "crossbeam-queue",
+ "crossbeam-utils 0.7.2",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
+dependencies = [
+ "crossbeam-utils 0.7.2",
+ "maybe-uninit",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dca26ee1f8d361640700bde38b2c37d8c22b3ce2d360e1fc1c74ea4b0aa7d775"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils",
+ "crossbeam-utils 0.8.1",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f02af974daeee82218205558e51ec8768b48cf524bd01d550abe5573a608285"
+dependencies = [
+ "crossbeam-epoch 0.8.2",
+ "crossbeam-utils 0.7.2",
+ "maybe-uninit",
 ]
 
 [[package]]
@@ -609,8 +665,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94af6efb46fef72616855b036a624cf27ba656ffc9be1b9a3c931cfc7749a9a9"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-epoch",
- "crossbeam-utils",
+ "crossbeam-epoch 0.9.1",
+ "crossbeam-utils 0.8.1",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "058ed274caafc1f60c4997b5fc07bf7dc7cca454af7c6e81edffe5f33f70dace"
+dependencies = [
+ "autocfg 1.0.1",
+ "cfg-if 0.1.10",
+ "crossbeam-utils 0.7.2",
+ "lazy_static",
+ "maybe-uninit",
+ "memoffset 0.5.6",
+ "scopeguard",
 ]
 
 [[package]]
@@ -621,10 +692,32 @@ checksum = "a1aaa739f95311c2c7887a76863f500026092fb1dce0161dab577e559ef3569d"
 dependencies = [
  "cfg-if 1.0.0",
  "const_fn",
- "crossbeam-utils",
+ "crossbeam-utils 0.8.1",
  "lazy_static",
- "memoffset",
+ "memoffset 0.6.1",
  "scopeguard",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "774ba60a54c213d409d5353bda12d49cd68d14e45036a285234c8d6f91f92570"
+dependencies = [
+ "cfg-if 0.1.10",
+ "crossbeam-utils 0.7.2",
+ "maybe-uninit",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
+dependencies = [
+ "autocfg 1.0.1",
+ "cfg-if 0.1.10",
+ "lazy_static",
 ]
 
 [[package]]
@@ -896,7 +989,7 @@ version = "0.0.1"
 dependencies = [
  "holo_hash",
  "holochain",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_types",
  "holochain_zome_types",
  "serde",
@@ -1023,7 +1116,7 @@ checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 name = "fixt"
 version = "0.0.1"
 dependencies = [
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "lazy_static",
  "parking_lot",
  "paste 1.0.3",
@@ -1123,6 +1216,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
+name = "funty"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
+
+[[package]]
 name = "futures"
 version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1215,6 +1314,15 @@ dependencies = [
  "proc-macro-hack",
  "proc-macro-nested",
  "slab",
+]
+
+[[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]
@@ -1354,6 +1462,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hdrhistogram"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af54a13c410de2b5e2d611475072834b86d7b2f835a2a8f7b1b1248d3e9bfbd8"
+dependencies = [
+ "base64 0.13.0",
+ "byteorder",
+ "crossbeam-channel 0.5.0",
+ "flate2",
+ "nom 6.1.0",
+ "num-traits",
+]
+
+[[package]]
 name = "heck"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1384,7 +1506,7 @@ dependencies = [
  "base64 0.12.3",
  "blake2b_simd",
  "fixt",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "rand 0.7.3",
  "serde",
  "serde_bytes",
@@ -1419,7 +1541,7 @@ dependencies = [
  "holochain_keystore",
  "holochain_lmdb",
  "holochain_p2p",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_state",
  "holochain_test_wasm_common",
  "holochain_types",
@@ -1482,7 +1604,7 @@ dependencies = [
  "holo_hash",
  "holochain_lmdb",
  "holochain_p2p",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_state",
  "holochain_types",
  "holochain_zome_types",
@@ -1503,7 +1625,7 @@ dependencies = [
  "directories 2.0.2",
  "holo_hash",
  "holochain_p2p",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_types",
  "holochain_zome_types",
  "kitsune_p2p",
@@ -1550,7 +1672,7 @@ version = "0.0.1"
 dependencies = [
  "ghost_actor",
  "holo_hash",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_zome_types",
  "lair_keystore_api",
  "lair_keystore_client",
@@ -1576,7 +1698,7 @@ dependencies = [
  "futures",
  "holo_hash",
  "holochain_keystore",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_zome_types",
  "lazy_static",
  "must_future",
@@ -1607,7 +1729,7 @@ dependencies = [
  "ghost_actor",
  "holo_hash",
  "holochain_keystore",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_types",
  "holochain_zome_types",
  "kitsune_p2p",
@@ -1627,22 +1749,7 @@ version = "0.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80e1f2f82c9ac6dc7bc7c2e06e892d4bd1f29b4681cbfa4886edeb25ee8cdfe3"
 dependencies = [
- "holochain_serialized_bytes_derive 0.0.47",
- "rmp-serde",
- "serde",
- "serde-transcode",
- "serde_bytes",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "holochain_serialized_bytes"
-version = "0.0.48"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79ff6ebed11c8d4cbc9cb2ea1ee779100d623e819e4cb3bdca16481a775126da"
-dependencies = [
- "holochain_serialized_bytes_derive 0.0.48",
+ "holochain_serialized_bytes_derive",
  "rmp-serde",
  "serde",
  "serde-transcode",
@@ -1656,16 +1763,6 @@ name = "holochain_serialized_bytes_derive"
 version = "0.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0119b7cd2aa14e4bc7129a212ff570bcba295ae19392067b2b0deeba780729e9"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
-name = "holochain_serialized_bytes_derive"
-version = "0.0.48"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dbd32f37d69ab4772ec726b8d8349b6f0752f3757deac724a5791149c34ec1e"
 dependencies = [
  "quote",
  "syn",
@@ -1686,7 +1783,7 @@ dependencies = [
  "holochain_keystore",
  "holochain_lmdb",
  "holochain_p2p",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_types",
  "holochain_wasm_test_utils",
  "holochain_zome_types",
@@ -1709,7 +1806,7 @@ name = "holochain_test_wasm_common"
 version = "0.0.1"
 dependencies = [
  "hdk3",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "serde",
  "serde_bytes",
 ]
@@ -1730,7 +1827,7 @@ dependencies = [
  "futures",
  "holo_hash",
  "holochain_keystore",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_zome_types",
  "lazy_static",
  "maplit",
@@ -1774,7 +1871,7 @@ version = "0.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f415e0adf853ac4d24b67a5c8aca12bcec033ad3421121434718be61a75ae236"
 dependencies = [
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "serde",
  "serde_bytes",
  "thiserror",
@@ -1786,7 +1883,7 @@ version = "0.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc37122d7b3b0cb6e611835009b31da92669e0b0dde884afb99c68f7fcd08107"
 dependencies = [
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_wasmer_common",
  "serde",
 ]
@@ -1797,7 +1894,7 @@ version = "0.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e885767c7a563792dc7c791b5b246081ed6328facae7ccde5f7a4a45dd6d3eb5"
 dependencies = [
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_wasmer_common",
  "lazy_static",
  "serde",
@@ -1810,7 +1907,7 @@ name = "holochain_websocket"
 version = "0.0.1"
 dependencies = [
  "futures",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "holochain_types",
  "linefeed",
  "nanoid",
@@ -1832,7 +1929,7 @@ version = "0.0.1"
 dependencies = [
  "fixt",
  "holo_hash",
- "holochain_serialized_bytes 0.0.47",
+ "holochain_serialized_bytes",
  "paste 1.0.3",
  "rand 0.7.3",
  "serde",
@@ -1995,8 +2092,8 @@ checksum = "67bcf81cd7094c6827cec657c53f0d22dec1afed5eeccb16118f5763a7bbd869"
 dependencies = [
  "ahash 0.6.3",
  "atty",
- "crossbeam-channel",
- "crossbeam-utils",
+ "crossbeam-channel 0.5.0",
+ "crossbeam-utils 0.8.1",
  "dashmap",
  "env_logger",
  "indexmap",
@@ -2223,6 +2320,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "lexical-core"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db65c6da02e61f55dae90a0ae427b2a5f6b3e8db09f58d10efab23af92592616"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bitflags",
+ "cfg-if 0.1.10",
+ "ryu",
+ "static_assertions",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2325,6 +2435,15 @@ checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
 dependencies = [
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "memoffset"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "043175f069eda7b85febe4a74abbaeff828d9f8b448515d3151a14a3542811aa"
+dependencies = [
+ "autocfg 1.0.1",
 ]
 
 [[package]]
@@ -2560,6 +2679,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab6f70b46d6325aa300f1c7bb3d470127dfc27806d8ea6bf294ee0ce643ce2b1"
+dependencies = [
+ "bitvec",
+ "lexical-core",
+ "memchr",
+ "version_check",
+]
+
+[[package]]
 name = "normalize-line-endings"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2622,11 +2753,10 @@ checksum = "a9a7ab5d64814df0fe4a4b5ead45ed6c5f181ee3ff04ba344313a6c80446c5d4"
 [[package]]
 name = "observability"
 version = "0.1.3"
-source = "git+https://github.com/freesig/observability.git?branch=deadlock#24f5268a58595f8bc903654a4e69ae53ab23f80b"
 dependencies = [
  "chrono",
  "derive_more",
- "holochain_serialized_bytes 0.0.48",
+ "holochain_serialized_bytes",
  "inferno",
  "once_cell",
  "opentelemetry",
@@ -2639,6 +2769,7 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-serde",
  "tracing-subscriber",
+ "tracing-timing",
 ]
 
 [[package]]
@@ -3058,6 +3189,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "quanta"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21484fda3d8ad7affee37755c77a5d0da527543f0af0c7f731c14e2215645d39"
+dependencies = [
+ "atomic-shim",
+ "ctor",
+ "libc",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "quick-xml"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3110,6 +3253,12 @@ checksum = "991431c3519a3f36861882da93630ce66b52918dcf1b8e2fd66b397fc96f28df"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "radium"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "941ba9d78d8e2f7ce474c015eea4d9c6d25b6a3327f9832ee29a4de27f91bbb8"
 
 [[package]]
 name = "rand"
@@ -3339,7 +3488,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b0d8e0819fadc20c74ea8373106ead0600e3a67ef1fe8da56e39b9ae7275674"
 dependencies = [
  "autocfg 1.0.1",
- "crossbeam-deque",
+ "crossbeam-deque 0.8.0",
  "either",
  "rayon-core",
 ]
@@ -3350,9 +3499,9 @@ version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ab346ac5921dc62ffa9f89b7a773907511cdfa5490c572ae9be1be33e8afa4a"
 dependencies = [
- "crossbeam-channel",
- "crossbeam-deque",
- "crossbeam-utils",
+ "crossbeam-channel 0.5.0",
+ "crossbeam-deque 0.8.0",
+ "crossbeam-utils 0.8.1",
  "lazy_static",
  "num_cpus",
 ]
@@ -3549,7 +3698,7 @@ dependencies = [
  "base64 0.13.0",
  "blake2b_simd",
  "constant_time_eq",
- "crossbeam-utils",
+ "crossbeam-utils 0.8.1",
 ]
 
 [[package]]
@@ -3948,6 +4097,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "str_stack"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4060,6 +4215,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tap"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36474e732d1affd3a6ed582781b3683df3d0563714c59c39591e8ff707cf078e"
+
+[[package]]
 name = "target-lexicon"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4112,7 +4273,7 @@ checksum = "76971977e6121664ec1b960d1313aacfa75642adc93b9d4d53b247bd4cb1747e"
 dependencies = [
  "dirs 2.0.2",
  "fnv",
- "nom",
+ "nom 5.1.2",
  "phf",
  "phf_codegen",
 ]
@@ -4408,6 +4569,23 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "tracing-timing"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27d1a1952e38b841a57607153a16689e1f44e6760de914ab1693bc341bb03f7e"
+dependencies = [
+ "crossbeam",
+ "doc-comment",
+ "fxhash",
+ "hdrhistogram",
+ "indexmap",
+ "quanta",
+ "slab",
+ "tracing-core",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4912,6 +5090,12 @@ dependencies = [
  "winapi 0.2.8",
  "winapi-build",
 ]
+
+[[package]]
+name = "wyz"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 
 [[package]]
 name = "x25519-dalek"
