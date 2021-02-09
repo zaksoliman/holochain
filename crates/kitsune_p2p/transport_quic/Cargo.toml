@@ -11,7 +11,9 @@ categories = [ "network-programming" ]
 edition = "2018"
 
 [dependencies]
+byteorder = "1"
 futures = "0.3"
+ghost = { package = "ghost_actor", version = "0.4.0-alpha.5" }
 if-addrs = "0.6"
 kitsune_p2p_types = { version = "0.0.1", path = "../types" }
 lair_keystore_api = "=0.0.1-alpha.10"
@@ -23,3 +25,6 @@ rustls = { version = "0.17", features = [ "dangerous_configuration" ] }
 serde = { version = "1.0.104", features = [ "derive" ] }
 tokio = { version = "0.2", features = [ "full" ] }
 webpki = "0.21.2"
+
+[dev-dependencies]
+chrono = "0.4"

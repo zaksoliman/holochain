@@ -14,6 +14,10 @@ pub enum TransportError {
     #[error(transparent)]
     GhostError(#[from] ghost_actor::GhostError),
 
+    /// New Ghost Error.
+    #[error(transparent)]
+    NewGhostError(#[from] ghost::GhostError),
+
     /// Unspecified error.
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),

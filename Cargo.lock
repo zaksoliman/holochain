@@ -1286,6 +1286,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ghost_actor"
+version = "0.4.0-alpha.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52cb0746ab4cf003d75cdbaaae2cf95139ec9607ae46bd5c68721bda2ca0c824"
+dependencies = [
+ "futures",
+ "tracing",
+]
+
+[[package]]
 name = "gimli"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1420,7 +1430,7 @@ dependencies = [
  "fallible-iterator",
  "fixt",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "hdk3",
  "holo_hash",
  "holochain_cascade",
@@ -1486,7 +1496,7 @@ dependencies = [
  "fallible-iterator",
  "fixt",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "hdk3",
  "hdk3_derive",
  "holo_hash",
@@ -1557,7 +1567,7 @@ dependencies = [
 name = "holochain_keystore"
 version = "0.0.1"
 dependencies = [
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "holo_hash",
  "holochain_serialized_bytes",
  "holochain_zome_types",
@@ -1613,7 +1623,7 @@ dependencies = [
  "async-trait",
  "fixt",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "holo_hash",
  "holochain_keystore",
  "holochain_serialized_bytes",
@@ -2070,7 +2080,7 @@ dependencies = [
  "derive_more",
  "fixt",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "kitsune_p2p_proxy",
  "kitsune_p2p_transport_quic",
  "kitsune_p2p_types",
@@ -2115,7 +2125,10 @@ dependencies = [
 name = "kitsune_p2p_transport_quic"
 version = "0.0.1"
 dependencies = [
+ "byteorder",
+ "chrono",
  "futures",
+ "ghost_actor 0.4.0-alpha.5",
  "if-addrs",
  "kitsune_p2p_types",
  "lair_keystore_api",
@@ -2135,7 +2148,8 @@ version = "0.0.1"
 dependencies = [
  "derive_more",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
+ "ghost_actor 0.4.0-alpha.5",
  "nanoid",
  "observability",
  "once_cell",
@@ -2163,7 +2177,7 @@ dependencies = [
  "derive_more",
  "directories 3.0.1",
  "futures",
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "nanoid",
  "num_cpus",
  "once_cell",
@@ -2183,7 +2197,7 @@ version = "0.0.1-alpha.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61ee943659739a639033086b421eb19c155c9a8a64c64a6e37e1025ce5651bb2"
 dependencies = [
- "ghost_actor",
+ "ghost_actor 0.3.0-alpha.1",
  "lair_keystore_api",
  "tempfile",
  "tokio",
