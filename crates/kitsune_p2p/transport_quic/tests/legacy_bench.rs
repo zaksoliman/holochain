@@ -1,12 +1,12 @@
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use chrono::prelude::*;
 use futures::StreamExt;
 use kitsune_p2p_transport_quic::*;
 use kitsune_p2p_types::dependencies::futures;
 use kitsune_p2p_types::metrics::*;
 use kitsune_p2p_types::transport::*;
-use std::sync::Arc;
 use std::sync::atomic;
-use chrono::prelude::*;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::sync::Arc;
 
 fn p_(u: u64) {
     if u < 1000 {
@@ -47,21 +47,156 @@ fn rmsg(m: &[u8]) -> std::time::Duration {
     m
 }
 
+const MAX_MSG_SIZE: usize = 1024 * 1024 * 16; // 16 MiB
+
+pub struct FrameSend {
+    inner: Box<dyn futures::io::AsyncWrite + 'static + Send + Sync + Unpin>,
+}
+
+impl FrameSend {
+    pub fn new<I>(inner: I) -> Self
+    where
+        I: futures::io::AsyncWrite + 'static + Send + Sync + Unpin,
+    {
+        Self {
+            inner: Box::new(inner),
+        }
+    }
+
+    pub async fn send<D: Into<Vec<u8>>>(&mut self, d: D) -> TransportResult<()> {
+        use futures::io::AsyncWriteExt;
+        let mut d = d.into();
+        if d.len() > MAX_MSG_SIZE {
+            return Err(format!("MSG TOO BIG: {} b", d.len()).into());
+        }
+        let mut len = Vec::new();
+        len.write_u32::<LittleEndian>(d.len() as u32 + 4).unwrap();
+        d.insert(0, len[3]);
+        d.insert(0, len[2]);
+        d.insert(0, len[1]);
+        d.insert(0, len[0]);
+
+        self.inner
+            .write_all(&d)
+            .await
+            .map_err(TransportError::other)
+    }
+}
+
+pub struct FrameRecv {
+    inner: Option<Box<dyn futures::io::AsyncRead + 'static + Send + Sync + Unpin>>,
+    buf: Option<[u8; 4096]>,
+    data: Vec<u8>,
+    out: Option<Vec<Box<[u8]>>>,
+    is_complete: bool,
+}
+
+impl FrameRecv {
+    pub fn new<I>(inner: I) -> Self
+    where
+        I: futures::io::AsyncRead + 'static + Send + Sync + Unpin,
+    {
+        Self {
+            inner: Some(Box::new(inner)),
+            buf: Some([0; 4096]),
+            data: Vec::new(),
+            out: None,
+            is_complete: false,
+        }
+    }
+}
+
+impl futures::stream::Stream for FrameRecv {
+    type Item = Vec<Box<[u8]>>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        use futures::io::AsyncRead;
+        if self.is_complete {
+            return std::task::Poll::Ready(None);
+        }
+        let mut inner = match self.inner.take() {
+            Some(inner) => inner,
+            None => {
+                return std::task::Poll::Ready(None);
+            }
+        };
+        if self.out.is_none() {
+            self.out = Some(Vec::new());
+        }
+        let mut buf = self.buf.take().unwrap();
+        loop {
+            let inner = &mut inner;
+            tokio::pin!(inner);
+            match inner.poll_read(cx, &mut buf) {
+                std::task::Poll::Pending => break,
+                std::task::Poll::Ready(Err(e)) => {
+                    println!("ERROR: {:?}", e);
+                    self.is_complete = true;
+                    break;
+                }
+                std::task::Poll::Ready(Ok(size)) => {
+                    if size == 0 {
+                        self.is_complete = true;
+                        break;
+                    }
+                    self.data.extend_from_slice(&buf[..size]);
+                    loop {
+                        if self.data.len() < 4 {
+                            break;
+                        }
+                        let want_size = {
+                            let mut rdr = std::io::Cursor::new(&self.data[0..4]);
+                            rdr.read_u32::<LittleEndian>().unwrap() as usize
+                        };
+                        if want_size > MAX_MSG_SIZE {
+                            println!("ERROR: incoming MSG TOO BIG: {}", want_size);
+                            self.is_complete = true;
+                            break;
+                        }
+                        if self.data.len() < want_size {
+                            break;
+                        }
+                        let mut out = self.data.drain(..want_size).collect::<Vec<_>>();
+                        out.drain(..4);
+                        self.out.as_mut().unwrap().push(out.into_boxed_slice());
+                    }
+                    if self.is_complete {
+                        break;
+                    }
+                }
+            }
+        }
+        if !self.is_complete {
+            self.inner = Some(inner);
+            self.buf = Some(buf);
+        }
+        if !self.out.as_ref().unwrap().is_empty() {
+            std::task::Poll::Ready(Some(self.out.take().unwrap()))
+        } else if self.is_complete {
+            std::task::Poll::Ready(None)
+        } else {
+            std::task::Poll::Pending
+        }
+    }
+}
+
 const S_CHAN_COUNT: usize = 32;
 
 #[allow(dead_code)]
 struct TransportInner {
     con: quinn::Connection,
-    s_send: Vec<quinn::SendStream>,
-    s_pending: Vec<tokio::sync::oneshot::Sender<quinn::SendStream>>,
+    s_send: Vec<FrameSend>,
+    s_pending: Vec<tokio::sync::oneshot::Sender<FrameSend>>,
 }
 
 #[derive(Clone)]
 pub struct Transport(ghost::GhostActor<TransportInner>);
 
-pub type TransportRecv = Box<
-    dyn futures::stream::Stream<Item = Vec<Box<[u8]>>> + 'static + Send + Unpin
->;
+pub type TransportRecv =
+    Box<dyn futures::stream::Stream<Item = Vec<Box<[u8]>>> + 'static + Send + Unpin>;
 
 impl Transport {
     pub fn shutdown(&self) {
@@ -76,7 +211,7 @@ impl Transport {
 
         for _ in 0..S_CHAN_COUNT {
             let uni = con.open_uni().await.unwrap();
-            let _ = s_send.push(uni);
+            let _ = s_send.push(FrameSend::new(uni));
         }
 
         let (actor, driver) = ghost::GhostActor::new(TransportInner {
@@ -96,7 +231,7 @@ impl Transport {
                 let permit = limit.clone().acquire_owned().await;
                 match in_uni.next().await {
                     Some(maybe_uni) => {
-                        let mut uni = match maybe_uni {
+                        let uni = match maybe_uni {
                             Err(e) => {
                                 println!("ERR: {:?}", e);
                                 continue;
@@ -107,43 +242,17 @@ impl Transport {
                         let actor_clone = actor_clone.clone();
                         metric_task(async move {
                             let _permit = permit;
-                            let mut data = Vec::new();
-                            let mut buf = [0_u8; 4096];
-                            let mut want_size = None;
-                            loop {
+                            let mut uni = FrameRecv::new(uni);
+
+                            while let Some(msgs) = uni.next().await {
+                                for msg in msgs {
+                                    r_send.send(msg).await.unwrap();
+                                }
                                 if !actor_clone.is_active() {
                                     break;
                                 }
-                                //println!("ABOUT TO READ");
-                                match uni.read(&mut buf).await {
-                                    Ok(Some(size)) => {
-                                        //println!("READ {} bytes", size);
-                                        data.extend_from_slice(&buf[0..size]);
-                                        loop {
-                                            if want_size.is_none() && data.len() >= 8 {
-                                                let mut rdr = std::io::Cursor::new(&data[0..8]);
-                                                want_size = Some(rdr.read_u64::<LittleEndian>().unwrap());
-                                            }
-                                            match want_size.clone() {
-                                                Some(size) => {
-                                                    let size = size as usize;
-                                                    if data.len() >= size {
-                                                        want_size = None;
-                                                        let mut out = data.drain(..size).collect::<Vec<_>>();
-                                                        out.drain(..8);
-
-                                                        r_send.send(out.into_boxed_slice()).await.unwrap();
-                                                    } else {
-                                                        break;
-                                                    }
-                                                }
-                                                None => break,
-                                            }
-                                        }
-                                    }
-                                    _ => break,
-                                }
                             }
+
                             println!("INNER READ DROP");
                             TransportResult::Ok(())
                         });
@@ -163,40 +272,35 @@ impl Transport {
         (Self(actor), Box::new(r_recv.ready_chunks(S_CHAN_COUNT)))
     }
 
-    pub async fn send<D: Into<Box<[u8]>>>(&self, d: D) -> TransportResult<()> {
+    pub async fn send<D: Into<Vec<u8>>>(&self, d: D) -> TransportResult<()> {
         if !self.0.is_active() {
             return Err("shutdown".into());
         }
 
-        let mut sender: quinn::SendStream = self.0.invoke_async(|inner| {
-            //println!("a_s: {}, a_p: {}", inner.s_send.len(), inner.s_pending.len());
-            if inner.s_send.is_empty() {
-                let (s, r) = tokio::sync::oneshot::channel();
-                // TODO - this is unbound - use a semaphore?
-                inner.s_pending.push(s);
-                Ok(ghost::resp(async move {
-                    r.await.map_err(TransportError::other)
-                }))
-            } else {
-                let sender = inner.s_send.remove(0);
-                Ok(ghost::resp(async move {
-                    Ok(sender)
-                }))
-            }
-        }).await.unwrap();
+        let mut sender = self
+            .0
+            .invoke_async(|inner| {
+                //println!("a_s: {}, a_p: {}", inner.s_send.len(), inner.s_pending.len());
+                if inner.s_send.is_empty() {
+                    let (s, r) = tokio::sync::oneshot::channel();
+                    // TODO - this is unbound - use a semaphore?
+                    inner.s_pending.push(s);
+                    Ok(ghost::resp(async move {
+                        r.await.map_err(TransportError::other)
+                    }))
+                } else {
+                    let sender = inner.s_send.remove(0);
+                    Ok(ghost::resp(async move { Ok(sender) }))
+                }
+            })
+            .await
+            .unwrap();
 
         static SS: atomic::AtomicU64 = atomic::AtomicU64::new(0);
 
-
         // TODO - we need to return the sender even on error here:
-        let d = d.into();
-        let mut len = Vec::new();
-        len.write_u64::<LittleEndian>(d.len() as u64 + 8).unwrap();
-        //println!("ABOUT TO SEND");
-        sender.write_all(&len).await.map_err(TransportError::other).unwrap();
-        //println!("ABOUT TO SEND2");
-        sender.write_all(&d).await.map_err(TransportError::other).unwrap();
-        SS.fetch_add(512 + 8, atomic::Ordering::Relaxed);
+        sender.send(d).await.unwrap();
+        SS.fetch_add(512 + 4, atomic::Ordering::Relaxed);
         /*
         println!(
             "actually sent: {}",
@@ -204,14 +308,17 @@ impl Transport {
         );
         */
 
-        self.0.invoke(move |inner| {
-            if !inner.s_pending.is_empty() {
-                let _ = inner.s_pending.remove(0).send(sender);
-                return Ok(());
-            }
-            inner.s_send.push(sender);
-            TransportResult::Ok(())
-        }).await.unwrap();
+        self.0
+            .invoke(move |inner| {
+                if !inner.s_pending.is_empty() {
+                    let _ = inner.s_pending.remove(0).send(sender);
+                    return Ok(());
+                }
+                inner.s_send.push(sender);
+                TransportResult::Ok(())
+            })
+            .await
+            .unwrap();
         Ok(())
     }
 }
@@ -235,18 +342,22 @@ async fn quinn_quic_bench() {
 
     let mut options = lair_keystore_api::actor::TlsCertOptions::default();
     options.alg = lair_keystore_api::actor::TlsCertAlg::PkcsEcdsaP256Sha256;
-    let cert = lair_keystore_api::internal::tls::tls_cert_self_signed_new_from_entropy(
-        options,
-    )
-    .await
-    .unwrap();
+    let cert = lair_keystore_api::internal::tls::tls_cert_self_signed_new_from_entropy(options)
+        .await
+        .unwrap();
     let cert_priv = quinn::PrivateKey::from_der(&cert.priv_key_der).unwrap();
     let cert = quinn::Certificate::from_der(&cert.cert_der).unwrap();
 
     let mut config = quinn::ServerConfigBuilder::default().build();
-    config.certificate(quinn::CertificateChain::from_certs(vec![cert]), cert_priv).unwrap();
+    config
+        .certificate(quinn::CertificateChain::from_certs(vec![cert]), cert_priv)
+        .unwrap();
     config.transport = Arc::new(tx);
-    let addr = tokio::net::lookup_host("127.0.0.1:0").await.unwrap().next().unwrap();
+    let addr = tokio::net::lookup_host("127.0.0.1:0")
+        .await
+        .unwrap()
+        .next()
+        .unwrap();
 
     struct S;
     impl rustls::ServerCertVerifier for S {
@@ -297,7 +408,7 @@ async fn quinn_quic_bench() {
         let mut sent = 0_u64;
         loop {
             con.send(msg()).await.unwrap();
-            sent += 512 + 8;
+            sent += 512 + 4;
             //println!("try sent: {}", sent);
             if !CONT.load(atomic::Ordering::Relaxed) {
                 break;
@@ -361,9 +472,7 @@ async fn fake_bench() {
         f_send: tokio::sync::mpsc::Sender<[u8; 512]>,
     }
 
-    let (actor, driver) = ghost::GhostActor::new(Inner {
-        f_send,
-    });
+    let (actor, driver) = ghost::GhostActor::new(Inner { f_send });
     metric_task(async move {
         driver.await;
         TransportResult::Ok(())
@@ -371,13 +480,16 @@ async fn fake_bench() {
 
     metric_task(async move {
         loop {
-            actor.invoke_async(|inner| {
-                let mut sender = inner.f_send.clone();
-                Ok(ghost::resp(async move {
-                    sender.send(msg()).await.unwrap();
-                    TransportResult::Ok(())
-                }))
-            }).await.unwrap();
+            actor
+                .invoke_async(|inner| {
+                    let mut sender = inner.f_send.clone();
+                    Ok(ghost::resp(async move {
+                        sender.send(msg()).await.unwrap();
+                        TransportResult::Ok(())
+                    }))
+                })
+                .await
+                .unwrap();
             if !CONT.load(atomic::Ordering::Relaxed) {
                 break;
             }
@@ -513,7 +625,9 @@ async fn raw_udp_bench() {
     metric_task(async move {
         loop {
             for _ in 0..100 {
-                s1.send_to(&msg(), bound2).await.map_err(TransportError::other)?;
+                s1.send_to(&msg(), bound2)
+                    .await
+                    .map_err(TransportError::other)?;
             }
             if !CONT.load(atomic::Ordering::Relaxed) {
                 break;
@@ -528,7 +642,10 @@ async fn raw_udp_bench() {
     metric_task(async move {
         let mut buf: [u8; 512] = [0x00; 512];
         loop {
-            let (size, _addr) = s2.recv_from(&mut buf).await.map_err(TransportError::other)?;
+            let (size, _addr) = s2
+                .recv_from(&mut buf)
+                .await
+                .map_err(TransportError::other)?;
             BPS.fetch_add(size as u64 * 8, atomic::Ordering::Relaxed);
             if !CONT.load(atomic::Ordering::Relaxed) {
                 break;
