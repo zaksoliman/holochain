@@ -14,6 +14,7 @@ pub mod key;
 pub mod prelude;
 pub mod swansong;
 pub mod table;
+pub mod tabular;
 pub mod transaction;
 
 #[cfg(any(test, feature = "test_utils"))]

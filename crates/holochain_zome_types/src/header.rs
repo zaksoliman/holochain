@@ -14,6 +14,8 @@ use holochain_serialized_bytes::prelude::*;
 
 pub mod builder;
 pub mod conversions;
+#[cfg(feature = "holochain_sqlite")]
+mod tabular_impl;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SerializedBytes)]
 pub struct HeaderHashes(pub Vec<HeaderHash>);
