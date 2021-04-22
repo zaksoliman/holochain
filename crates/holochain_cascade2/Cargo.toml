@@ -33,6 +33,7 @@ thiserror = "1.0"
 tracing = "0.1"
 tracing-futures = "0.2"
 
+arbitrary = { version = "1.0", features = ["derive"], optional = true }
 async-trait = { version = "0.1", optional = true }
 mockall = { version = "0.9.1", optional = true }
 
@@ -44,6 +45,8 @@ pretty_assertions = "0.7.2"
 default = ["test_utils"]
 
 test_utils = [
+    "arbitrary",
     "async-trait",
-    "mockall"
+    "mockall",
+    "holochain_types/arbitrary",
 ]

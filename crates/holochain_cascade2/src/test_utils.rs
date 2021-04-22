@@ -10,22 +10,7 @@ use holochain_sqlite::prelude::DatabaseResult;
 use holochain_state::mutations::insert_op;
 use holochain_state::mutations::set_when_integrated;
 use holochain_state::mutations::update_op_validation_status;
-use holochain_types::activity::AgentActivityResponse;
-use holochain_types::dht_op::DhtOpHashed;
-use holochain_types::dht_op::WireOps;
-use holochain_types::env::EnvRead;
-use holochain_types::env::EnvWrite;
-use holochain_types::link::WireLinkKey;
-use holochain_types::link::WireLinkOps;
-use holochain_types::metadata::MetadataSet;
-use holochain_types::prelude::ValidationPackageResponse;
-use holochain_types::timestamp;
-use holochain_zome_types::HeaderHashed;
-use holochain_zome_types::QueryFilter;
-use holochain_zome_types::SignedHeader;
-use holochain_zome_types::SignedHeaderHashed;
-use holochain_zome_types::TryInto;
-use holochain_zome_types::ValidationStatus;
+use holochain_types::prelude::*;
 
 pub use activity_test_data::*;
 pub use element_test_data::*;
@@ -245,11 +230,10 @@ pub fn fill_db_as_author(env: &EnvWrite, op: DhtOpHashed) {
 }
 
 /// Add some noise to the DB in the form a bunch of random DhtOps
-pub fn bring_on_the_noise(env: &EnvWrite) {
-    // use arbitrary::Arbitrary;
+pub fn bring_on_the_noise(env: &EnvWrite, u: &mut arbitrary::Unstructured) {
+    use arbitrary::Arbitrary;
     for _ in 0..100 {
-        // let op = DhtOp::arbitrary(todo!());
-        let op = todo!();
+        let op = DhtOp::arbitrary(u).unwrap();
         fill_db(env, DhtOpHashed::from_content_sync(op));
     }
 }
