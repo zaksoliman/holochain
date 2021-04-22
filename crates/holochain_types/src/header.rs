@@ -143,6 +143,22 @@ impl NewEntryHeader {
     }
 }
 
+#[cfg(any(test, feature = "test_utils"))]
+impl NewEntryHeader {
+    pub fn with_entry_hash(self, hash: EntryHash) -> Self {
+        match self {
+            Self::Create(mut h) => {
+                h.entry_hash = hash;
+                Self::Create(h)
+            }
+            Self::Update(mut h) => {
+                h.entry_hash = hash;
+                Self::Update(h)
+            }
+        }
+    }
+}
+
 impl From<NewEntryHeader> for Header {
     fn from(h: NewEntryHeader) -> Self {
         match h {

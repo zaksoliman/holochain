@@ -226,6 +226,39 @@ impl Header {
     }
 }
 
+#[cfg(feature = "arbitrary")]
+impl Header {
+    pub fn arbitrary_of_type(
+        ty: &HeaderType,
+        u: &mut arbitrary::Unstructured,
+    ) -> arbitrary::Result<Self> {
+        use arbitrary::Arbitrary;
+        Ok(match ty {
+            HeaderType::Dna => Self::Dna(Dna::arbitrary(u)?),
+            HeaderType::AgentValidationPkg => {
+                Self::AgentValidationPkg(AgentValidationPkg::arbitrary(u)?)
+            }
+            HeaderType::InitZomesComplete => {
+                Self::InitZomesComplete(InitZomesComplete::arbitrary(u)?)
+            }
+            HeaderType::CreateLink => Self::CreateLink(CreateLink::arbitrary(u)?),
+            HeaderType::DeleteLink => Self::DeleteLink(DeleteLink::arbitrary(u)?),
+            HeaderType::Delete => Self::Delete(Delete::arbitrary(u)?),
+            HeaderType::CloseChain => Self::CloseChain(CloseChain::arbitrary(u)?),
+            HeaderType::OpenChain => Self::OpenChain(OpenChain::arbitrary(u)?),
+            HeaderType::Create => Self::Create(Create::arbitrary(u)?),
+            HeaderType::Update => Self::Update(Update::arbitrary(u)?),
+        })
+    }
+
+    pub fn arbitrary_of_types(
+        tys: &[HeaderType],
+        u: &mut arbitrary::Unstructured,
+    ) -> arbitrary::Result<Self> {
+        Self::arbitrary_of_type(u.choose(tys)?, u)
+    }
+}
+
 impl_hashable_content!(Header, Header);
 
 /// this id is an internal reference, which also serves as a canonical ordering

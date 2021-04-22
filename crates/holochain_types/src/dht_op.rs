@@ -362,29 +362,36 @@ impl DhtOp {
     }
 }
 
-// #[cfg(any(test, feature = "test_utils"))]
-// impl DhtOp {
-//     pub fn constrain_internal_validity(mut self) -> Self {
-//         let ty = self.get_type();
-//         let (sig, mut header, entry) = self.into_inner();
-//         header.entry_hash = todo!();
-//         match ty {
-//             DhtOpType::StoreElement => DhtOp::StoreElement(sig, header, entry.map(Box::new)),
-//             DhtOpType::StoreEntry => DhtOp::StoreEntry(sig, header, entry.map(Box::new)),
-//             DhtOpType::RegisterUpdatedContent => {
-//                 DhtOp::RegisterUpdatedContent(sig, header, entry.map(Box::new))
-//             }
-//             DhtOpType::RegisterUpdatedElement => {
-//                 DhtOp::RegisterUpdatedElement(sig, header, entry.map(Box::new))
-//             }
-//             DhtOpType::RegisterAgentActivity => DhtOp::RegisterAgentActivity(sig, header),
-//             DhtOpType::RegisterDeletedBy => DhtOp::RegisterDeletedBy(sig, header),
-//             DhtOpType::RegisterDeletedEntryHeader => DhtOp::RegisterDeletedEntryHeader(sig, header),
-//             DhtOpType::RegisterAddLink => DhtOp::RegisterAddLink(sig, header),
-//             DhtOpType::RegisterRemoveLink => DhtOp::RegisterRemoveLink(sig, header),
-//         }
-//     }
-// }
+#[cfg(feature = "arbitrary")]
+impl DhtOp {
+    /// Constrain a DhtOp so that its self-references are valid
+    pub async fn arbitrary_valid(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
+        use arbitrary::Arbitrary;
+        use DhtOp::*;
+
+        let op = DhtOp::arbitrary(u)?;
+
+        Ok(match op {
+            // StoreElement(s, mut h, e) => { StoreElement(sig, header, entry.map(Box::new))},
+            StoreEntry(s, h, e) => {
+                StoreEntry(s, h.with_entry_hash(EntryHash::with_data_sync(&*e)), e)
+            }
+            RegisterUpdatedContent(s, mut h, e) => {
+                if let Some(e) = e.as_ref() {
+                    h.entry_hash = EntryHash::with_data_sync(&**e);
+                }
+                RegisterUpdatedContent(s, h, e)
+            }
+            RegisterUpdatedElement(s, mut h, e) => {
+                if let Some(e) = e.as_ref() {
+                    h.entry_hash = EntryHash::with_data_sync(&**e);
+                }
+                RegisterUpdatedElement(s, h, e)
+            }
+            _ => op,
+        })
+    }
+}
 
 impl DhtOpLight {
     /// Get the dht basis for where to send this op
