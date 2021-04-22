@@ -38,8 +38,11 @@ num_enum = { version = "0.5", optional = true }
 # helper dependencies
 derive_more = { version = "0.99", optional = true }
 
+# arbitrary
+arbitrary = { version = "1.0", features = ["derive"], optional = true}
+
 [features]
-default = ["fixturators", "test_utils", "tinyid"]
+default = ["arbitrary", "fixturators", "test_utils", "tinyid"]
 
 full = ["default", "rusqlite", "num_enum", "helpers"]
 
