@@ -362,6 +362,30 @@ impl DhtOp {
     }
 }
 
+// #[cfg(any(test, feature = "test_utils"))]
+// impl DhtOp {
+//     pub fn constrain_internal_validity(mut self) -> Self {
+//         let ty = self.get_type();
+//         let (sig, mut header, entry) = self.into_inner();
+//         header.entry_hash = todo!();
+//         match ty {
+//             DhtOpType::StoreElement => DhtOp::StoreElement(sig, header, entry.map(Box::new)),
+//             DhtOpType::StoreEntry => DhtOp::StoreEntry(sig, header, entry.map(Box::new)),
+//             DhtOpType::RegisterUpdatedContent => {
+//                 DhtOp::RegisterUpdatedContent(sig, header, entry.map(Box::new))
+//             }
+//             DhtOpType::RegisterUpdatedElement => {
+//                 DhtOp::RegisterUpdatedElement(sig, header, entry.map(Box::new))
+//             }
+//             DhtOpType::RegisterAgentActivity => DhtOp::RegisterAgentActivity(sig, header),
+//             DhtOpType::RegisterDeletedBy => DhtOp::RegisterDeletedBy(sig, header),
+//             DhtOpType::RegisterDeletedEntryHeader => DhtOp::RegisterDeletedEntryHeader(sig, header),
+//             DhtOpType::RegisterAddLink => DhtOp::RegisterAddLink(sig, header),
+//             DhtOpType::RegisterRemoveLink => DhtOp::RegisterRemoveLink(sig, header),
+//         }
+//     }
+// }
+
 impl DhtOpLight {
     /// Get the dht basis for where to send this op
     pub fn dht_basis(&self) -> &AnyDhtHash {

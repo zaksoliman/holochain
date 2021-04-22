@@ -13,6 +13,14 @@ use std::path::PathBuf;
 
 pub use holochain_zome_types::test_utils::*;
 
+/// Generate some random values
+#[cfg(feature = "arbitrary")]
+pub fn bring_on_the_noise(size: usize) -> Vec<u8> {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    std::iter::repeat_with(|| rng.gen()).take(size).collect()
+}
+
 #[derive(Serialize, Deserialize, SerializedBytes, Debug)]
 struct FakeProperties {
     test: String,

@@ -230,7 +230,7 @@ pub fn fill_db_as_author(env: &EnvWrite, op: DhtOpHashed) {
 }
 
 /// Add some noise to the DB in the form a bunch of random DhtOps
-pub fn bring_on_the_noise(env: &EnvWrite, u: &mut arbitrary::Unstructured) {
+pub fn fill_db_with_noise(env: &EnvWrite, u: &mut arbitrary::Unstructured) {
     use arbitrary::Arbitrary;
     for _ in 0..100 {
         let op = DhtOp::arbitrary(u).unwrap();

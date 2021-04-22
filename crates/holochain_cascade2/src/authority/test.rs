@@ -23,8 +23,9 @@ async fn get_entry() {
 
     let td = EntryTestData::new();
 
-    let mut u = arbitrary::Unstructured::new(&[0; 99999]);
-    bring_on_the_noise(&env.env(), &mut u);
+    let noise = bring_on_the_noise(99999);
+    let mut u = arbitrary::Unstructured::new(&noise);
+    fill_db_with_noise(&env.env(), &mut u);
 
     fill_db(&env.env(), td.store_entry_op.clone());
     let options = options();
@@ -68,8 +69,9 @@ async fn get_element() {
 
     let td = ElementTestData::new();
 
-    let mut u = arbitrary::Unstructured::new(&[0]);
-    bring_on_the_noise(&env.env(), &mut u);
+    let noise = bring_on_the_noise(99999);
+    let mut u = arbitrary::Unstructured::new(&noise);
+    fill_db_with_noise(&env.env(), &mut u);
 
     fill_db(&env.env(), td.store_element_op.clone());
 
@@ -133,8 +135,9 @@ async fn retrieve_element() {
 
     let td = ElementTestData::new();
 
-    let mut u = arbitrary::Unstructured::new(&[0]);
-    bring_on_the_noise(&env.env(), &mut u);
+    let noise = bring_on_the_noise(99999);
+    let mut u = arbitrary::Unstructured::new(&noise);
+    fill_db_with_noise(&env.env(), &mut u);
 
     fill_db_pending(&env.env(), td.store_element_op.clone());
 
@@ -159,8 +162,9 @@ async fn get_links() {
 
     let td = EntryTestData::new();
 
-    let mut u = arbitrary::Unstructured::new(&[0]);
-    bring_on_the_noise(&env.env(), &mut u);
+    let noise = bring_on_the_noise(99999);
+    let mut u = arbitrary::Unstructured::new(&noise);
+    fill_db_with_noise(&env.env(), &mut u);
 
     fill_db(&env.env(), td.store_entry_op.clone());
     fill_db(&env.env(), td.create_link_op.clone());
@@ -192,8 +196,9 @@ async fn get_agent_activity() {
 
     let td = ActivityTestData::valid_chain_scenario();
 
-    let mut u = arbitrary::Unstructured::new(&[0]);
-    bring_on_the_noise(&env.env(), &mut u);
+    let noise = bring_on_the_noise(99999);
+    let mut u = arbitrary::Unstructured::new(&noise);
+    fill_db_with_noise(&env.env(), &mut u);
 
     for hash_op in td.hash_ops.iter().cloned() {
         fill_db(&env.env(), hash_op);
