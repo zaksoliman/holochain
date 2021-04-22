@@ -2,6 +2,7 @@
 
 #![allow(missing_docs)]
 
+use crate::dht_op::DhtOp;
 use crate::dna::zome::HostFnAccess;
 use crate::dna::zome::Permission;
 use crate::dna::zome::Zome;
@@ -188,3 +189,21 @@ fixturator!(
             .unwrap(),
     };
 );
+
+// Doesn't work:
+//
+// fixturator!(
+//     DhtOp;
+//     variants [
+//         StoreElement(Signature, Header, Option<Box<Entry>>)
+//         StoreEntry(Signature, NewEntryHeader, Box<Entry>)
+//         RegisterAgentActivity(Signature, Header)
+//         RegisterUpdatedContent(Signature, header::Update, Option<Box<Entry>>)
+//         RegisterUpdatedElement(Signature, header::Update, Option<Box<Entry>>)
+//         RegisterDeletedBy(Signature, header::Delete)
+//         RegisterDeletedEntryHeader(Signature, header::Delete)
+//         RegisterAddLink(Signature, header::CreateLink)
+//         RegisterRemoveLink(Signature, header::DeleteLink)
+//     ];
+
+// );

@@ -244,6 +244,16 @@ pub fn fill_db_as_author(env: &EnvWrite, op: DhtOpHashed) {
         .unwrap();
 }
 
+/// Add some noise to the DB in the form a bunch of random DhtOps
+pub fn bring_on_the_noise(env: &EnvWrite) {
+    use ::fixt::prelude::*;
+    use holochain_types::prelude::*;
+    for _ in 0..100 {
+        let op = fixt!(DhtOp);
+        fill_db(env, DhtOpHashed::from_content_sync(op));
+    }
+}
+
 #[async_trait::async_trait]
 impl HolochainP2pCellT2 for MockNetwork {
     async fn get_validation_package(

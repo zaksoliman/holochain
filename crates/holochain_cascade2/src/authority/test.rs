@@ -23,6 +23,8 @@ async fn get_entry() {
 
     let td = EntryTestData::new();
 
+    bring_on_the_noise(&env.env());
+
     fill_db(&env.env(), td.store_entry_op.clone());
     let options = options();
 
@@ -64,6 +66,8 @@ async fn get_element() {
     let env = test_cell_env();
 
     let td = ElementTestData::new();
+
+    bring_on_the_noise(&env.env());
 
     fill_db(&env.env(), td.store_element_op.clone());
 
@@ -127,6 +131,8 @@ async fn retrieve_element() {
 
     let td = ElementTestData::new();
 
+    bring_on_the_noise(&env.env());
+
     fill_db_pending(&env.env(), td.store_element_op.clone());
 
     let mut options = options();
@@ -149,6 +155,8 @@ async fn get_links() {
     let env = test_cell_env();
 
     let td = EntryTestData::new();
+
+    bring_on_the_noise(&env.env());
 
     fill_db(&env.env(), td.store_entry_op.clone());
     fill_db(&env.env(), td.create_link_op.clone());
@@ -179,6 +187,8 @@ async fn get_agent_activity() {
     let env = test_cell_env();
 
     let td = ActivityTestData::valid_chain_scenario();
+
+    bring_on_the_noise(&env.env());
 
     for hash_op in td.hash_ops.iter().cloned() {
         fill_db(&env.env(), hash_op);
