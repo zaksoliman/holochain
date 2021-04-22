@@ -59,7 +59,7 @@ pub struct Signature(pub [u8; SIGNATURE_BYTES]);
 #[cfg(feature = "arbitrary")]
 impl<'a> arbitrary::Arbitrary<'a> for Signature {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        let buf = [0; SIGNATURE_BYTES];
+        let mut buf = [0; SIGNATURE_BYTES];
         u.fill_buffer(&mut buf)?;
         Ok(Signature(buf))
     }

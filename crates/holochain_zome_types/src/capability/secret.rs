@@ -20,7 +20,7 @@ pub struct CapSecret(CapSecretBytes);
 #[cfg(feature = "arbitrary")]
 impl<'a> arbitrary::Arbitrary<'a> for CapSecret {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        let buf = [0; CAP_SECRET_BYTES];
+        let mut buf = [0; CAP_SECRET_BYTES];
         u.fill_buffer(&mut buf)?;
         Ok(CapSecret(buf))
     }

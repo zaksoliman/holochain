@@ -6,7 +6,7 @@ use holochain_serialized_bytes::SerializedBytes;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// Represents a _potentially_ valid access grant to a zome call.
 /// Zome call response will be Unauthorized without a valid grant.
@@ -125,6 +125,7 @@ impl CapGrant {
 
 /// Represents access requirements for capability grants.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum CapAccess {
     /// No restriction: callable by anyone.
     Unrestricted,
@@ -138,7 +139,7 @@ pub enum CapAccess {
         /// The secret.
         secret: CapSecret,
         /// Agents who can use this grant.
-        assignees: HashSet<AgentPubKey>,
+        assignees: BTreeSet<AgentPubKey>,
     },
 }
 
@@ -157,8 +158,8 @@ impl From<CapSecret> for CapAccess {
 }
 
 /// Implements (secret, assignees).into() shorthand for CapAccess::Assigned { secret, assignees }
-impl From<(CapSecret, HashSet<AgentPubKey>)> for CapAccess {
-    fn from((secret, assignees): (CapSecret, HashSet<AgentPubKey>)) -> Self {
+impl From<(CapSecret, BTreeSet<AgentPubKey>)> for CapAccess {
+    fn from((secret, assignees): (CapSecret, BTreeSet<AgentPubKey>)) -> Self {
         Self::Assigned { secret, assignees }
     }
 }
@@ -167,7 +168,7 @@ impl From<(CapSecret, HashSet<AgentPubKey>)> for CapAccess {
 /// CapAccess::Assigned { secret, assignees: hashset!{ agent } }
 impl From<(CapSecret, AgentPubKey)> for CapAccess {
     fn from((secret, assignee): (CapSecret, AgentPubKey)) -> Self {
-        let mut assignees = HashSet::new();
+        let mut assignees = BTreeSet::new();
         assignees.insert(assignee);
         Self::from((secret, assignees))
     }
@@ -176,4 +177,4 @@ impl From<(CapSecret, AgentPubKey)> for CapAccess {
 /// a single zome/function pair
 pub type GrantedFunction = (ZomeName, FunctionName);
 /// A collection of zome/function pairs
-pub type GrantedFunctions = HashSet<GrantedFunction>;
+pub type GrantedFunctions = BTreeSet<GrantedFunction>;

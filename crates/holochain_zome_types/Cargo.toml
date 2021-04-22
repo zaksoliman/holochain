@@ -48,8 +48,13 @@ full = ["default", "rusqlite", "num_enum", "helpers"]
 
 fixturators = ["fixt", "rand", "strum", "holo_hash/fixturators", ]
 
-test_utils = ["holo_hash/hashing", "helpers"]
-
 tinyid = ["byteorder", "itertools"]
 
 helpers = ["derive_more"]
+
+test_utils = [
+  "helpers",
+  "holo_hash/hashing",
+  "holo_hash/arbitrary",
+  "holochain_serialized_bytes/arbitrary",
+]

@@ -246,10 +246,10 @@ pub fn fill_db_as_author(env: &EnvWrite, op: DhtOpHashed) {
 
 /// Add some noise to the DB in the form a bunch of random DhtOps
 pub fn bring_on_the_noise(env: &EnvWrite) {
-    use ::fixt::prelude::*;
-    use holochain_types::prelude::*;
+    // use arbitrary::Arbitrary;
     for _ in 0..100 {
-        let op = fixt!(DhtOp);
+        // let op = DhtOp::arbitrary(todo!());
+        let op = todo!();
         fill_db(env, DhtOpHashed::from_content_sync(op));
     }
 }
