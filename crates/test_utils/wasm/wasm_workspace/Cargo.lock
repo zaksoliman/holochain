@@ -115,6 +115,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "contrafact"
+version = "0.1.0"
+dependencies = [
+ "arbitrary",
+ "derive_more",
+ "itertools",
+ "predicates 1.0.7 (git+https://github.com/maackle/contrafact-predicates-rs.git?branch=main)",
+]
+
+[[package]]
 name = "derive_arbitrary"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -320,6 +330,7 @@ dependencies = [
  "arbitrary",
  "byteorder",
  "chrono",
+ "contrafact",
  "derive_more",
  "fixt",
  "holo_hash",
@@ -416,7 +427,7 @@ dependencies = [
  "fragile",
  "lazy_static",
  "mockall_derive",
- "predicates",
+ "predicates 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "predicates-tree",
 ]
 
@@ -514,7 +525,20 @@ dependencies = [
  "difference",
  "float-cmp",
  "normalize-line-endings",
- "predicates-core",
+ "predicates-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
+]
+
+[[package]]
+name = "predicates"
+version = "1.0.7"
+source = "git+https://github.com/maackle/contrafact-predicates-rs.git?branch=main#40a8cdfd7e69f4b5de70781b058427d3b2e0a134"
+dependencies = [
+ "arbitrary",
+ "difference",
+ "float-cmp",
+ "normalize-line-endings",
+ "predicates-core 1.0.2 (git+https://github.com/maackle/contrafact-predicates-rs.git?branch=main)",
  "regex",
 ]
 
@@ -525,12 +549,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57e35a3326b75e49aa85f5dc6ec15b41108cf5aee58eabb1f274dd18b73c2451"
 
 [[package]]
+name = "predicates-core"
+version = "1.0.2"
+source = "git+https://github.com/maackle/contrafact-predicates-rs.git?branch=main#40a8cdfd7e69f4b5de70781b058427d3b2e0a134"
+
+[[package]]
 name = "predicates-tree"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15f553275e5721409451eb85e15fd9a860a6e5ab4496eb215987502b5f5391f2"
 dependencies = [
- "predicates-core",
+ "predicates-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "treeline",
 ]
 

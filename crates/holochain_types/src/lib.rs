@@ -22,7 +22,6 @@ pub mod dna;
 pub mod element;
 pub mod entry;
 pub mod env;
-pub mod fixt;
 pub mod header;
 pub mod link;
 mod macros;
@@ -37,3 +36,9 @@ pub mod test_utils;
 
 pub use entry::EntryHashed;
 pub use timestamp::{Timestamp, TimestampKey};
+
+#[cfg(feature = "fixturators")]
+pub mod fixt;
+
+#[cfg(all(feature = "contrafact", feature = "arbitrary"))]
+pub mod fact;

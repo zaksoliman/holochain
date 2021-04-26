@@ -51,6 +51,8 @@ codegen-units = 16
 
 [patch.crates-io]
 
+contrafact = { path = "../contrafact" }
+predicates = { path = "../contrafact-predicates" }
 # holochain_wasmer_common = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }
 # holochain_wasmer_guest = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }
 # holochain_wasmer_host = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }

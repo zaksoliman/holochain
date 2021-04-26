@@ -56,13 +56,16 @@ derive_builder = "0.9.0"
 
 arbitrary = { version = "1.0", features = ["derive"], optional = true}
 
+# contrafact = { git = "https://github.com/maackle/contrafact-rs", branch = "main", optional = true }
+contrafact = { path = "../../../contrafact", optional = true }
+
 [dev-dependencies]
 maplit = "1"
 matches = "0.1"
 tokio = { version = "1.3", features = [ "full" ] }
 
 [features]
-default = ["fixturators", "test_utils"]
+default = ["fixturators", "contrafact", "test_utils"]
 fixturators = ["holochain_zome_types/fixturators"]
 test_utils = [
   "arbitrary",

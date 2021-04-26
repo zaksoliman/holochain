@@ -65,6 +65,9 @@ pub mod zome_io;
 #[cfg(feature = "fixturators")]
 pub mod fixt;
 
+#[cfg(feature = "contrafact")]
+pub mod fact;
+
 #[cfg(feature = "test_utils")]
 pub mod test_utils;
 

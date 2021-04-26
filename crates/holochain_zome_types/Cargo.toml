@@ -41,8 +41,12 @@ derive_more = { version = "0.99", optional = true }
 # arbitrary
 arbitrary = { version = "1.0", features = ["derive"], optional = true}
 
+# contrafact
+# contrafact = { git = "https://github.com/maackle/contrafact-rs", branch = "main", optional = true }
+contrafact = { path = "../../../contrafact", optional = true }
+
 [features]
-default = ["arbitrary", "fixturators", "test_utils", "tinyid"]
+default = ["arbitrary", "contrafact", "fixturators", "test_utils", "tinyid"]
 
 full = ["default", "rusqlite", "num_enum", "helpers"]
 
