@@ -35,6 +35,10 @@ tracing-futures = "0.2.4"
 tempdir = { version = "0.3", optional = true }
 base64 = {version = "0.13", optional = true}
 
+# contrafact
+# contrafact = { git = "https://github.com/maackle/contrafact.git", branch = "main", optional = true }
+contrafact = { path = "../../../contrafact", optional = true }
+
 [dev-dependencies]
 anyhow = "1.0.26"
 fixt = { version = "^0.0.2-alpha.1", path = "../fixt" }
@@ -53,6 +57,7 @@ test_utils = [
     "holochain_types/test_utils",
     "holochain_zome_types/test_utils",
     "holochain_wasm_test_utils",
-    "tempdir",
     "base64",
+    "contrafact",
+    "tempdir",
 ]

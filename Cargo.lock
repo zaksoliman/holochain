@@ -638,6 +638,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "contrafact"
+version = "0.1.0"
+dependencies = [
+ "arbitrary",
+ "derive_more",
+ "itertools 0.10.0",
+ "num",
+ "tracing",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1937,9 +1948,9 @@ dependencies = [
 [[package]]
 name = "holochain_serialized_bytes"
 version = "0.0.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e77d1f384e8c8908f12d12301d5fc7861779fa68e6f74078d8876ed6aedf7eab"
+source = "git+https://github.com/holochain/holochain-serialization.git?branch=arbitrary#89566601b79dc44639cb4e5fde3db62477215063"
 dependencies = [
+ "arbitrary",
  "holochain_serialized_bytes_derive",
  "rmp-serde",
  "serde",
@@ -1952,8 +1963,7 @@ dependencies = [
 [[package]]
 name = "holochain_serialized_bytes_derive"
 version = "0.0.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "085fe272d95591beeffe3e37c2996372c399baf33bc60ca88ae0906ce4d52207"
+source = "git+https://github.com/holochain/holochain-serialization.git?branch=arbitrary#89566601b79dc44639cb4e5fde3db62477215063"
 dependencies = [
  "quote",
  "syn",
@@ -2008,6 +2018,7 @@ dependencies = [
  "base64",
  "byteorder",
  "chrono",
+ "contrafact",
  "derive_more",
  "either",
  "fallible-iterator",
@@ -2058,6 +2069,7 @@ dependencies = [
  "base64",
  "cfg-if 0.1.10",
  "chrono",
+ "contrafact",
  "derive_builder",
  "derive_more",
  "either",
@@ -2184,14 +2196,17 @@ dependencies = [
 name = "holochain_zome_types"
 version = "0.0.2-alpha.1"
 dependencies = [
+ "arbitrary",
  "byteorder",
  "chrono",
+ "contrafact",
  "derive_more",
  "fixt",
  "holo_hash",
  "holochain_serialized_bytes",
  "itertools 0.10.0",
  "num_enum",
+ "once_cell",
  "paste 1.0.5",
  "rand 0.7.3",
  "rusqlite",
@@ -3036,6 +3051,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "num"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43db66d1170d347f9a065114077f7dccb00c1b9478c89384490a3425279a4606"
+dependencies = [
+ "num-bigint",
+ "num-complex",
+ "num-integer",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e0d047c1062aa51e256408c560894e5251f08925980e53cf1aa5bd00eec6512"
+dependencies = [
+ "autocfg 1.0.1",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26873667bbbb7c5182d4a37c1add32cdf09f841af72da53318fdb81543c15085"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-format"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3052,6 +3101,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
 dependencies = [
  "autocfg 1.0.1",
+ "num-traits",
+]
+
+[[package]]
+name = "num-iter"
+version = "0.1.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
+dependencies = [
+ "autocfg 1.0.1",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d41702bd167c2df5520b384281bc111a4b5efcf7fbc4c9c222c815b07e0a6a6a"
+dependencies = [
+ "autocfg 1.0.1",
+ "num-bigint",
+ "num-integer",
  "num-traits",
 ]
 

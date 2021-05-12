@@ -38,6 +38,17 @@ num_enum = { version = "0.5", optional = true }
 # helper dependencies
 derive_more = { version = "0.99", optional = true }
 
+# arbitrary
+arbitrary = { version = "1.0", features = ["derive"], optional = true}
+
+# contrafact
+# contrafact = { git = "https://github.com/maackle/contrafact.git", branch = "main", optional = true }
+contrafact = { path = "../../../contrafact", optional = true }
+once_cell = { version = "1.4", optional = true }
+
+[dev-dependencies]
+once_cell = { version = "1.4", optional = false }
+
 [features]
 default = ["fixturators", "test_utils", "tinyid"]
 
@@ -45,8 +56,16 @@ full = ["default", "rusqlite", "num_enum", "helpers"]
 
 fixturators = ["fixt", "rand", "strum", "holo_hash/fixturators", ]
 
-test_utils = ["holo_hash/hashing", "helpers"]
-
 tinyid = ["byteorder", "itertools"]
 
 helpers = ["derive_more"]
+
+test_utils = [
+  "arbitrary",
+  "contrafact",
+  "once_cell",
+  "helpers",
+  "holo_hash/hashing",
+  "holo_hash/arbitrary",
+  "holochain_serialized_bytes/arbitrary",
+]
