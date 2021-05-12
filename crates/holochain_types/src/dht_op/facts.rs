@@ -1,16 +1,17 @@
 //! Facts about DhtOps
 
 use super::*;
-use crate::prelude::*;
 use ::contrafact::*;
-use holo_hash::*;
+use unwrap_to::unwrap_to;
 
 /// Fact: The DhtOp is internally consistent in all of its references:
-/// - TODO: The DhtOp variant matches the Header variant
 /// - The Signature matches the Header
-/// - If the header references an Entry, the Entry will exist and be of the appropriate hash
+/// - If the header references an Entry, the Entry will exist
+///     and be of the appropriate hash
 /// - If the header does not reference an Entry, the entry will be None
-pub fn valid_dht_op(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
+/// - The DhtOp variant matches the Header variant (It is actually impossible to
+///     violate this constraint due to the types, so no check is needed here.)
+pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
     facts![
         custom("Header type matches Entry existence", |op: &DhtOp| {
             let has_header = op.header().entry_data().is_some();
@@ -34,15 +35,95 @@ pub fn valid_dht_op(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
                 }
             }
         ),
-        conditional("The Signature matches the Header", move |op: &DhtOp| {
+        lens(
+            "author",
+            |op: &mut DhtOp| op.author_mut(),
+            agent_in_keystore(keystore.clone())
+        ),
+        conditional_fallible("The Signature matches the Header", move |op: &DhtOp| {
             use holochain_keystore::AgentPubKeyExt;
             let header = op.header();
             let agent = header.author();
-            let actual = tokio_helper::block_forever_on(agent.sign(&keystore, &header))
-                .expect("Can sign the header");
-            facts![lens("signature", DhtOp::signature_mut, eq_(actual))]
+            let actual = tokio_helper::block_forever_on(agent.sign(&keystore, &header))?;
+            Ok(facts![lens("signature", DhtOp::signature_mut, eq_(actual))])
         })
     ]
+}
+
+/// Fact: this DhtOp is about a given Header.
+/// If the Header is of the wrong type for the op, panic.
+pub fn op_of_type(op_type: DhtOpType) -> Facts<'static, DhtOp> {
+    facts![custom("DhtOp is of given type", move |op: &DhtOp| op
+        .get_type()
+        == op_type)]
+}
+
+/// Fact: this DhtOp is about a given Header.
+/// If the Header is of the wrong type for the op, panic.
+pub fn op_for_header(header: Header) -> Facts<'static, DhtOp> {
+    facts![OpForHeader(header)]
+}
+
+/// Fact: this agent is registered with the keystore.
+// TODO: this probably belongs in holochain_keystore
+fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
+    use holochain_keystore::KeystoreSenderExt;
+    facts![conditional(
+        "Agent is in keystore",
+        move |agent: &AgentPubKey| {
+            if tokio_helper::block_forever_on(keystore.sign(Sign::new_raw(agent.clone(), vec![])))
+                .is_ok()
+            {
+                // If we can sign, the agent is already in the keystore:
+                // no constraint needed
+                facts![always()]
+            } else {
+                // If not, we have to create a new one and add a constraint
+                facts![eq(
+                    "new agent",
+                    tokio_helper::block_forever_on(AgentPubKey::new_from_pure_entropy(&keystore))
+                        .unwrap(),
+                )]
+            }
+        }
+    )]
+}
+
+struct OpForHeader(Header);
+
+impl Fact<DhtOp> for OpForHeader {
+    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
+        Check::single(
+            op.header() == self.0,
+            format!("Header does not match: {:?} != {:?}", op.header(), self.0),
+        )
+    }
+
+    fn mutate(&mut self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
+        match op {
+            DhtOp::StoreElement(_, header, _) => *header = self.0.clone(),
+            DhtOp::StoreEntry(_, header, _) => *header = self.0.clone().try_into().unwrap(),
+            DhtOp::RegisterAgentActivity(_, header) => *header = self.0.clone(),
+            DhtOp::RegisterUpdatedContent(_, header, _) => {
+                *header = unwrap_to!(self.0 => Header::Update).clone()
+            }
+            DhtOp::RegisterUpdatedElement(_, header, _) => {
+                *header = unwrap_to!(self.0 => Header::Update).clone()
+            }
+            DhtOp::RegisterDeletedBy(_, header) => {
+                *header = unwrap_to!(self.0 => Header::Delete).clone()
+            }
+            DhtOp::RegisterDeletedEntryHeader(_, header) => {
+                *header = unwrap_to!(self.0 => Header::Delete).clone()
+            }
+            DhtOp::RegisterAddLink(_, header) => {
+                *header = unwrap_to!(self.0 => Header::CreateLink).clone()
+            }
+            DhtOp::RegisterRemoveLink(_, header) => {
+                *header = unwrap_to!(self.0 => Header::DeleteLink).clone()
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -54,7 +135,7 @@ mod tests {
     use holochain_zome_types::header::facts as header_facts;
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_valid_dht_op() {
+    async fn test_op_is_valid() {
         todo!("Must add constraint on dht op variant wrt header variant");
 
         let mut uu = Unstructured::new(&NOISE);
@@ -80,7 +161,7 @@ mod tests {
         let op3 = DhtOp::StoreElement(sn.clone(), hn.clone(), Some(Box::new(e.clone())));
         let op4 = DhtOp::StoreElement(sn.clone(), hn.clone(), None);
 
-        let mut fact = valid_dht_op(keystore);
+        let mut fact = op_is_valid(keystore);
 
         fact.check(&op1).unwrap();
         assert!(fact.check(&op2).ok().is_err());
@@ -117,6 +198,21 @@ impl DhtOp {
             DhtOp::RegisterDeletedEntryHeader(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterAddLink(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterRemoveLink(_, ref mut h) => Some(&mut h.header_seq),
+        }
+    }
+
+    /// Mutable access to the author of the Header
+    pub fn author_mut(&mut self) -> &mut AgentPubKey {
+        match self {
+            DhtOp::StoreElement(_, ref mut h, _) => h.author_mut(),
+            DhtOp::StoreEntry(_, ref mut h, _) => (h.author_mut()),
+            DhtOp::RegisterAgentActivity(_, ref mut h) => h.author_mut(),
+            DhtOp::RegisterUpdatedContent(_, ref mut h, _) => (&mut h.author),
+            DhtOp::RegisterUpdatedElement(_, ref mut h, _) => (&mut h.author),
+            DhtOp::RegisterDeletedBy(_, ref mut h) => (&mut h.author),
+            DhtOp::RegisterDeletedEntryHeader(_, ref mut h) => (&mut h.author),
+            DhtOp::RegisterAddLink(_, ref mut h) => (&mut h.author),
+            DhtOp::RegisterRemoveLink(_, ref mut h) => (&mut h.author),
         }
     }
 

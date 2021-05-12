@@ -59,6 +59,7 @@ arbitrary = { version = "1.0", features = ["derive"], optional = true}
 # contrafact
 # contrafact = { git = "https://github.com/maackle/contrafact.git", branch = "main", optional = true }
 contrafact = { path = "../../../contrafact", optional = true }
+unwrap_to = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
 maplit = "1"
@@ -72,6 +73,7 @@ fixturators = ["holochain_zome_types/fixturators"]
 test_utils = [
   "arbitrary",
   "contrafact",
+  "unwrap_to",
   "holochain_zome_types/arbitrary",
   "holo_hash/arbitrary",
   "mr_bundle/arbitrary",

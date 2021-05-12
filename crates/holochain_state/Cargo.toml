@@ -39,6 +39,8 @@ base64 = {version = "0.13", optional = true}
 # contrafact = { git = "https://github.com/maackle/contrafact.git", branch = "main", optional = true }
 contrafact = { path = "../../../contrafact", optional = true }
 
+fixt = { version = "^0.0.2-alpha.1", path = "../fixt", optional = true }
+
 [dev-dependencies]
 anyhow = "1.0.26"
 fixt = { version = "^0.0.2-alpha.1", path = "../fixt" }
@@ -60,4 +62,5 @@ test_utils = [
     "base64",
     "contrafact",
     "tempdir",
+    "fixt",
 ]
