@@ -20,27 +20,18 @@ async fn entry_scratch_same_as_sql() {
         .transaction_with_behavior(TransactionBehavior::Exclusive)
         .unwrap();
 
-    let valid_store_op = move || {
-        facts![
-            op_facts::op_is_valid(keystore.clone()),
-            op_facts::op_of_type(DhtOpType::StoreEntry),
-        ]
-    };
+    let mut valid_store_op = facts![
+        op_facts::op_is_valid(keystore.clone()),
+        op_facts::op_of_type(DhtOpType::StoreEntry),
+    ];
 
-    let op = valid_store_op().build(&mut u);
-    valid_store_op().check(&op).unwrap();
-    todo!("Rewrite test in terms of facts");
+    let op: DhtOpHashed = valid_store_op.build(&mut u).into_hashed();
+    let entry_hash = op.as_content().header().entry_hash().unwrap().clone();
 
-    let td = EntryTestData::new();
-    let query = GetEntryDetailsQuery::new(td.hash.clone());
-    insert_op_scratch(&mut scratch, td.store_entry_op.clone()).unwrap();
-    insert_op(&mut txn, td.store_entry_op.clone(), true).unwrap();
-    set_validation_status(
-        &mut txn,
-        td.store_entry_op.as_hash().clone(),
-        ValidationStatus::Valid,
-    )
-    .unwrap();
+    let query = GetEntryDetailsQuery::new(entry_hash.clone());
+    insert_op_scratch(&mut scratch, op.clone()).unwrap();
+    insert_op(&mut txn, op.clone(), true).unwrap();
+    set_validation_status(&mut txn, op.as_hash().clone(), ValidationStatus::Valid).unwrap();
     let r1 = query
         .run(Txn::from(&txn))
         .unwrap()
@@ -55,24 +46,28 @@ async fn entry_scratch_same_as_sql() {
 #[tokio::test(flavor = "multi_thread")]
 async fn element_scratch_same_as_sql() {
     observability::test_run().ok();
+    let keystore = spawn_test_keystore().await.unwrap();
     let mut scratch = Scratch::new();
     let mut conn = Connection::open_in_memory().unwrap();
     SCHEMA_CELL.initialize(&mut conn, None).unwrap();
+    let mut u = Unstructured::new(&NOISE);
 
     let mut txn = conn
         .transaction_with_behavior(TransactionBehavior::Exclusive)
         .unwrap();
 
-    let td = ElementTestData::new();
-    let query = GetElementDetailsQuery::new(td.header.as_hash().clone());
-    insert_op_scratch(&mut scratch, td.store_element_op.clone()).unwrap();
-    insert_op(&mut txn, td.store_element_op.clone(), true).unwrap();
-    set_validation_status(
-        &mut txn,
-        td.store_element_op.as_hash().clone(),
-        ValidationStatus::Valid,
-    )
-    .unwrap();
+    let mut valid_store_op = facts![
+        op_facts::op_is_valid(keystore.clone()),
+        op_facts::op_of_type(DhtOpType::StoreEntry),
+    ];
+
+    let op: DhtOpHashed = valid_store_op.build(&mut u).into_hashed();
+    let header = op.signed_header_hashed();
+
+    let query = GetElementDetailsQuery::new(header.as_hash().clone());
+    insert_op_scratch(&mut scratch, op.clone()).unwrap();
+    insert_op(&mut txn, op.clone(), true).unwrap();
+    set_validation_status(&mut txn, op.as_hash().clone(), ValidationStatus::Valid).unwrap();
     let r1 = query
         .run(Txn::from(&txn))
         .unwrap()

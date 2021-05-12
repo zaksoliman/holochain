@@ -336,6 +336,12 @@ impl DhtOp {
         }
     }
 
+    /// Build a SignedHeaderHashed
+    pub fn signed_header_hashed(&self) -> SignedHeaderHashed {
+        let sh: SignedHeader = (self.header(), self.signature().clone()).into();
+        SignedHeaderHashed::from_content_sync(sh).into()
+    }
+
     /// Get the entry from this op, if one exists
     pub fn entry(&self) -> Option<&Entry> {
         match self {
