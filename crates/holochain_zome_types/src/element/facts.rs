@@ -72,7 +72,7 @@ mod tests {
         let pair3: Pair = dbg!((he.clone(), None));
         let pair4: Pair = dbg!((he.clone(), Some(e.clone())));
 
-        let mut fact = header_and_entry_match();
+        let fact = header_and_entry_match();
 
         fact.check(&pair1).unwrap();
         assert!(fact.check(&pair2).ok().is_err());

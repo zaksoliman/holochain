@@ -46,7 +46,7 @@ pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
             let agent = header.author();
             let actual = match tokio_helper::block_forever_on(agent.sign(&keystore, &header)) {
                 Ok(a) => a,
-                Err(_) => return facts![never()],
+                Err(_) => return facts![never("Signing failed")],
             };
             facts![lens("signature", DhtOp::signature_mut, eq_(actual))]
         })
@@ -103,7 +103,7 @@ struct OpForHeader(Header);
 struct OpForEntry(Entry);
 
 impl Fact<DhtOp> for OpForHeader {
-    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
+    fn check(&self, op: &DhtOp) -> contrafact::Check {
         if op.header() == self.0 {
             Check::pass()
         } else {
@@ -115,7 +115,7 @@ impl Fact<DhtOp> for OpForHeader {
         }
     }
 
-    fn mutate(&mut self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
+    fn mutate(&self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
         match op {
             DhtOp::StoreElement(_, header, _) => *header = self.0.clone(),
             DhtOp::StoreEntry(_, header, _) => *header = self.0.clone().try_into().unwrap(),
@@ -140,10 +140,12 @@ impl Fact<DhtOp> for OpForHeader {
             }
         }
     }
+
+    fn advance(&mut self, _: &DhtOp) {}
 }
 
 impl Fact<DhtOp> for OpForEntry {
-    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
+    fn check(&self, op: &DhtOp) -> contrafact::Check {
         match op {
             DhtOp::StoreElement(_, _, Some(entry)) | DhtOp::StoreEntry(_, _, entry) => {
                 if **entry == self.0 {
@@ -159,7 +161,7 @@ impl Fact<DhtOp> for OpForEntry {
         }
     }
 
-    fn mutate(&mut self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
+    fn mutate(&self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
         match op {
             DhtOp::StoreElement(_, _, Some(entry)) => **entry = self.0.clone(),
             DhtOp::StoreEntry(_, _, entry) => **entry = self.0.clone(),
@@ -169,6 +171,8 @@ impl Fact<DhtOp> for OpForEntry {
             ),
         }
     }
+
+    fn advance(&mut self, _: &DhtOp) {}
 }
 
 #[cfg(test)]

@@ -24,9 +24,9 @@ struct ValidChainFact {
 }
 
 impl Fact<Header> for ValidChainFact {
-    fn check(&mut self, header: &Header) -> Check {
+    fn check(&self, header: &Header) -> Check {
         let header_hash = HeaderHash::with_data_sync(header);
-        let result = match (header.prev_header(), self.hash.as_ref()) {
+        match (header.prev_header(), self.hash.as_ref()) {
             (Some(prev), Some(stored)) => {
                 if prev == stored {
                     Check::pass()
@@ -45,13 +45,10 @@ impl Fact<Header> for ValidChainFact {
                 header.header_type()
             )]
             .into(),
-        };
-        self.hash = Some(header_hash);
-        self.seq += 1;
-        result
+        }
     }
 
-    fn mutate(&mut self, header: &mut Header, u: &mut Unstructured<'static>) {
+    fn mutate(&self, header: &mut Header, u: &mut Unstructured<'static>) {
         if let Some(stored_hash) = self.hash.as_ref() {
             // This is not the first header we've seen
             while let None = header.prev_header() {
@@ -68,13 +65,11 @@ impl Fact<Header> for ValidChainFact {
             // This is the first header we've seen, so it must be a Dna
             *header = Header::Dna(Dna::arbitrary(u).unwrap());
         }
-        self.hash = Some(HeaderHash::with_data_sync(header));
+    }
+
+    fn advance(&mut self, header: &Header) {
+        self.hash = Some(header.to_hash());
         self.seq += 1;
-        println!(
-            "{}  =>  {:?}\n",
-            self.hash.as_ref().unwrap(),
-            header.prev_header()
-        );
     }
 }
 
@@ -125,7 +120,7 @@ pub fn header_for_entry(entry: Entry) -> Facts<'static, Header> {
                         }
                         header
                     })],
-                    _ => facts![never()],
+                    _ => facts![never("Unexpected HeaderType")],
                 },
             }
         }

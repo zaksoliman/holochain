@@ -30,7 +30,7 @@ async fn can_handle_update_in_scratch() {
 
     // let td = EntryTestData::new();
     let entry = Entry::arbitrary(&mut u).unwrap();
-    let entry_hash = EntryHash::with_data_sync(&entry);
+    let entry_hash = entry.to_hash();
     let mut update_header = facts![
         header::facts::is_of_type(HeaderType::Update),
         header::facts::header_for_entry(entry.clone())
