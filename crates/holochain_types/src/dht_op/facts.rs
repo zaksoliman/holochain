@@ -103,11 +103,11 @@ struct OpForHeader(Header);
 struct OpForEntry(Entry);
 
 impl Fact<DhtOp> for OpForHeader {
-    fn check(&mut self, op: &DhtOp) -> contrafact::CheckResult {
+    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
         if op.header() == self.0 {
-            CheckResult::pass()
+            Check::pass()
         } else {
-            CheckResult::fail(vec![format!(
+            Check::fail(vec![format!(
                 "Header does not match: {:?} != {:?}",
                 op.header(),
                 self.0
@@ -143,19 +143,19 @@ impl Fact<DhtOp> for OpForHeader {
 }
 
 impl Fact<DhtOp> for OpForEntry {
-    fn check(&mut self, op: &DhtOp) -> contrafact::CheckResult {
+    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
         match op {
             DhtOp::StoreElement(_, _, Some(entry)) | DhtOp::StoreEntry(_, _, entry) => {
                 if **entry == self.0 {
-                    CheckResult::pass()
+                    Check::pass()
                 } else {
-                    CheckResult::fail(vec![format!(
+                    Check::fail(vec![format!(
                         "Entry does not match: {:?} != {:?}",
                         entry, self.0
                     )])
                 }
             }
-            _ => CheckResult::fail(vec![format!("Op doesn't contain an entry: {:?}", op)]),
+            _ => Check::fail(vec![format!("Op doesn't contain an entry: {:?}", op)]),
         }
     }
 
