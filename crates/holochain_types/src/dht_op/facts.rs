@@ -185,8 +185,6 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_op_is_valid() {
-        todo!("Must add constraint on dht op variant wrt header variant");
-
         let mut uu = Unstructured::new(&NOISE);
         let u = &mut uu;
         let keystore = spawn_test_keystore().await.unwrap();
@@ -210,7 +208,7 @@ mod tests {
         let op3 = DhtOp::StoreElement(sn.clone(), hn.clone(), Some(Box::new(e.clone())));
         let op4 = DhtOp::StoreElement(sn.clone(), hn.clone(), None);
 
-        let mut fact = op_is_valid(keystore);
+        let fact = op_is_valid(keystore);
 
         fact.check(&op1).unwrap();
         assert!(fact.check(&op2).ok().is_err());
