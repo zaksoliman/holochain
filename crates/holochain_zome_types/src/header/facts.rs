@@ -24,17 +24,17 @@ struct ValidChainFact {
 }
 
 impl Fact<Header> for ValidChainFact {
-    fn check(&mut self, header: &Header) -> Check {
+    fn check(&mut self, header: &Header) -> CheckResult {
         let header_hash = HeaderHash::with_data_sync(header);
         let result = match (header.prev_header(), self.hash.as_ref()) {
             (Some(prev), Some(stored)) => {
                 if prev == stored {
-                    Check::pass()
+                    CheckResult::pass()
                 } else {
                     vec![format!("Hashes don't match: {} != {}", prev, stored)].into()
                 }
             }
-            (None, None) => Check::pass(),
+            (None, None) => CheckResult::pass(),
             (None, Some(_)) => vec![format!(
                 "Found Dna in position other than beginning of the chain. Hash: {}",
                 header_hash
@@ -107,6 +107,41 @@ pub fn new_entry_header() -> Facts<'static, Header> {
     }),]
 }
 
+pub fn header_for_entry(entry: Entry) -> Facts<'static, Header> {
+    facts![conditional(
+        "Header is for entry",
+        move |header: &Header| {
+            match header.entry_hash() {
+                Some(eh) if *eh == EntryHash::with_data_sync(&entry) => {
+                    facts![always()]
+                }
+                _ => {
+                    match header.header_type() {
+                        HeaderType::Create | HeaderType::Update =>  {
+                            facts![
+                                eq(
+                                    "new entry header",
+                                    {
+                                        let mut header = header.clone();
+                                        match &mut header {
+                                            Header::Create(Create{ entry_hash, ..}) | Header::Update(Update{ entry_hash, ..}) => {
+                                                *entry_hash = EntryHash::with_data_sync(&entry)
+                                            }
+                                            _ => panic!("Must be a new entry header"),
+                                        }
+                                        header
+                                    }
+                                )
+                            ]
+
+                        }
+                        _ => facts![never()]
+                    }
+                }
+            }
+        }
+    )]
+}
 #[cfg(test)]
 mod tests {
 

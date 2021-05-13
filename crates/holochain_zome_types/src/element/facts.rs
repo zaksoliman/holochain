@@ -1,7 +1,6 @@
 //! Facts for Elements
 
 use crate::prelude::*;
-use arbitrary::{Arbitrary, Unstructured};
 use contrafact::*;
 use holo_hash::*;
 
@@ -55,6 +54,7 @@ pub fn header_and_entry_match() -> Facts<'static, Pair> {
 mod tests {
     use super::*;
     use crate::header::facts as header_facts;
+    use arbitrary::{Arbitrary, Unstructured};
 
     #[test]
     fn test_header_and_entry_match() {

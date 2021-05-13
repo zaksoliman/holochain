@@ -40,12 +40,15 @@ pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
             |op: &mut DhtOp| op.author_mut(),
             agent_in_keystore(keystore.clone())
         ),
-        conditional_fallible("The Signature matches the Header", move |op: &DhtOp| {
+        conditional("The Signature matches the Header", move |op: &DhtOp| {
             use holochain_keystore::AgentPubKeyExt;
             let header = op.header();
             let agent = header.author();
-            let actual = tokio_helper::block_forever_on(agent.sign(&keystore, &header))?;
-            Ok(facts![lens("signature", DhtOp::signature_mut, eq_(actual))])
+            let actual = match tokio_helper::block_forever_on(agent.sign(&keystore, &header)) {
+                Ok(a) => a,
+                Err(_) => return facts![never()],
+            };
+            facts![lens("signature", DhtOp::signature_mut, eq_(actual))]
         })
     ]
 }
@@ -62,6 +65,12 @@ pub fn op_of_type(op_type: DhtOpType) -> Facts<'static, DhtOp> {
 /// If the Header is of the wrong type for the op, panic.
 pub fn op_for_header(header: Header) -> Facts<'static, DhtOp> {
     facts![OpForHeader(header)]
+}
+
+/// Fact: this DhtOp has a given Entry.
+/// If the op is of the wrong type for the entry, panic.
+pub fn op_for_entry(entry: Entry) -> Facts<'static, DhtOp> {
+    facts![OpForEntry(entry)]
 }
 
 /// Fact: this agent is registered with the keystore.
@@ -91,12 +100,19 @@ fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
 
 struct OpForHeader(Header);
 
+struct OpForEntry(Entry);
+
 impl Fact<DhtOp> for OpForHeader {
-    fn check(&mut self, op: &DhtOp) -> contrafact::Check {
-        Check::single(
-            op.header() == self.0,
-            format!("Header does not match: {:?} != {:?}", op.header(), self.0),
-        )
+    fn check(&mut self, op: &DhtOp) -> contrafact::CheckResult {
+        if op.header() == self.0 {
+            CheckResult::pass()
+        } else {
+            CheckResult::fail(vec![format!(
+                "Header does not match: {:?} != {:?}",
+                op.header(),
+                self.0
+            )])
+        }
     }
 
     fn mutate(&mut self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
@@ -122,6 +138,35 @@ impl Fact<DhtOp> for OpForHeader {
             DhtOp::RegisterRemoveLink(_, header) => {
                 *header = unwrap_to!(self.0 => Header::DeleteLink).clone()
             }
+        }
+    }
+}
+
+impl Fact<DhtOp> for OpForEntry {
+    fn check(&mut self, op: &DhtOp) -> contrafact::CheckResult {
+        match op {
+            DhtOp::StoreElement(_, _, Some(entry)) | DhtOp::StoreEntry(_, _, entry) => {
+                if **entry == self.0 {
+                    CheckResult::pass()
+                } else {
+                    CheckResult::fail(vec![format!(
+                        "Entry does not match: {:?} != {:?}",
+                        entry, self.0
+                    )])
+                }
+            }
+            _ => CheckResult::fail(vec![format!("Op doesn't contain an entry: {:?}", op)]),
+        }
+    }
+
+    fn mutate(&mut self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
+        match op {
+            DhtOp::StoreElement(_, _, Some(entry)) => **entry = self.0.clone(),
+            DhtOp::StoreEntry(_, _, entry) => **entry = self.0.clone(),
+            _ => panic!(
+                "Op must be either StoreElement with entry or StoreEntry {:?}",
+                op
+            ),
         }
     }
 }

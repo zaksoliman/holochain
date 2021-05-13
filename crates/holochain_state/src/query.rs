@@ -26,7 +26,8 @@ pub use error::*;
 
 #[cfg(any(test, feature = "test_utils"))]
 mod test_data;
-#[cfg(any(test, feature = "test_utils"))]
+// #[cfg(any(test, feature = "test_utils"))]
+#[cfg(test)]
 mod tests;
 
 pub mod chain_head;
