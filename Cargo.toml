@@ -49,17 +49,20 @@ incremental = false
 codegen-units = 16
 
 [patch.crates-io]
-
+holochain_serialized_bytes = { git = "https://github.com/holochain/holochain-serialization.git", branch = "arbitrary" }
+holochain_serialized_bytes_derive = { git = "https://github.com/holochain/holochain-serialization.git", branch = "arbitrary" }
 # holochain_wasmer_common = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }
 # holochain_wasmer_guest = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }
 # holochain_wasmer_host = { git = "https://github.com/holochain/holochain-wasmer.git", branch = "bump-serde" }
-holochain_serialized_bytes = { git = "https://github.com/holochain/holochain-serialization.git", branch = "arbitrary" }
-holochain_serialized_bytes_derive = { git = "https://github.com/holochain/holochain-serialization.git", branch = "arbitrary" }
 # observability = { git = "https://github.com/freesig/observability.git", branch = "main" }
+# observability = { path = "../../rust/observability" }
 # ghost_actor = { path = "../ghost_actor/crates/ghost_actor" }
 # ghost_actor = { git = "https://github.com/holochain/ghost_actor.git", branch = "add_observability" }
 # lair_keystore_api = { git = "https://github.com/holochain/lair.git", branch = "pr/tokio-1" }
-# lair_keystore_client = { git = "https://github.com/holochain/lair.git", branch = "pr/tokio-1" }
 # lair_keystore_api = { path = "../lair/crates/lair_keystore_api" }
+# lair_keystore_client = { git = "https://github.com/holochain/lair.git", branch = "pr/tokio-1" }
 # lair_keystore_client = { path = "../lair/crates/lair_keystore_client" }
-# observability = { path = "../../rust/observability" }
+
+
+[patch.'https://github.com/maackle/contrafact.git']
+contrafact = { path = "../contrafact" }

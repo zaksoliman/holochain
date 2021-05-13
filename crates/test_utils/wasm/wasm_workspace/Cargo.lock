@@ -123,6 +123,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 [[package]]
 name = "contrafact"
 version = "0.1.0"
+source = "git+https://github.com/maackle/contrafact.git?branch=main#307e61baabb86d7fd2f4eebe9abd6b90c1916d03"
 dependencies = [
  "anyhow",
  "arbitrary",
