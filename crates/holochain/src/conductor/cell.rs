@@ -55,6 +55,7 @@ pub mod error;
 mod gossip_test;
 // #[cfg(test)]
 #[cfg(todo_redo_old_tests)]
+// Move query to holochain state and test query directly.
 mod op_query_test;
 
 #[cfg(test)]

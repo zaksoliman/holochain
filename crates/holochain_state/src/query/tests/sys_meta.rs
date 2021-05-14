@@ -296,52 +296,52 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn add_entry_get_headers() {
-        // let test_env = test_cell_env();
-        // let arc = test_env.env();
-        // let mut fx = TestFixtures::new();
-        // let entry_hash = fx.entry_hash();
-        // let mut expected: Vec<TimedHeaderHash> = Vec::new();
-        // let mut entry_creates: Vec<Create> = Vec::new();
-        // for _ in 0..10 as u32 {
-        //     let (e, hash) = test_create(entry_hash.clone(), &mut fx).await;
-        //     expected.push(hash.into());
-        //     entry_creates.push(e)
-        // }
+        let test_env = test_cell_env();
+        let arc = test_env.env();
+        let mut fx = TestFixtures::new();
+        let entry_hash = fx.entry_hash();
+        let mut expected: Vec<TimedHeaderHash> = Vec::new();
+        let mut entry_creates: Vec<Create> = Vec::new();
+        for _ in 0..10 as u32 {
+            let (e, hash) = test_create(entry_hash.clone(), &mut fx).await;
+            expected.push(hash.into());
+            entry_creates.push(e)
+        }
 
-        // expected.sort_by_key(|h| h.header_hash.clone());
-        // {
-        //     fresh_reader_test!(arc, |mut reader| {
-        //         let mut meta_buf = MetadataBuf::vault(arc.clone().into()).unwrap();
-        //         for create in entry_creates {
-        //             meta_buf
-        //                 .register_header(NewEntryHeader::Create(create))
-        //                 .unwrap();
-        //         }
-        //         let mut headers = meta_buf
-        //             .get_headers(&mut reader, entry_hash.clone())
-        //             .unwrap()
-        //             .collect::<Vec<_>>()
-        //             .unwrap();
-        //         headers.sort_by_key(|h| h.header_hash.clone());
-        //         assert_eq!(headers, expected);
-        //         arc.conn()
-        //             .unwrap()
-        //             .with_commit(|writer| meta_buf.flush_to_txn(writer))
-        //             .unwrap();
-        //     })
-        // }
-        // {
-        //     fresh_reader_test!(arc, |mut reader| {
-        //         let meta_buf = MetadataBuf::vault(arc.clone().into()).unwrap();
-        //         let mut headers = meta_buf
-        //             .get_headers(&mut reader, entry_hash.clone())
-        //             .unwrap()
-        //             .collect::<Vec<_>>()
-        //             .unwrap();
-        //         headers.sort_by_key(|h| h.header_hash.clone());
-        //         assert_eq!(headers, expected);
-        //     })
-        // }
+        expected.sort_by_key(|h| h.header_hash.clone());
+        {
+            fresh_reader_test!(arc, |mut reader| {
+                let mut meta_buf = MetadataBuf::vault(arc.clone().into()).unwrap();
+                for create in entry_creates {
+                    meta_buf
+                        .register_header(NewEntryHeader::Create(create))
+                        .unwrap();
+                }
+                let mut headers = meta_buf
+                    .get_headers(&mut reader, entry_hash.clone())
+                    .unwrap()
+                    .collect::<Vec<_>>()
+                    .unwrap();
+                headers.sort_by_key(|h| h.header_hash.clone());
+                assert_eq!(headers, expected);
+                arc.conn()
+                    .unwrap()
+                    .with_commit(|writer| meta_buf.flush_to_txn(writer))
+                    .unwrap();
+            })
+        }
+        {
+            fresh_reader_test!(arc, |mut reader| {
+                let meta_buf = MetadataBuf::vault(arc.clone().into()).unwrap();
+                let mut headers = meta_buf
+                    .get_headers(&mut reader, entry_hash.clone())
+                    .unwrap()
+                    .collect::<Vec<_>>()
+                    .unwrap();
+                headers.sort_by_key(|h| h.header_hash.clone());
+                assert_eq!(headers, expected);
+            })
+        }
         todo!("Write as fact based sql test")
     }
 

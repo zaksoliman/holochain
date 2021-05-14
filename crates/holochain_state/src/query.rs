@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 pub use error::*;
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(test)]
 mod test_data;
 // #[cfg(any(test, feature = "test_utils"))]
 #[cfg(test)]

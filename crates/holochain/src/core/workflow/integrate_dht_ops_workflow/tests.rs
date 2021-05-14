@@ -1136,6 +1136,7 @@ async fn test_integrate_single_register_delete_link() {
 
 // #[cfg(feature = "slow_tests")]
 #[cfg(todo_redo_old_tests)]
+// Move to an integration / inline zome test
 mod slow_tests {
     use crate::test_utils::host_fn_caller::*;
     use crate::test_utils::setup_app;

@@ -1,11 +1,17 @@
 use crate::prelude::mutations_helpers::insert_valid_authored_op;
 use crate::scratch::Scratch;
 use ::fixt::prelude::*;
+use contrafact::arbitrary::Arbitrary;
+use contrafact::arbitrary::Unstructured;
+use contrafact::*;
 use holo_hash::*;
+use holochain_keystore::test_keystore::spawn_test_keystore;
 use holochain_sqlite::rusqlite::TransactionBehavior;
 use holochain_sqlite::rusqlite::{Transaction, NO_PARAMS};
 use holochain_sqlite::{rusqlite::Connection, schema::SCHEMA_CELL};
+use holochain_types::dht_op;
 use holochain_types::dht_op::DhtOpHashed;
+use holochain_types::dht_op::DhtOpType;
 use holochain_types::dht_op::OpOrder;
 use holochain_types::EntryHashed;
 use holochain_types::{dht_op::DhtOp, header::NewEntryHeader};
@@ -17,15 +23,16 @@ use super::test_data::*;
 use super::*;
 use crate::mutations::*;
 
-#[cfg(todo_redo_old_tests)]
 mod chain_sequence;
 #[cfg(todo_redo_old_tests)]
+// ?
 mod chain_test;
 mod details;
 mod links;
 mod links_test;
 mod store;
 #[cfg(todo_redo_old_tests)]
+// Remove but add more similar tests to live entry query.
 mod sys_meta;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -99,6 +106,7 @@ async fn get_entry() {
     observability::test_run().ok();
     let mut scratch = Scratch::new();
     let mut conn = Connection::open_in_memory().unwrap();
+    let keystore = spawn_test_keystore().await.unwrap();
     SCHEMA_CELL.initialize(&mut conn, None).unwrap();
 
     let mut cache = Connection::open_in_memory().unwrap();
@@ -112,42 +120,81 @@ async fn get_entry() {
         .transaction_with_behavior(TransactionBehavior::Exclusive)
         .unwrap();
 
-    let td = EntryTestData::new();
+    let mut u = Unstructured::new(&NOISE);
+    let entry = Entry::arbitrary(&mut u).unwrap();
+    let header: Header = facts![
+        header::facts::new_entry_header(),
+        header::facts::header_for_entry(entry.clone()),
+        holochain_types::header::facts::valid_agent(keystore.clone()),
+    ]
+    .build(&mut u);
+    let delete_header: Header = facts![
+        header::facts::is_of_type(HeaderType::Delete),
+        holochain_types::header::facts::valid_agent(keystore.clone()),
+        prism(
+            "deletes",
+            |header: &mut Header| header.deletes_address_mut(),
+            eq_(header.to_hash())
+        ),
+        prism(
+            "deletes",
+            |header: &mut Header| header.deletes_entry_address_mut(),
+            eq_(entry.to_hash())
+        ),
+    ]
+    .build(&mut u);
+    let store_entry_op: DhtOpHashed = dht_op::facts::valid_op_with_header_and_entry(
+        keystore.clone(),
+        DhtOpType::StoreEntry,
+        header.clone(),
+        Some(entry.clone()),
+    )
+    .build(&mut u)
+    .into_hashed();
+    let delete_entry_header_op: DhtOpHashed = dht_op::facts::valid_op_with_header_and_entry(
+        keystore.clone(),
+        DhtOpType::RegisterDeletedEntryHeader,
+        delete_header,
+        None,
+    )
+    .build(&mut u)
+    .into_hashed();
+    let query = GetLiveEntryQuery::new(entry.to_hash());
 
     // - Create an entry on main db.
-    insert_valid_authored_op(&mut txn, td.store_entry_op.clone()).unwrap();
+    insert_valid_authored_op(&mut txn, store_entry_op.clone()).unwrap();
 
     // - Check we get that header back.
-    let r = get_entry_query(&mut [&mut txn], None, td.query.clone()).unwrap();
-    assert_eq!(*r.entry().as_option().unwrap(), td.entry);
+    let r = get_entry_query(&mut [&mut txn], None, query.clone()).unwrap();
+    assert_eq!(*r.entry().as_option().unwrap(), entry);
 
     // - Create the same entry in the cache.
-    insert_valid_authored_op(&mut cache_txn, td.store_entry_op.clone()).unwrap();
+    insert_valid_authored_op(&mut cache_txn, store_entry_op.clone()).unwrap();
     // - Check duplicates is ok.
-    insert_valid_authored_op(&mut cache_txn, td.store_entry_op.clone()).unwrap();
+    insert_valid_authored_op(&mut cache_txn, store_entry_op.clone()).unwrap();
 
     // - Add to the scratch
-    insert_op_scratch(&mut scratch, td.store_entry_op.clone()).unwrap();
+    insert_op_scratch(&mut scratch, store_entry_op.clone()).unwrap();
 
     // - Get the entry from both stores and union the query results.
     let r = get_entry_query(
         &mut [&mut txn, &mut cache_txn],
         Some(&scratch),
-        td.query.clone(),
+        query.clone(),
     );
     // - Check it's the correct entry and header.
     let r = r.unwrap();
-    assert_eq!(*r.entry().as_option().unwrap(), td.entry);
-    assert_eq!(*r.header(), *td.header.header());
+    assert_eq!(*r.entry().as_option().unwrap(), entry);
+    assert_eq!(*r.header(), header);
 
     // - Delete the entry in the cache.
-    insert_valid_authored_op(&mut cache_txn, td.delete_entry_header_op.clone()).unwrap();
+    insert_valid_authored_op(&mut cache_txn, delete_entry_header_op.clone()).unwrap();
 
     // - Get the entry from both stores and union the queries.
     let r = get_entry_query(
         &mut [&mut txn, &mut cache_txn],
         Some(&scratch),
-        td.query.clone(),
+        query.clone(),
     );
     // - There should be no live headers so resolving
     // returns no element.

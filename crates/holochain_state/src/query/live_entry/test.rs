@@ -4,13 +4,13 @@ use holochain_keystore::test_keystore::spawn_test_keystore;
 use holochain_sqlite::rusqlite::Connection;
 use holochain_sqlite::rusqlite::TransactionBehavior;
 use holochain_sqlite::schema::SCHEMA_CELL;
-use holochain_types::dht_op;
+use holochain_types::dht_op::facts::valid_op_with_header_and_entry;
 use holochain_types::dht_op::DhtOpHashed;
+use holochain_types::header::facts::update_with_entry_and_valid_author;
 
 use crate::mutations::insert_op_scratch;
 use crate::mutations::set_validation_status;
 use crate::prelude::mutations_helpers::insert_valid_authored_op;
-use crate::query::test_data::EntryTestData;
 use contrafact::*;
 
 use super::*;
@@ -28,22 +28,19 @@ async fn can_handle_update_in_scratch() {
         .transaction_with_behavior(TransactionBehavior::Exclusive)
         .unwrap();
 
-    // let td = EntryTestData::new();
     let entry = Entry::arbitrary(&mut u).unwrap();
     let entry_hash = entry.to_hash();
-    let mut update_header = facts![
-        header::facts::is_of_type(HeaderType::Update),
-        header::facts::header_for_entry(entry.clone())
-    ];
-    let update_header: Header = update_header.build(&mut u);
-    let mut valid_store_op = facts![
-        dht_op::facts::op_is_valid(keystore.clone()),
-        dht_op::facts::op_of_type(DhtOpType::StoreEntry),
-        dht_op::facts::op_for_header(update_header.clone()),
-        dht_op::facts::op_for_entry(entry.clone()),
-    ];
+    let update_header: Header =
+        update_with_entry_and_valid_author(entry.clone(), keystore.clone()).build(&mut u);
+    let update_store_entry_op: DhtOpHashed = valid_op_with_header_and_entry(
+        keystore.clone(),
+        DhtOpType::StoreEntry,
+        update_header.clone(),
+        Some(entry.clone()),
+    )
+    .build(&mut u)
+    .into_hashed();
 
-    let update_store_entry_op: DhtOpHashed = valid_store_op.build(&mut u).into_hashed();
     let query = GetLiveEntryQuery::new(entry_hash.clone());
 
     // - Create an entry on main db.

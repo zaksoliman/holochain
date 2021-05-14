@@ -58,7 +58,7 @@ async fn element_scratch_same_as_sql() {
 
     let mut valid_store_op = facts![
         op_facts::op_is_valid(keystore.clone()),
-        op_facts::op_of_type(DhtOpType::StoreEntry),
+        op_facts::op_of_type(DhtOpType::StoreElement),
     ];
 
     let op: DhtOpHashed = valid_store_op.build(&mut u).into_hashed();

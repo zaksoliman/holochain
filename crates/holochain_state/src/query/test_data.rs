@@ -35,16 +35,16 @@ pub struct EntryTestData {
     pub update_header: SignedHeaderHashed,
 }
 
-pub struct ElementTestData {
-    pub store_element_op: DhtOpHashed,
-    pub update_store_element_op: DhtOpHashed,
-    pub delete_by_op: DhtOpHashed,
-    pub entry: Entry,
-    pub header: SignedHeaderHashed,
-    pub update_header: SignedHeaderHashed,
-    pub create_hash: HeaderHash,
-    pub update_hash: HeaderHash,
-}
+// pub struct ElementTestData {
+//     pub store_element_op: DhtOpHashed,
+//     pub update_store_element_op: DhtOpHashed,
+//     pub delete_by_op: DhtOpHashed,
+//     pub entry: Entry,
+//     pub header: SignedHeaderHashed,
+//     pub update_header: SignedHeaderHashed,
+//     pub create_hash: HeaderHash,
+//     pub update_hash: HeaderHash,
+// }
 
 impl LinkTestData {
     pub fn new() -> Self {
@@ -210,61 +210,61 @@ impl EntryTestData {
     }
 }
 
-impl ElementTestData {
-    pub fn new() -> Self {
-        let mut create = fixt!(Create);
-        let mut update = fixt!(Update);
-        let mut delete = fixt!(Delete);
-        let entry = fixt!(Entry);
-        let entry_hash = EntryHash::with_data_sync(&entry);
-        create.entry_hash = entry_hash.clone();
-        update.entry_hash = entry_hash.clone();
+// impl ElementTestData {
+//     pub fn new() -> Self {
+//         let mut create = fixt!(Create);
+//         let mut update = fixt!(Update);
+//         let mut delete = fixt!(Delete);
+//         let entry = fixt!(Entry);
+//         let entry_hash = EntryHash::with_data_sync(&entry);
+//         create.entry_hash = entry_hash.clone();
+//         update.entry_hash = entry_hash.clone();
 
-        let create_hash = HeaderHash::with_data_sync(&Header::Create(create.clone()));
-        let update_hash = HeaderHash::with_data_sync(&Header::Update(update.clone()));
+//         let create_hash = HeaderHash::with_data_sync(&Header::Create(create.clone()));
+//         let update_hash = HeaderHash::with_data_sync(&Header::Update(update.clone()));
 
-        delete.deletes_entry_address = entry_hash.clone();
-        delete.deletes_address = create_hash.clone();
+//         delete.deletes_entry_address = entry_hash.clone();
+//         delete.deletes_address = create_hash.clone();
 
-        let signature = fixt!(Signature);
-        let store_element_op = DhtOpHashed::from_content_sync(DhtOp::StoreElement(
-            signature.clone(),
-            Header::Create(create.clone()),
-            Some(Box::new(entry.clone())),
-        ));
+//         let signature = fixt!(Signature);
+//         let store_element_op = DhtOpHashed::from_content_sync(DhtOp::StoreElement(
+//             signature.clone(),
+//             Header::Create(create.clone()),
+//             Some(Box::new(entry.clone())),
+//         ));
 
-        let header = SignedHeaderHashed::with_presigned(
-            HeaderHashed::from_content_sync(Header::Create(create.clone())),
-            signature.clone(),
-        );
+//         let header = SignedHeaderHashed::with_presigned(
+//             HeaderHashed::from_content_sync(Header::Create(create.clone())),
+//             signature.clone(),
+//         );
 
-        let signature = fixt!(Signature);
-        let delete_by_op = DhtOpHashed::from_content_sync(DhtOp::RegisterDeletedBy(
-            signature.clone(),
-            delete.clone(),
-        ));
+//         let signature = fixt!(Signature);
+//         let delete_by_op = DhtOpHashed::from_content_sync(DhtOp::RegisterDeletedBy(
+//             signature.clone(),
+//             delete.clone(),
+//         ));
 
-        let signature = fixt!(Signature);
-        let update_store_element_op = DhtOpHashed::from_content_sync(DhtOp::StoreElement(
-            signature.clone(),
-            Header::Update(update.clone()),
-            Some(Box::new(entry.clone())),
-        ));
+//         let signature = fixt!(Signature);
+//         let update_store_element_op = DhtOpHashed::from_content_sync(DhtOp::StoreElement(
+//             signature.clone(),
+//             Header::Update(update.clone()),
+//             Some(Box::new(entry.clone())),
+//         ));
 
-        let update_header = SignedHeaderHashed::with_presigned(
-            HeaderHashed::from_content_sync(Header::Update(update.clone())),
-            signature.clone(),
-        );
+//         let update_header = SignedHeaderHashed::with_presigned(
+//             HeaderHashed::from_content_sync(Header::Update(update.clone())),
+//             signature.clone(),
+//         );
 
-        Self {
-            store_element_op,
-            header,
-            update_store_element_op,
-            update_header,
-            entry,
-            delete_by_op,
-            create_hash,
-            update_hash,
-        }
-    }
-}
+//         Self {
+//             store_element_op,
+//             header,
+//             update_store_element_op,
+//             update_header,
+//             entry,
+//             delete_by_op,
+//             create_hash,
+//             update_hash,
+//         }
+//     }
+// }

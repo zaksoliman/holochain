@@ -1,356 +1,186 @@
-use crate::{source_chain::SourceChainResult, test_utils::test_cell_env};
-use holo_hash::HeaderHash;
-use holochain_sqlite::prelude::*;
-use matches::assert_matches;
+use std::sync::Arc;
+
+use super::*;
+use crate::prelude::*;
+use crate::query::chain_head::ChainHeadQuery;
+use crate::test_utils::test_cell_env;
+use contrafact::arbitrary::Unstructured;
+use holo_hash::AgentPubKey;
+use holo_hash::HashableContentExtSync;
+use holochain_types::dht_op;
+use holochain_types::dht_op::facts::valid_chain_of_ops;
 use observability;
+use tokio::sync::Barrier;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn chain_sequence_scratch_awareness() -> DatabaseResult<()> {
+async fn chain_sequence_scratch_awareness() {
     observability::test_run().ok();
     let test_env = test_cell_env();
-    let arc = test_env.env();
-    {
-        let mut buf = ChainSequenceBuf::new(arc.clone().into())?;
-        assert_eq!(buf.chain_head(), None);
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ])
-            .into(),
-        )?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                ])
-                .into()
-            )
-        );
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 1,
-            ])
-            .into(),
-        )?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-                ])
-                .into()
-            )
-        );
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 2,
-            ])
-            .into(),
-        )?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 2
-                ])
-                .into()
-            )
-        );
-        Ok(())
-    }
-}
+    let vault = test_env.env();
+    let mut u = Unstructured::new(&NOISE);
 
-#[tokio::test(flavor = "multi_thread")]
-async fn chain_sequence_functionality() -> SourceChainResult<()> {
-    let test_env = test_cell_env();
-    let arc = test_env.env();
+    let author: AgentPubKey = dht_op::facts::agent_in_keystore(vault.keystore()).build(&mut u);
+    let ops = build_seq(
+        &mut u,
+        100,
+        valid_chain_of_ops(author.clone(), vault.keystore()),
+    );
 
-    {
-        let mut buf = ChainSequenceBuf::new(arc.clone().into())?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 1,
-            ])
-            .into(),
-        )?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-                ])
-                .into()
-            )
-        );
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 2,
-            ])
-            .into(),
-        )?;
-        arc.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))?;
-    }
-    let mut g = arc.conn().unwrap();
-    g.with_reader(|mut reader| {
-        let buf = ChainSequenceBuf::new(arc.clone().into())?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 2
-                ])
-                .into()
-            )
-        );
-        let items: Vec<u32> = buf
-            .buf
-            .store()
-            .iter(&mut reader)?
-            .map(|(key, _)| Ok(IntKey::from_key_bytes_or_friendly_panic(&key).into()))
-            .collect()?;
-        assert_eq!(items, vec![0, 1, 2]);
-        DatabaseResult::Ok(())
-    })?;
-
-    {
-        let mut buf = ChainSequenceBuf::new(arc.clone().into())?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 3,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 4,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 5,
-            ])
-            .into(),
-        )?;
-        arc.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))?;
-    }
-    let mut g = arc.conn().unwrap();
-    g.with_reader(|mut reader| {
-        let buf = ChainSequenceBuf::new(arc.clone().into())?;
-        assert_eq!(
-            buf.chain_head(),
-            Some(
-                &HeaderHash::from_raw_36(vec![
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 5
-                ])
-                .into()
-            )
-        );
-        let items: Vec<u32> = buf
-            .buf
-            .store()
-            .iter(&mut reader)?
-            .map(|(_, i)| Ok(i.tx_seq))
-            .collect()?;
-        assert_eq!(items, vec![0, 0, 0, 1, 1, 1]);
-        Ok(())
-    })
+    let chain_head = ChainHeadQuery::new(Arc::new(author));
+    vault
+        .conn()
+        .unwrap()
+        .with_commit_test(|txn| {
+            assert!(chain_head.run(Txn::from(&(*txn))).unwrap().is_none());
+            for op in &ops {
+                mutations_helpers::insert_valid_authored_op(txn, op.clone().into_hashed()).unwrap();
+                let (last_header, last_header_seq) = chain_head
+                    .run(Txn::from(&(*txn)))
+                    .unwrap()
+                    .expect("Chain should not be empty now");
+                assert_eq!(last_header, op.header().to_hash());
+                assert_eq!(last_header_seq, op.header().header_seq());
+            }
+        })
+        .unwrap();
 }
 
 /// If we attempt to move the chain head, but it has already moved from
 /// under us, error
 #[tokio::test(flavor = "multi_thread")]
-async fn chain_sequence_head_moved_triggers_error() -> anyhow::Result<()> {
+async fn chain_sequence_head_moved_triggers_error() {
     let test_env = test_cell_env();
-    let arc1 = test_env.env();
-    let arc2 = test_env.env();
-    let (tx1, rx1) = tokio::sync::oneshot::channel();
-    let (tx2, rx2) = tokio::sync::oneshot::channel();
+    let vault = test_env.env();
+    let mut u = Unstructured::new(&NOISE);
 
-    // Attempt to move the chain concurrently-- this one fails
-    let task1 = tokio::spawn(async move {
-        let mut buf = ChainSequenceBuf::new(arc1.clone().into())?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 1,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 2,
-            ])
-            .into(),
-        )?;
+    let author: AgentPubKey = dht_op::facts::agent_in_keystore(vault.keystore()).build(&mut u);
 
-        // let the other task run and make a commit to the chain head,
-        // which will cause this one to error out when it re-enters and tries to commit
-        tx1.send(()).unwrap();
-        rx2.await.unwrap();
+    source_chain::genesis(
+        vault.clone(),
+        DnaHash::arbitrary(&mut u).unwrap(),
+        author.clone(),
+        None,
+    )
+    .await
+    .unwrap();
 
-        arc1.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))
-    });
-
-    // Attempt to move the chain concurrently -- this one succeeds
-    let task2 = tokio::spawn(async move {
-        rx1.await.unwrap();
-        let mut buf = ChainSequenceBuf::new(arc2.clone().into())?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 3,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 4,
-            ])
-            .into(),
-        )?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 5,
-            ])
-            .into(),
-        )?;
-
-        arc2.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))?;
-        tx2.send(()).unwrap();
-        Result::<_, SourceChainError>::Ok(())
-    });
-
-    let (result1, result2) = tokio::join!(task1, task2);
-
-    let expected_hash = HeaderHash::from_raw_36(vec![
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 5,
-    ])
-    .into();
-    assert_matches!(
-        result1.unwrap(),
-        Err(SourceChainError::HeadMoved(
-            None,
-            Some(
-                hash
-            )
-        ))
-        if hash == expected_hash
+    let ops = build_seq(
+        &mut u,
+        100,
+        valid_chain_of_ops(author.clone(), vault.keystore()),
     );
-    assert!(result2.unwrap().is_ok());
 
-    Ok(())
+    let barrier = Arc::new(Barrier::new(2));
+    let mut handles = Vec::with_capacity(2);
+    let h = tokio::spawn({
+        let barrier = barrier.clone();
+        let ops = ops.clone();
+        let vault = vault.clone();
+        let author = author.clone();
+        async move {
+            let sc = SourceChain::new(vault.clone().into(), author.clone()).unwrap();
+            barrier.wait().await;
+            let scratch = sc.scratch();
+            scratch
+                .apply(|scratch| {
+                    for op in &ops {
+                        mutations::insert_op_scratch(scratch, op.clone().into_hashed()).unwrap()
+                    }
+                })
+                .unwrap();
+            sc.flush().unwrap();
+            barrier.wait().await;
+        }
+    });
+    handles.push(h);
+    let h = tokio::spawn({
+        let barrier = barrier.clone();
+        let ops = ops.clone();
+        let vault = vault.clone();
+        let author = author.clone();
+        async move {
+            let sc = SourceChain::new(vault.clone().into(), author.clone()).unwrap();
+            barrier.wait().await;
+            let scratch = sc.scratch();
+            scratch
+                .apply(|scratch| {
+                    for op in &ops {
+                        mutations::insert_op_scratch(scratch, op.clone().into_hashed()).unwrap()
+                    }
+                })
+                .unwrap();
+            barrier.wait().await;
+            matches::assert_matches!(sc.flush(), Err(SourceChainError::HeadMoved(_, _)));
+        }
+    });
+    handles.push(h);
+    for h in handles {
+        h.await.unwrap();
+    }
 }
 
 /// If the chain head has moved from under us, but we are not moving the
 /// chain head ourselves, proceed as usual
 #[tokio::test(flavor = "multi_thread")]
-async fn chain_sequence_head_moved_triggers_no_error_if_clean() -> anyhow::Result<()> {
+async fn chain_sequence_head_moved_triggers_no_error_if_clean() {
     let test_env = test_cell_env();
-    let arc1 = test_env.env();
-    let arc2 = test_env.env();
-    let (tx1, rx1) = tokio::sync::oneshot::channel();
-    let (tx2, rx2) = tokio::sync::oneshot::channel();
+    let vault = test_env.env();
+    let mut u = Unstructured::new(&NOISE);
 
-    // Add a few things to start with
-    let mut buf = ChainSequenceBuf::new(arc1.clone().into())?;
-    buf.put_header(
-        HeaderHash::from_raw_36(vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0,
-        ])
-        .into(),
-    )?;
-    buf.put_header(
-        HeaderHash::from_raw_36(vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 1,
-        ])
-        .into(),
-    )?;
-    arc1.conn()
-        .unwrap()
-        .with_commit(|mut writer| buf.flush_to_txn(&mut writer))?;
+    let author: AgentPubKey = dht_op::facts::agent_in_keystore(vault.keystore()).build(&mut u);
 
-    // Modify the chain without adding a header -- this succeeds
-    let task1 = tokio::spawn(async move {
-        let mut buf = ChainSequenceBuf::new(arc1.clone().into())?;
-        buf.complete_dht_op(0)?;
+    source_chain::genesis(
+        vault.clone(),
+        DnaHash::arbitrary(&mut u).unwrap(),
+        author.clone(),
+        None,
+    )
+    .await
+    .unwrap();
 
-        // let the other task run and make a commit to the chain head,
-        // to demonstrate the chain moving underneath us
-        tx1.send(()).unwrap();
-        rx2.await.unwrap();
+    let ops = build_seq(
+        &mut u,
+        100,
+        valid_chain_of_ops(author.clone(), vault.keystore()),
+    );
 
-        arc1.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))
+    let barrier = Arc::new(Barrier::new(2));
+    let mut handles = Vec::with_capacity(2);
+    let h = tokio::spawn({
+        let barrier = barrier.clone();
+        let ops = ops.clone();
+        let vault = vault.clone();
+        let author = author.clone();
+        async move {
+            let sc = SourceChain::new(vault.clone().into(), author.clone()).unwrap();
+            barrier.wait().await;
+            let scratch = sc.scratch();
+            scratch
+                .apply(|scratch| {
+                    for op in &ops {
+                        mutations::insert_op_scratch(scratch, op.clone().into_hashed()).unwrap()
+                    }
+                })
+                .unwrap();
+            sc.flush().unwrap();
+            barrier.wait().await;
+        }
     });
-
-    // Add a header to the chain -- there is no collision, so this succeeds
-    let task2 = tokio::spawn(async move {
-        rx1.await.unwrap();
-        let mut buf = ChainSequenceBuf::new(arc2.clone().into())?;
-        buf.put_header(
-            HeaderHash::from_raw_36(vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 2,
-            ])
-            .into(),
-        )?;
-
-        arc2.conn()
-            .unwrap()
-            .with_commit(|mut writer| buf.flush_to_txn(&mut writer))?;
-        tx2.send(()).unwrap();
-        Result::<_, SourceChainError>::Ok(())
+    handles.push(h);
+    let h = tokio::spawn({
+        let barrier = barrier.clone();
+        let vault = vault.clone();
+        let author = author.clone();
+        async move {
+            let sc = SourceChain::new(vault.clone().into(), author.clone()).unwrap();
+            barrier.wait().await;
+            barrier.wait().await;
+            sc.flush()
+                .expect("Source chain is clean so expect no error");
+        }
     });
-
-    let (result1, result2) = tokio::join!(task1, task2);
-
-    assert!(result1.unwrap().is_ok());
-    assert!(result2.unwrap().is_ok());
-
-    Ok(())
+    handles.push(h);
+    for h in handles {
+        h.await.unwrap();
+    }
 }

@@ -75,7 +75,7 @@ pub fn op_for_entry(entry: Entry) -> Facts<'static, DhtOp> {
 
 /// Fact: this agent is registered with the keystore.
 // TODO: this probably belongs in holochain_keystore
-fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
+pub fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
     use holochain_keystore::KeystoreSenderExt;
     facts![conditional(
         "Agent is in keystore",
@@ -96,6 +96,44 @@ fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
             }
         }
     )]
+}
+
+/// Create a valid dht op with a header and maybe an entry.
+/// Op type must make sense with the header type and entry.
+/// Header must make sense with the entry.
+pub fn valid_op_with_header_and_entry(
+    keystore: KeystoreSender,
+    op_type: DhtOpType,
+    header: Header,
+    entry: Option<Entry>,
+) -> Facts<'static, DhtOp> {
+    let facts = facts![
+        op_of_type(op_type),
+        op_for_header(header),
+        op_is_valid(keystore),
+    ];
+    match entry {
+        Some(entry) => {
+            facts![facts, op_for_entry(entry),]
+        }
+        None => facts,
+    }
+}
+
+/// Produces a valid chain of `StoreElement` ops with the same author.
+pub fn valid_chain_of_ops(author: AgentPubKey, keystore: KeystoreSender) -> Facts<'static, DhtOp> {
+    facts![
+        op_of_type(DhtOpType::StoreElement),
+        prism(
+            "valid_op_chain",
+            |op: &mut DhtOp| op.header_mut(),
+            facts![
+                header::facts::valid_chain(),
+                crate::header::facts::is_same_agent(author)
+            ]
+        ),
+        op_is_valid(keystore),
+    ]
 }
 
 struct OpForHeader(Header);
@@ -165,10 +203,7 @@ impl Fact<DhtOp> for OpForEntry {
         match op {
             DhtOp::StoreElement(_, _, Some(entry)) => **entry = self.0.clone(),
             DhtOp::StoreEntry(_, _, entry) => **entry = self.0.clone(),
-            _ => panic!(
-                "Op must be either StoreElement with entry or StoreEntry {:?}",
-                op
-            ),
+            _ => (),
         }
     }
 
@@ -245,6 +280,15 @@ impl DhtOp {
             DhtOp::RegisterDeletedEntryHeader(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterAddLink(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterRemoveLink(_, ref mut h) => Some(&mut h.header_seq),
+        }
+    }
+
+    /// Mutable access to the Header, if applicable
+    pub fn header_mut(&mut self) -> Option<&mut Header> {
+        match self {
+            DhtOp::StoreElement(_, ref mut h, _) => Some(h),
+            DhtOp::RegisterAgentActivity(_, ref mut h) => Some(h),
+            _ => None,
         }
     }
 

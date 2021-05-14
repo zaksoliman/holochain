@@ -266,4 +266,24 @@ impl Header {
             _ => None,
         }
     }
+
+    pub fn deletes_address_mut(&mut self) -> Option<&mut HeaderHash> {
+        match self {
+            Self::Delete(Delete {
+                ref mut deletes_address,
+                ..
+            }) => Some(deletes_address),
+            _ => None,
+        }
+    }
+
+    pub fn deletes_entry_address_mut(&mut self) -> Option<&mut EntryHash> {
+        match self {
+            Self::Delete(Delete {
+                ref mut deletes_entry_address,
+                ..
+            }) => Some(deletes_entry_address),
+            _ => None,
+        }
+    }
 }
