@@ -1,6 +1,7 @@
 //! Helpers for unit tests
 
 use holochain_sqlite::prelude::*;
+use holochain_sqlite::rusqlite::named_params;
 use holochain_sqlite::rusqlite::Statement;
 use holochain_sqlite::rusqlite::Transaction;
 use holochain_types::prelude::*;
@@ -10,6 +11,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tempdir::TempDir;
 
+use crate::prelude::from_blob;
+use crate::prelude::StateQueryResult;
 use crate::prelude::Store;
 use crate::prelude::Txn;
 
@@ -296,4 +299,38 @@ pub fn dump_db(txn: &Transaction) {
     tracing::debug!("DhtOps:");
     let stmt = txn.prepare("SELECT * FROM DhtOp").unwrap();
     dump(stmt);
+}
+
+pub fn get_all_ops(txn: &Transaction, validation_status: ValidationStatus) -> Vec<DhtOp> {
+    txn.prepare(
+        "
+            SELECT Header.blob AS header_blob, DhtOp.type AS dht_type, Entry.blob AS entry_blob 
+            FROM Header
+            JOIN
+            DhtOp ON DhtOp.header_hash = Header.hash
+            LEFT JOIN
+            Entry ON Header.entry_hash = Entry.hash
+            WHERE
+            DhtOp.validation_status = :status
+            ",
+    )
+    .unwrap()
+    .query_and_then(
+        named_params! {
+            ":status": validation_status
+        },
+        |row| {
+            let header = from_blob::<SignedHeader>(row.get("header_blob")?)?;
+            let op_type: DhtOpType = row.get("dht_type")?;
+            let entry: Option<Vec<u8>> = row.get("entry_blob")?;
+            let entry = match entry {
+                Some(entry) => Some(from_blob::<Entry>(entry)?),
+                None => None,
+            };
+            Ok(DhtOp::from_type(op_type, header, entry)?)
+        },
+    )
+    .unwrap()
+    .collect::<StateQueryResult<Vec<DhtOp>>>()
+    .unwrap()
 }

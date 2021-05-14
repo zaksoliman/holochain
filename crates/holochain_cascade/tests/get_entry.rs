@@ -1,18 +1,30 @@
+use contrafact::arbitrary::Arbitrary;
+use contrafact::arbitrary::Unstructured;
+use contrafact::*;
 use ghost_actor::dependencies::observability;
 use holo_hash::HasHash;
+use holo_hash::HashableContentExtSync;
 use holochain_cascade::test_utils::*;
 use holochain_cascade::Cascade;
 use holochain_p2p::HolochainP2pCellT;
 use holochain_p2p::MockHolochainP2pCellT;
 use holochain_state::mutations::insert_op_scratch;
+use holochain_state::prelude::fresh_reader_test;
+use holochain_state::prelude::test_cache_env;
 use holochain_state::prelude::test_cell_env;
 use holochain_state::scratch::Scratch;
+use holochain_types::dht_op;
+use holochain_types::dht_op::DhtOp;
+use holochain_types::dht_op::DhtOpType;
 use holochain_zome_types::Details;
 use holochain_zome_types::ElementDetails;
+use holochain_zome_types::Entry;
 use holochain_zome_types::EntryDetails;
 use holochain_zome_types::EntryDhtStatus;
 use holochain_zome_types::GetOptions;
+use holochain_zome_types::Header;
 use holochain_zome_types::ValidationStatus;
+use holochain_zome_types::NOISE;
 
 async fn assert_can_get<N: HolochainP2pCellT + Clone + Send + 'static>(
     td_entry: &EntryTestData,
@@ -429,13 +441,95 @@ async fn check_can_handle_rejected_ops_in_cache() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "todo"]
 async fn check_all_queries_still_work() {
     // TODO: Come up with a list of different states the authority could
     // have data in (updates, rejected, abandoned, nothing etc.)
     // then create an iterator that can put databases in these states and
     // run all the above queries on them.
-    todo!()
+    let cache = test_cache_env();
+    let authority = test_cell_env();
+    let vault = test_cell_env();
+
+    let mut u = Unstructured::new(&NOISE);
+    let entry = Entry::arbitrary(&mut u).unwrap();
+    let mut new_headers = || {
+        build_seq(
+            &mut u,
+            100,
+            facts![
+                holochain_zome_types::header::facts::new_entry_header(),
+                holochain_zome_types::header::facts::header_for_entry(entry.clone()),
+                holochain_types::header::facts::valid_agent(authority.keystore()),
+            ],
+        )
+    };
+    let headers = new_headers();
+    let rejected_headers = new_headers();
+    let f1 = || facts![dht_op::facts::op_of_type(DhtOpType::StoreEntry),];
+    let valid =
+        |e: &holochain_state::prelude::TestEnv| facts![dht_op::facts::op_is_valid(e.keystore())];
+    let f2 = || facts![dht_op::facts::op_for_entry(entry.clone()),];
+    let facts = |headers: Vec<Header>| {
+        headers
+            .into_iter()
+            .map(|header| {
+                facts![
+                    f1(),
+                    dht_op::facts::op_for_header(header),
+                    valid(&authority),
+                    f2()
+                ]
+            })
+            .collect::<Vec<_>>()
+    };
+    let not_facts = || facts![f1(), not_(f2()), valid(&authority)];
+    let noise_ops = build_seq(&mut u, 100, not_facts());
+    check_seq(&noise_ops[..], not_facts()).unwrap();
+    let ops = facts(headers.clone())
+        .into_iter()
+        .map(|mut f| f.build(&mut u))
+        .collect::<Vec<DhtOp>>();
+    for (op, fact) in ops.iter().zip(facts(headers.clone())) {
+        fact.check(op).unwrap();
+    }
+    let rejected_ops = facts(rejected_headers.clone())
+        .into_iter()
+        .map(|mut f| f.build(&mut u))
+        .collect::<Vec<DhtOp>>();
+    for (op, fact) in rejected_ops.iter().zip(facts(rejected_headers.clone())) {
+        fact.check(op).unwrap();
+    }
+    assert_eq!(ops.len(), 100);
+    assert_eq!(noise_ops.len(), 100);
+
+    for op in ops.into_iter().chain(noise_ops.clone()) {
+        fill_db(&authority.env(), op.into_hashed());
+    }
+    for op in rejected_ops {
+        fill_db_rejected(&authority.env(), op.into_hashed());
+    }
+    for op in noise_ops {
+        fill_db(&vault.env(), op.into_hashed());
+    }
+    // Network
+    let network = PassThroughNetwork::authority_for_nothing(vec![authority.env().clone().into()]);
+
+    // Cascade
+    let mut cascade = Cascade::empty()
+        .with_vault(vault.env().into())
+        .with_network(network, cache.env());
+
+    let _ = cascade
+        .dht_get(entry.to_hash().into(), GetOptions::latest())
+        .await
+        .unwrap();
+    holochain_state::prelude::dump_tmp(&cache.env());
+    let cache_ops = fresh_reader_test(cache.env(), |t| {
+        holochain_state::prelude::get_all_ops(&t, ValidationStatus::Valid)
+    });
+    let facts = facts![f1(), f2()];
+    check_seq(&cache_ops[..], facts).unwrap();
+    assert_eq!(cache_ops.len(), 100);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -455,7 +549,7 @@ async fn test_pending_data_isnt_returned() {
     observability::test_run().ok();
 
     // Environments
-    let cache = test_cell_env();
+    let cache = test_cache_env();
     let authority = test_cell_env();
     let vault = test_cell_env();
 
