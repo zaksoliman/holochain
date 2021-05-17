@@ -74,7 +74,7 @@ impl Fact<Header> for ValidChainFact {
 }
 
 pub fn is_of_type(header_type: HeaderType) -> Facts<'static, Header> {
-    facts![custom("header is of type", move |h: &Header| h
+    facts![brute("header is of type", move |h: &Header| h
         .header_type()
         == header_type)]
 }
@@ -94,7 +94,7 @@ pub fn valid_chain() -> Facts<'static, Header> {
 
 /// Fact: The header must be a NewEntryHeader
 pub fn new_entry_header() -> Facts<'static, Header> {
-    facts![custom("Is a NewEntryHeader", |h: &Header| {
+    facts![brute("Is a NewEntryHeader", |h: &Header| {
         match h.header_type() {
             HeaderType::Create | HeaderType::Update => true,
             _ => false,
@@ -103,28 +103,25 @@ pub fn new_entry_header() -> Facts<'static, Header> {
 }
 
 pub fn header_for_entry(entry: Entry) -> Facts<'static, Header> {
-    facts![conditional(
-        "Header is for entry",
-        move |header: &Header| {
-            match header.entry_hash() {
-                Some(eh) if *eh == EntryHash::with_data_sync(&entry) => facts![always()],
-                _ => match header.header_type() {
-                    HeaderType::Create | HeaderType::Update => facts![eq("new entry header", {
-                        let mut header = header.clone();
-                        match &mut header {
-                            Header::Create(Create { entry_hash, .. })
-                            | Header::Update(Update { entry_hash, .. }) => {
-                                *entry_hash = EntryHash::with_data_sync(&entry)
-                            }
-                            _ => panic!("Must be a new entry header"),
+    facts![mapped("Header is for entry", move |header: &Header| {
+        match header.entry_hash() {
+            Some(eh) if *eh == EntryHash::with_data_sync(&entry) => facts![always()],
+            _ => match header.header_type() {
+                HeaderType::Create | HeaderType::Update => facts![eq("new entry header", {
+                    let mut header = header.clone();
+                    match &mut header {
+                        Header::Create(Create { entry_hash, .. })
+                        | Header::Update(Update { entry_hash, .. }) => {
+                            *entry_hash = EntryHash::with_data_sync(&entry)
                         }
-                        header
-                    })],
-                    _ => facts![never("Unexpected HeaderType")],
-                },
-            }
+                        _ => panic!("Must be a new entry header"),
+                    }
+                    header
+                })],
+                _ => facts![never("Unexpected HeaderType")],
+            },
         }
-    )]
+    })]
 }
 #[cfg(test)]
 mod tests {

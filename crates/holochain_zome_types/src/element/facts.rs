@@ -22,7 +22,7 @@ type Pair = (Header, Option<Entry>);
 
 pub fn header_and_entry_match() -> Facts<'static, Pair> {
     facts![
-        custom(
+        brute(
             "Header type matches Entry existence",
             |(header, entry): &Pair| {
                 let has_header = header.entry_data().is_some();
@@ -30,7 +30,7 @@ pub fn header_and_entry_match() -> Facts<'static, Pair> {
                 has_header == has_entry
             }
         ),
-        conditional(
+        mapped(
             "If there is entry data, the header must point to it",
             |pair: &Pair| {
                 if let Some(entry) = &pair.1 {
@@ -75,8 +75,8 @@ mod tests {
         let fact = header_and_entry_match();
 
         fact.check(&pair1).unwrap();
-        assert!(fact.check(&pair2).ok().is_err());
-        assert!(fact.check(&pair3).ok().is_err());
+        assert!(fact.check(&pair2).is_err());
+        assert!(fact.check(&pair3).is_err());
         fact.check(&pair4).unwrap();
     }
 }

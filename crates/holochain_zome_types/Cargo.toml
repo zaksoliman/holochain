@@ -42,7 +42,7 @@ derive_more = { version = "0.99", optional = true }
 arbitrary = { version = "1.0", features = ["derive"], optional = true}
 
 # contrafact
-contrafact = { git = "https://github.com/maackle/contrafact.git", branch = "main", optional = true }
+contrafact = { version = "0.1.0-dev.0", optional = true }
 once_cell = { version = "1.4", optional = true }
 
 [dev-dependencies]

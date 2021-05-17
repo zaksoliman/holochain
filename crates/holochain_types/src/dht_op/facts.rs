@@ -13,12 +13,12 @@ use unwrap_to::unwrap_to;
 ///     violate this constraint due to the types, so no check is needed here.)
 pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
     facts![
-        custom("Header type matches Entry existence", |op: &DhtOp| {
+        brute("Header type matches Entry existence", |op: &DhtOp| {
             let has_header = op.header().entry_data().is_some();
             let has_entry = op.entry().is_some();
             has_header == has_entry
         }),
-        conditional(
+        mapped(
             "If there is entry data, the header must point to it",
             |op: &DhtOp| {
                 if let Some(entry) = op.entry() {
@@ -40,7 +40,7 @@ pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
             |op: &mut DhtOp| op.author_mut(),
             agent_in_keystore(keystore.clone())
         ),
-        conditional("The Signature matches the Header", move |op: &DhtOp| {
+        mapped("The Signature matches the Header", move |op: &DhtOp| {
             use holochain_keystore::AgentPubKeyExt;
             let header = op.header();
             let agent = header.author();
@@ -56,7 +56,7 @@ pub fn op_is_valid(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
 /// Fact: this DhtOp is about a given Header.
 /// If the Header is of the wrong type for the op, panic.
 pub fn op_of_type(op_type: DhtOpType) -> Facts<'static, DhtOp> {
-    facts![custom("DhtOp is of given type", move |op: &DhtOp| op
+    facts![brute("DhtOp is of given type", move |op: &DhtOp| op
         .get_type()
         == op_type)]
 }
@@ -77,7 +77,7 @@ pub fn op_for_entry(entry: Entry) -> Facts<'static, DhtOp> {
 // TODO: this probably belongs in holochain_keystore
 pub fn agent_in_keystore(keystore: KeystoreSender) -> Facts<'static, AgentPubKey> {
     use holochain_keystore::KeystoreSenderExt;
-    facts![conditional(
+    facts![mapped(
         "Agent is in keystore",
         move |agent: &AgentPubKey| {
             if tokio_helper::block_forever_on(keystore.sign(Sign::new_raw(agent.clone(), vec![])))
@@ -113,9 +113,7 @@ pub fn valid_op_with_header_and_entry(
         op_is_valid(keystore),
     ];
     match entry {
-        Some(entry) => {
-            facts![facts, op_for_entry(entry),]
-        }
+        Some(entry) => facts![facts, op_for_entry(entry),],
         None => facts,
     }
 }
@@ -142,15 +140,10 @@ struct OpForEntry(Entry);
 
 impl Fact<DhtOp> for OpForHeader {
     fn check(&self, op: &DhtOp) -> contrafact::Check {
-        if op.header() == self.0 {
-            Check::pass()
-        } else {
-            Check::fail(vec![format!(
-                "Header does not match: {:?} != {:?}",
-                op.header(),
-                self.0
-            )])
-        }
+        Check::check(
+            op.header() == self.0,
+            format!("Header does not match: {:?} != {:?}", op.header(), self.0),
+        )
     }
 
     fn mutate(&self, op: &mut DhtOp, _: &mut arbitrary::Unstructured<'static>) {
@@ -189,13 +182,10 @@ impl Fact<DhtOp> for OpForEntry {
                 if **entry == self.0 {
                     Check::pass()
                 } else {
-                    Check::fail(vec![format!(
-                        "Entry does not match: {:?} != {:?}",
-                        entry, self.0
-                    )])
+                    Check::fail(format!("Entry does not match: {:?} != {:?}", entry, self.0))
                 }
             }
-            _ => Check::fail(vec![format!("Op doesn't contain an entry: {:?}", op)]),
+            _ => Check::fail(format!("Op doesn't contain an entry: {:?}", op)),
         }
     }
 
@@ -246,8 +236,8 @@ mod tests {
         let fact = op_is_valid(keystore);
 
         fact.check(&op1).unwrap();
-        assert!(fact.check(&op2).ok().is_err());
-        assert!(fact.check(&op3).ok().is_err());
+        assert!(fact.check(&op2).is_err());
+        assert!(fact.check(&op3).is_err());
         fact.check(&op4).unwrap();
     }
 }
