@@ -6,7 +6,7 @@ use hdk::prelude::WasmError;
 use holo_hash::AgentPubKey;
 use holo_hash::HeaderHash;
 use holochain_keystore::AgentPubKeyExt;
-use holochain_lmdb::env::EnvironmentWrite;
+use holochain_p2p::DnaHashExt;
 use holochain_serialized_bytes::SerializedBytes;
 use holochain_types::prelude::*;
 use holochain_wasm_test_utils::TestWasm;
@@ -32,7 +32,7 @@ use test_case::test_case;
 const TIMEOUT_ERROR: &'static str = "inner function \'call_create_entry_remotely\' failed: ZomeCallNetworkError(\"Other: timeout\")";
 
 #[test_case(2)]
-#[test_case(5)]
+// #[test_case(5)]
 // #[test_case(10)] 10 works but might be too slow for our regular test run
 // FIXME: this test is flaky!
 fn conductors_call_remote(num_conductors: usize) {
@@ -72,13 +72,14 @@ fn conductors_call_remote(num_conductors: usize) {
 
         let mut envs = Vec::with_capacity(handles.len());
         for h in &handles {
-            envs.push(h.get_p2p_env().await);
+            let space = h.cell_id.dna_hash().to_kitsune();
+            envs.push(h.get_p2p_env(space).await);
         }
 
         exchange_peer_info(envs);
 
         // Give a little longer timeout here because they must find each other to pass the test
-        let results = call_each_other(&handles[..], 500).await;
+        let results = call_each_other(&handles[..], 1500).await;
         for (_, _, result) in results {
             self::assert_matches!(result, Some(Ok(ZomeCallResponse::Ok(_))));
         }
@@ -291,7 +292,8 @@ async fn conductors_gossip_inner(
 
     let mut envs = Vec::with_capacity(handles.len() + second_handles.len());
     for h in handles.iter().chain(second_handles.iter()) {
-        envs.push(h.get_p2p_env().await);
+        let space = h.cell_id.dna_hash().to_kitsune();
+        envs.push(h.get_p2p_env(space).await);
     }
 
     if share_peers {
@@ -322,7 +324,8 @@ async fn conductors_gossip_inner(
 
     let mut envs = Vec::with_capacity(third_handles.len() + second_handles.len());
     for h in third_handles.iter().chain(second_handles.iter()) {
-        envs.push(h.get_p2p_env().await);
+        let space = h.cell_id.dna_hash().to_kitsune();
+        envs.push(h.get_p2p_env(space).await);
     }
 
     if share_peers {
@@ -469,7 +472,7 @@ async fn check_gossip(
 }
 
 #[tracing::instrument(skip(envs))]
-fn check_peers(envs: Vec<EnvironmentWrite>) {
+fn check_peers(envs: Vec<EnvWrite>) {
     for (i, a) in envs.iter().enumerate() {
         let peers = all_agent_infos(a.clone().into()).unwrap();
         let num_peers = peers.len();

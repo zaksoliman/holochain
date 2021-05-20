@@ -172,6 +172,12 @@ macro_rules! make_kitsune_bin_type {
                     Ok(())
                 }
             }
+
+            impl std::fmt::Display for $name {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    base64::encode_config(&self.0, base64::URL_SAFE_NO_PAD).fmt(f)
+                }
+            }
         )*
     };
 }
@@ -222,7 +228,7 @@ impl std::fmt::Debug for KitsuneSignature {
 pub mod actor;
 pub mod agent_store;
 pub mod event;
-pub mod gossip;
+pub(crate) mod gossip;
 pub(crate) mod wire;
 
 pub use kitsune_p2p_types::dht_arc;

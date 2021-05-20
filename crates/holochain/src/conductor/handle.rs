@@ -5,7 +5,7 @@
 //!
 //! ```rust, no_run
 //! async fn async_main () {
-//! use holochain_lmdb::test_utils::{test_environments, TestEnvironment};
+//! use holochain_state::test_utils::test_environments;
 //! use holochain::conductor::{Conductor, ConductorBuilder, ConductorHandle};
 //! let envs = test_environments();
 //! let handle: ConductorHandle = ConductorBuilder::new()
@@ -51,18 +51,19 @@ use super::p2p_store::put_agent_info_signed;
 use super::p2p_store::query_agent_info_signed;
 use super::Cell;
 use super::Conductor;
-use crate::core::workflow::CallZomeWorkspaceLock;
 use crate::core::workflow::ZomeCallResult;
 use crate::core::{queue_consumer::InitialQueueTriggers, ribosome::real_ribosome::RealRibosome};
 use derive_more::From;
 use futures::future::FutureExt;
 use futures::StreamExt;
 use holochain_conductor_api::InstalledAppInfo;
-use holochain_lmdb::env::EnvironmentRead;
 use holochain_p2p::event::HolochainP2pEvent::*;
+use holochain_p2p::DnaHashExt;
 use holochain_p2p::HolochainP2pCellT;
+use holochain_state::host_fn_workspace::HostFnWorkspace;
 use holochain_types::prelude::*;
 use kitsune_p2p::agent_store::AgentInfoSigned;
+use kitsune_p2p::KitsuneSpace;
 use kitsune_p2p_types::config::JOIN_NETWORK_TIMEOUT;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
@@ -72,8 +73,6 @@ use tracing::*;
 use super::state::ConductorState;
 #[cfg(any(test, feature = "test_utils"))]
 use crate::core::queue_consumer::QueueTriggers;
-#[cfg(any(test, feature = "test_utils"))]
-use holochain_lmdb::env::EnvironmentWrite;
 
 /// A handle to the Conductor that can easily be passed around and cheaply cloned
 pub type ConductorHandle = Arc<dyn ConductorHandleT>;
@@ -146,7 +145,7 @@ pub trait ConductorHandleT: Send + Sync {
     async fn call_zome_with_workspace(
         &self,
         invocation: ZomeCall,
-        workspace_lock: CallZomeWorkspaceLock,
+        workspace_lock: HostFnWorkspace,
     ) -> ConductorApiResult<ZomeCallResult>;
 
     /// Get a Websocket port which will
@@ -245,16 +244,20 @@ pub trait ConductorHandleT: Send + Sync {
     /// Print the current setup in a machine readable way.
     async fn print_setup(&self);
 
-    /// Retrieve the LMDB environment for this cell.
-    async fn get_cell_env_readonly(&self, cell_id: &CellId) -> ConductorApiResult<EnvironmentRead>;
+    /// Retrieve the environment for this cell.
+    async fn get_cell_env_readonly(&self, cell_id: &CellId) -> ConductorApiResult<EnvRead>;
 
-    /// Retrieve the LMDB environment for this cell. FOR TESTING ONLY.
+    /// Retrieve the environment for this cell. FOR TESTING ONLY.
     #[cfg(any(test, feature = "test_utils"))]
-    async fn get_cell_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvironmentWrite>;
+    async fn get_cell_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvWrite>;
 
-    /// Retrieve the LMDB environment for networking. FOR TESTING ONLY.
+    /// Retrieve the database for this cell. FOR TESTING ONLY.
     #[cfg(any(test, feature = "test_utils"))]
-    async fn get_p2p_env(&self) -> EnvironmentWrite;
+    async fn get_cache_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvWrite>;
+
+    /// Retrieve the database for networking. FOR TESTING ONLY.
+    #[cfg(any(test, feature = "test_utils"))]
+    async fn get_p2p_env(&self, space: Arc<KitsuneSpace>) -> EnvWrite;
 
     /// Retrieve Senders for triggering workflows. FOR TESTING ONLY.
     #[cfg(any(test, feature = "test_utils"))]
@@ -375,6 +378,7 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
         cell_id: &CellId,
         event: holochain_p2p::event::HolochainP2pEvent,
     ) -> ConductorApiResult<()> {
+        let space = cell_id.dna_hash().to_kitsune();
         trace!(agent = ?cell_id.agent_pubkey(), dispatch_event = ?event);
         match event {
             PutAgentInfoSigned {
@@ -382,7 +386,7 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
                 respond,
                 ..
             } => {
-                let env = { self.conductor.read().await.p2p_env() };
+                let env = { self.conductor.read().await.p2p_env(space) };
                 let res = put_agent_info_signed(env, agent_info_signed)
                     .map_err(holochain_p2p::HolochainP2pError::other);
                 respond.respond(Ok(async move { res }.boxed().into()));
@@ -393,7 +397,7 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
                 respond,
                 ..
             } => {
-                let env = { self.conductor.read().await.p2p_env() };
+                let env = { self.conductor.read().await.p2p_env(space) };
                 let res = get_agent_info_signed(env, kitsune_space, kitsune_agent)
                     .map_err(holochain_p2p::HolochainP2pError::other);
                 respond.respond(Ok(async move { res }.boxed().into()));
@@ -403,7 +407,7 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
                 respond,
                 ..
             } => {
-                let env = { self.conductor.read().await.p2p_env() };
+                let env = { self.conductor.read().await.p2p_env(space) };
                 let res = query_agent_info_signed(env, kitsune_space)
                     .map_err(holochain_p2p::HolochainP2pError::other);
                 respond.respond(Ok(async move { res }.boxed().into()));
@@ -431,7 +435,7 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
     async fn call_zome_with_workspace(
         &self,
         call: ZomeCall,
-        workspace_lock: CallZomeWorkspaceLock,
+        workspace_lock: HostFnWorkspace,
     ) -> ConductorApiResult<ZomeCallResult> {
         debug!(cell_id = ?call.cell_id);
         let cell = self.cell_by_id(&call.cell_id).await?;
@@ -692,21 +696,27 @@ impl<DS: DnaStore + 'static> ConductorHandleT for ConductorHandleImpl<DS> {
         self.conductor.read().await.print_setup()
     }
 
-    async fn get_cell_env_readonly(&self, cell_id: &CellId) -> ConductorApiResult<EnvironmentRead> {
+    async fn get_cell_env_readonly(&self, cell_id: &CellId) -> ConductorApiResult<EnvRead> {
         let cell = self.cell_by_id(cell_id).await?;
         Ok(cell.env().clone().into())
     }
 
     #[cfg(any(test, feature = "test_utils"))]
-    async fn get_cell_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvironmentWrite> {
+    async fn get_cell_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvWrite> {
         let cell = self.cell_by_id(cell_id).await?;
         Ok(cell.env().clone())
     }
 
     #[cfg(any(test, feature = "test_utils"))]
-    async fn get_p2p_env(&self) -> EnvironmentWrite {
+    async fn get_cache_env(&self, cell_id: &CellId) -> ConductorApiResult<EnvWrite> {
+        let cell = self.cell_by_id(cell_id).await?;
+        Ok(cell.cache().clone())
+    }
+
+    #[cfg(any(test, feature = "test_utils"))]
+    async fn get_p2p_env(&self, space: Arc<KitsuneSpace>) -> EnvWrite {
         let lock = self.conductor.read().await;
-        lock.p2p_env()
+        lock.p2p_env(space)
     }
 
     #[cfg(any(test, feature = "test_utils"))]
