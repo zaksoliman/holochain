@@ -264,6 +264,7 @@ dependencies = [
 [[package]]
 name = "holochain_wasmer_common"
 version = "0.0.67"
+source = "git+https://github.com/holochain/holochain-wasmer.git?branch=2021-04-27-singlepass#3e1666be3ca686d4151094a1892b06f78b2c9a28"
 dependencies = [
  "holochain_serialized_bytes",
  "serde",
@@ -274,6 +275,7 @@ dependencies = [
 [[package]]
 name = "holochain_wasmer_guest"
 version = "0.0.67"
+source = "git+https://github.com/holochain/holochain-wasmer.git?branch=2021-04-27-singlepass#3e1666be3ca686d4151094a1892b06f78b2c9a28"
 dependencies = [
  "holochain_serialized_bytes",
  "holochain_wasmer_common",
