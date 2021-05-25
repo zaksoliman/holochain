@@ -104,6 +104,12 @@ mod tests {
                 &agent_pubkey2.to_string()
             );
 
+            // key 3 should NOT be part of our fixtures,
+            // but it should still work for signing / verify
+            let agent_pubkey3 = holo_hash::AgentPubKey::new_from_pure_entropy(&keystore)
+                .await
+                .unwrap();
+
             #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes)]
             struct MyData(Vec<u8>);
 
@@ -113,6 +119,13 @@ mod tests {
 
             assert!(agent_pubkey1
                 .verify_signature(&signature, &my_data_1)
+                .await
+                .unwrap());
+
+            let sig3 = agent_pubkey3.sign(&keystore, &my_data_1).await.unwrap();
+
+            assert!(agent_pubkey3
+                .verify_signature(&sig3, &my_data_1)
                 .await
                 .unwrap());
         })
