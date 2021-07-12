@@ -167,6 +167,20 @@ pub(crate) struct SimpleBloomModInner {
     outgoing: Vec<(Tx2Cert, HowToConnect, GossipWire)>,
 }
 
+/// Since windows Instant is based on machine uptime
+/// we try to go back as far as possible by checking every 24min
+fn get_old_time() -> std::time::Instant {
+    let now = std::time::Instant::now();
+    for count in 0..60 {
+        let maybe_old = now
+           .checked_sub(std::time::Duration::from_secs((60 - count) * 60 * 24));
+        if maybe_old.is_some() {
+            return maybe_old.unwrap();
+        }
+    }
+    now
+}
+
 impl SimpleBloomModInner {
     pub fn new(
         tuning_params: KitsuneP2pTuningParams,
@@ -185,9 +199,7 @@ impl SimpleBloomModInner {
         ) as u64;
 
         // pick an old instant for initialization
-        let old = std::time::Instant::now()
-            .checked_sub(std::time::Duration::from_secs(60 * 60 * 24))
-            .unwrap();
+        let old = get_old_time();
 
         Self {
             tuning_params,
