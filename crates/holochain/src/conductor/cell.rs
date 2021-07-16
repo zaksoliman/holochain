@@ -690,6 +690,7 @@ impl Cell {
         call: ZomeCall,
         workspace_lock: Option<CallZomeWorkspaceLock>,
     ) -> CellResult<ZomeCallResult> {
+        tracing::info!("Incoming zome call {:?}", call);
         // Check if init has run if not run it
         self.check_or_run_zome_init().await?;
 

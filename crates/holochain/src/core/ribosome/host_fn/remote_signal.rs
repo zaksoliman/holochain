@@ -29,11 +29,11 @@ pub fn remote_signal(
                 let fn_name = fn_name.clone();
                 let payload = signal.clone();
                 async move {
-                    tracing::debug!("sending to {:?}", agent);
+                    tracing::info!("sending signal to {:?}", agent);
                     let result = network
                         .call_remote(agent.clone(), zome_name, fn_name, None, payload)
                         .await;
-                    tracing::debug!("sent to {:?}", agent);
+                    tracing::info!("sent signal to {:?}", agent);
                     if let Err(e) = result {
                         tracing::info!(
                             "Failed to send remote signal to {:?} because of {:?}",
