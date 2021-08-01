@@ -6,11 +6,11 @@ use holo_hash::AgentPubKey;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CallRemote {
-    target_agent: AgentPubKey,
-    zome_name: ZomeName,
-    fn_name: FunctionName,
-    cap: Option<CapSecret>,
-    payload: ExternIO,
+    pub target_agent: AgentPubKey,
+    pub zome_name: ZomeName,
+    pub fn_name: FunctionName,
+    pub cap: Option<CapSecret>,
+    pub payload: ExternIO,
 }
 
 impl CallRemote {

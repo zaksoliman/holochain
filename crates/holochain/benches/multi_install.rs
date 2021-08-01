@@ -13,6 +13,7 @@ use holochain_conductor_api::AdminInterfaceConfig;
 use holochain_conductor_api::InterfaceDriver;
 use holochain_serialized_bytes::{SerializedBytes, UnsafeBytes};
 use holochain_types::prelude::InstallAppBundlePayload;
+use holochain_types::prelude::InstalledApp;
 use holochain_types::prelude::{AppBundleSource, DnaFile};
 use kitsune_p2p::KitsuneP2pConfig;
 use kitsune_p2p_types::config::tuning_params_struct::KitsuneP2pTuningParams;
@@ -187,35 +188,37 @@ impl Producers {
                 membrane_proofs,
                 uid: None,
             };
-            let id = holochain::conductor::handle::ConductorHandleT::install_app_bundle(
-                conductor.inner_handle(),
-                payload,
-            )
-            .await
-            .expect("Failed to install");
+            let id: InstalledApp =
+                holochain::conductor::handle::ConductorHandleT::install_app_bundle(
+                    conductor.inner_handle(),
+                    payload,
+                )
+                .await
+                .expect("Failed to install")
+                .into();
             if s.elapsed().as_millis() > 500 {
                 dbg!(s.elapsed());
             }
             let s = std::time::Instant::now();
-            let id = id.installed_app_id().clone();
+            let id = id.id().clone();
             conductor
-                .activate_app(id)
+                .enable_app(&id)
                 .await
                 .expect("Failed to activate app");
 
             if s.elapsed().as_millis() > 500 {
                 dbg!(s.elapsed());
             }
-            let s = std::time::Instant::now();
-            let errors = conductor
-                .inner_handle()
-                .setup_cells()
-                .await
-                .expect("Failed to setup cells");
-            assert_eq!(0, errors.len(), "{:?}", errors);
-            if s.elapsed().as_millis() > 500 {
-                dbg!(s.elapsed());
-            }
+            // let s = std::time::Instant::now();
+            // let errors = conductor
+            //     .inner_handle()
+            //     .setup_cells()
+            //     .await
+            //     .expect("Failed to setup cells");
+            // assert_eq!(0, errors.len(), "{:?}", errors);
+            // if s.elapsed().as_millis() > 500 {
+            //     dbg!(s.elapsed());
+            // }
         }
         println!("{}:{:?}", self.total, start.elapsed());
     }
@@ -297,7 +300,10 @@ impl Producers {
         )
         .await;
         for c in &self.conductors {
-            let ids = c.list_cell_ids().await.expect("Failed to list cell ids");
+            let ids = c
+                .list_cell_ids(None)
+                .await
+                .expect("Failed to list cell ids");
             for id in ids {
                 cells.push(c.get_cell_env(&id).await.unwrap());
             }

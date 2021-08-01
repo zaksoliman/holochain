@@ -112,6 +112,10 @@ harness = false
 name = "multi_install"
 harness = false
 
+[[bench]]
+name = "signals"
+harness = false
+
 [lib]
 name = "holochain"
 path = "src/lib.rs"
