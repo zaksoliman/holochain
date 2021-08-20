@@ -32,28 +32,35 @@ lazy_static::lazy_static! {
 /// A seedable RNG which uses an Arc and a Mutex to allow easy cloneability and thread safety.
 /// A singleton global instance is created in this module. See module-level docs for more info.
 #[derive(Clone)]
+
 pub struct FixtRng(Arc<Mutex<StdRng>>);
 
 impl RngCore for FixtRng {
     fn next_u32(&mut self) -> u32 {
+
         self.0.lock().next_u32()
     }
 
     fn next_u64(&mut self) -> u64 {
+
         self.0.lock().next_u64()
     }
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
+
         self.0.lock().fill_bytes(dest)
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+
         self.0.lock().try_fill_bytes(dest)
     }
 }
 
 /// Access the seeded random number generator. This should be used in all places where
 /// tests produce random values.
+
 pub fn rng() -> FixtRng {
+
     FIXT_RNG.clone()
 }

@@ -8,23 +8,29 @@ use agent_info_helper::*;
 use dht_arc::ArcInterval;
 
 /// A list of Urls.
+
 pub type UrlList = Vec<TxUrl>;
 
 /// An agent paired with its storage arc in interval form
+
 pub type AgentArc = (Arc<KitsuneAgent>, ArcInterval);
 
 /// agent_info helper types
+
 pub mod agent_info_helper {
+
     use super::*;
 
     #[allow(missing_docs)]
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
     pub struct AgentMetaInfoEncode {
         pub dht_storage_arc_half_length: u32,
     }
 
     #[allow(missing_docs)]
     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
     pub struct AgentInfoEncode {
         pub space: Arc<KitsuneSpace>,
         pub agent: Arc<KitsuneAgent>,
@@ -40,6 +46,7 @@ pub mod agent_info_helper {
 
     #[allow(missing_docs)]
     #[derive(Debug, serde::Deserialize)]
+
     pub struct AgentInfoSignedEncode {
         pub agent: Arc<KitsuneAgent>,
         pub signature: Arc<KitsuneSignature>,
@@ -49,6 +56,7 @@ pub mod agent_info_helper {
 
     #[allow(missing_docs)]
     #[derive(Debug, serde::Serialize)]
+
     pub struct AgentInfoSignedEncodeRef<'lt> {
         pub agent: &'lt Arc<KitsuneAgent>,
         pub signature: &'lt Arc<KitsuneSignature>,
@@ -58,6 +66,7 @@ pub mod agent_info_helper {
 }
 
 /// The inner constructable AgentInfo struct
+
 pub struct AgentInfoInner {
     /// The space this agent info is relevant to.
     pub space: Arc<KitsuneSpace>,
@@ -91,6 +100,7 @@ pub struct AgentInfoInner {
 
 impl std::fmt::Debug for AgentInfoInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         f.debug_struct("AgentInfoSigned")
             .field("space", &self.space)
             .field("agent", &self.agent)
@@ -104,6 +114,7 @@ impl std::fmt::Debug for AgentInfoInner {
 
 impl PartialEq for AgentInfoInner {
     fn eq(&self, oth: &Self) -> bool {
+
         self.encoded_bytes.eq(&oth.encoded_bytes)
     }
 }
@@ -112,18 +123,21 @@ impl Eq for AgentInfoInner {}
 
 impl std::hash::Hash for AgentInfoInner {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+
         self.encoded_bytes.hash(state);
     }
 }
 
 /// Value in the peer database that tracks an Agent's representation as signed by that agent.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+
 pub struct AgentInfoSigned(pub Arc<AgentInfoInner>);
 
 impl std::ops::Deref for AgentInfoSigned {
     type Target = AgentInfoInner;
 
     fn deref(&self) -> &Self::Target {
+
         &self.0
     }
 }
@@ -133,11 +147,13 @@ impl serde::Serialize for AgentInfoSigned {
     where
         S: serde::Serializer,
     {
+
         let encode = AgentInfoSignedEncodeRef {
             agent: &self.agent,
             signature: &self.signature,
             agent_info: &self.encoded_bytes,
         };
+
         encode.serialize(serializer)
     }
 }
@@ -147,6 +163,7 @@ impl<'de> serde::Deserialize<'de> for AgentInfoSigned {
     where
         D: serde::Deserializer<'de>,
     {
+
         let AgentInfoSignedEncode {
             agent,
             signature,
@@ -154,17 +171,22 @@ impl<'de> serde::Deserialize<'de> for AgentInfoSigned {
         } = AgentInfoSignedEncode::deserialize(deserializer)?;
 
         let mut bytes: &[u8] = &agent_info;
+
         let info: AgentInfoEncode =
             crate::codec::rmp_decode(&mut bytes).map_err(serde::de::Error::custom)?;
+
         let mut bytes: &[u8] = &info.meta_info;
+
         let meta: AgentMetaInfoEncode =
             crate::codec::rmp_decode(&mut bytes).map_err(serde::de::Error::custom)?;
 
         if agent != info.agent {
+
             return Err(serde::de::Error::custom("agent mismatch"));
         }
 
         let center_loc = agent.get_loc();
+
         let storage_arc = DhtArc::new(center_loc, meta.dht_storage_arc_half_length);
 
         let AgentInfoEncode {
@@ -193,6 +215,7 @@ impl<'de> serde::Deserialize<'de> for AgentInfoSigned {
 
 impl AgentInfoSigned {
     /// Construct and sign a new AgentInfoSigned instance.
+
     pub async fn sign<'a, R, F>(
         space: Arc<KitsuneSpace>,
         agent: Arc<KitsuneAgent>,
@@ -206,11 +229,15 @@ impl AgentInfoSigned {
         R: std::future::Future<Output = KitsuneResult<Arc<KitsuneSignature>>>,
         F: FnOnce(&[u8]) -> R,
     {
+
         let meta = AgentMetaInfoEncode {
             dht_storage_arc_half_length,
         };
+
         let mut buf = Vec::new();
+
         crate::codec::rmp_encode(&mut buf, meta).map_err(KitsuneError::other)?;
+
         let meta = buf.into_boxed_slice();
 
         let info = AgentInfoEncode {
@@ -221,13 +248,17 @@ impl AgentInfoSigned {
             expires_after_ms: expires_at_ms - signed_at_ms,
             meta_info: meta,
         };
+
         let mut buf = Vec::new();
+
         crate::codec::rmp_encode(&mut buf, info).map_err(KitsuneError::other)?;
+
         let encoded_bytes = buf.into_boxed_slice();
 
         let signature = f(&encoded_bytes).await?;
 
         let center_loc = agent.get_loc();
+
         let inner = AgentInfoInner {
             space,
             agent,
@@ -243,31 +274,45 @@ impl AgentInfoSigned {
     }
 
     /// decode from msgpack
+
     pub fn decode(b: &[u8]) -> KitsuneResult<Self> {
+
         let mut bytes: &[u8] = &b;
+
         crate::codec::rmp_decode(&mut bytes).map_err(KitsuneError::other)
     }
 
     /// encode as msgpack
+
     pub fn encode(&self) -> KitsuneResult<Box<[u8]>> {
+
         let mut buf = Vec::new();
+
         crate::codec::rmp_encode(&mut buf, self).map_err(KitsuneError::other)?;
+
         Ok(buf.into_boxed_slice())
     }
 
     /// get just the agent and its storage arc
+
     pub fn to_agent_arc(&self) -> AgentArc {
+
         (self.agent.clone(), self.storage_arc.interval())
     }
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn agent_info() {
+
         let space = Arc::new(KitsuneSpace(vec![0x01; 36]));
+
         let agent = Arc::new(KitsuneAgent(vec![0x02; 36]));
 
         let info = AgentInfoSigned::sign(
@@ -283,12 +328,17 @@ mod tests {
         .unwrap();
 
         assert_eq!(info.space, space);
+
         assert_eq!(info.agent, agent);
 
         let mut enc = Vec::new();
+
         crate::codec::rmp_encode(&mut enc, &info).unwrap();
+
         let mut bytes: &[u8] = &enc;
+
         let info2: AgentInfoSigned = crate::codec::rmp_decode(&mut bytes).unwrap();
+
         assert_eq!(info, info2);
     }
 }

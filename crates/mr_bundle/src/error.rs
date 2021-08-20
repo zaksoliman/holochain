@@ -4,6 +4,7 @@ use holochain_util::ffs::IoError;
 
 /// Any error which can occur in this crate
 #[derive(Debug, thiserror::Error)]
+
 pub enum MrBundleError {
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
@@ -31,10 +32,12 @@ pub enum MrBundleError {
     #[error(transparent)]
     MsgpackDecodeError(#[from] rmp_serde::decode::Error),
 }
+
 pub type MrBundleResult<T> = Result<T, MrBundleError>;
 
 /// Errors which can occur while constructing a Bundle
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
+
 pub enum BundleError {
     #[error(
         "The bundled resource path '{0}' is not mentioned in the manifest.
@@ -50,11 +53,13 @@ pub enum BundleError {
     )]
     RelativeLocalPath(std::path::PathBuf),
 }
+
 pub type BundleResult<T> = Result<T, BundleError>;
 
 /// Errors which can occur while unpacking resources from a Bundle
 #[cfg(feature = "packing")]
 #[derive(Debug, thiserror::Error)]
+
 pub enum UnpackingError {
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
@@ -75,15 +80,20 @@ pub enum UnpackingError {
     Absolute path: '{0}'. Relative path: '{1}'.")]
     ManifestPathSuffixMismatch(std::path::PathBuf, std::path::PathBuf),
 }
+
 #[cfg(feature = "packing")]
+
 pub type UnpackingResult<T> = Result<T, UnpackingError>;
 
 /// Errors which can occur while packing resources into a Bundle
 #[cfg(feature = "packing")]
 #[derive(Debug, thiserror::Error)]
+
 pub enum PackingError {
     #[error("Must supply the path to the manifest file inside a bundle directory to pack. You supplied: {0}. Original error: {1}")]
     BadManifestPath(std::path::PathBuf, std::io::Error),
 }
+
 #[cfg(feature = "packing")]
+
 pub type PackingResult<T> = Result<T, PackingError>;

@@ -7,6 +7,7 @@ use std::future::Future;
 use kitsune_p2p_direct_api::KdApi;
 
 /// HttpResponse data
+
 pub struct HttpResponse {
     /// the response status code to send
     pub status: u16,
@@ -20,6 +21,7 @@ pub struct HttpResponse {
 
 impl Default for HttpResponse {
     fn default() -> Self {
+
         Self {
             status: 200,
             body: Vec::new(),
@@ -29,10 +31,12 @@ impl Default for HttpResponse {
 }
 
 /// Respond to an incoming http request
+
 pub type HttpRespondCb =
     Box<dyn FnOnce(KdResult<HttpResponse>) -> BoxFuture<'static, KdResult<()>> + 'static + Send>;
 
 /// Events emitted from a KdSrv instance.
+
 pub enum KdSrvEvt {
     /// An incoming Http request
     HttpRequest {
@@ -69,35 +73,45 @@ pub enum KdSrvEvt {
 }
 
 /// Stream of KdSrvEvt instances
+
 pub type KdSrvEvtStream = Box<dyn futures::Stream<Item = KdSrvEvt> + 'static + Send + Unpin>;
 
 /// Trait representing a persistence store.
+
 pub trait AsKdSrv: 'static + Send + Sync {
     /// Get a uniq val that assists with Eq/Hash of trait objects.
+
     fn uniq(&self) -> Uniq;
 
     /// Check if this persist instance has been closed
+
     fn is_closed(&self) -> bool;
 
     /// Explicitly close this persist instance
+
     fn close(&self) -> BoxFuture<'static, ()>;
 
     /// Get the bound addr of this KdSrv instance
+
     fn local_addr(&self) -> KdResult<std::net::SocketAddr>;
 
     /// Broadcast to all connected websockets
+
     fn websocket_broadcast(&self, data: KdApi) -> BoxFuture<'static, KdResult<()>>;
 
     /// Send data to a specific websocket connection
+
     fn websocket_send(&self, con: Uniq, data: KdApi) -> BoxFuture<'static, KdResult<()>>;
 }
 
 /// Handle to a Srv instance.
 #[derive(Clone)]
+
 pub struct KdSrv(pub Arc<dyn AsKdSrv>);
 
 impl PartialEq for KdSrv {
     fn eq(&self, oth: &Self) -> bool {
+
         self.0.uniq().eq(&oth.0.uniq())
     }
 }
@@ -106,40 +120,51 @@ impl Eq for KdSrv {}
 
 impl std::hash::Hash for KdSrv {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+
         self.0.uniq().hash(state)
     }
 }
 
 impl KdSrv {
     /// Check if this persist instance has been closed
+
     pub fn is_closed(&self) -> bool {
+
         AsKdSrv::is_closed(&*self.0)
     }
 
     /// Explicitly close this persist instance
+
     pub fn close(&self) -> impl Future<Output = ()> + 'static + Send {
+
         AsKdSrv::close(&*self.0)
     }
 
     /// Get the bound addr of this KdSrv instance
+
     pub fn local_addr(&self) -> KdResult<std::net::SocketAddr> {
+
         AsKdSrv::local_addr(&*self.0)
     }
 
     /// Broadcast to all connected websockets
+
     pub fn websocket_broadcast(
         &self,
         data: KdApi,
     ) -> impl Future<Output = KdResult<()>> + 'static + Send {
+
         AsKdSrv::websocket_broadcast(&*self.0, data)
     }
 
     /// Send data to a specific websocket connection
+
     pub fn websocket_send(
         &self,
         con: Uniq,
         data: KdApi,
     ) -> impl Future<Output = KdResult<()>> + 'static + Send {
+
         AsKdSrv::websocket_send(&*self.0, con, data)
     }
 }

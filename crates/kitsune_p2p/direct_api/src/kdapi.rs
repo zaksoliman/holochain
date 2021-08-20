@@ -5,6 +5,7 @@ use crate::*;
 /// KdApi websocket communication serialization type.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type")]
+
 pub enum KdApi {
     /// A structured user-defined message
     #[serde(rename = "user")]
@@ -358,8 +359,11 @@ pub enum KdApi {
 
 impl std::fmt::Display for KdApi {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         let s = serde_json::to_string_pretty(&self).map_err(|_| std::fmt::Error)?;
+
         f.write_str(&s)?;
+
         Ok(())
     }
 }
@@ -368,6 +372,7 @@ impl std::str::FromStr for KdApi {
     type Err = KdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+
         serde_json::from_str(s).map_err(KdError::other)
     }
 }
@@ -376,12 +381,16 @@ impl KdApi {
     /// Reconstruct this KdApi from a `to_string()` str.
     // this *does* implement the trait clippy...
     #[allow(clippy::should_implement_trait)]
+
     pub fn from_str(s: &str) -> KdResult<Self> {
+
         std::str::FromStr::from_str(s)
     }
 
     /// Get the msg_id (or empty string ("")) associated with this api.
+
     pub fn msg_id(&self) -> &str {
+
         match self {
             Self::User { .. } => "",
             Self::ErrorRes { msg_id, .. } => msg_id,
@@ -413,7 +422,9 @@ impl KdApi {
 
     /// Returns true if the message is a response type.
     #[allow(clippy::match_like_matches_macro)]
+
     pub fn is_res(&self) -> bool {
+
         match self {
             Self::ErrorRes { .. } => true,
             Self::HelloRes { .. } => true,
@@ -433,15 +444,20 @@ impl KdApi {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
 
     #[test]
+
     fn test_kd_api_encode_decode() {
+
         let api = KdApi::HelloReq {
             msg_id: "test".to_string(),
             salt: vec![1, 2, 3, 4].into_boxed_slice().into(),
         };
+
         println!("{}", api);
     }
 }

@@ -23,22 +23,27 @@ pub mod facts;
 /// Any header with a header_seq less than this value is part of an element
 /// created during genesis. Anything with this seq or higher was created
 /// after genesis.
+
 pub const POST_GENESIS_SEQ_THRESHOLD: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SerializedBytes)]
+
 pub struct HeaderHashes(pub Vec<HeaderHash>);
 
 impl From<Vec<HeaderHash>> for HeaderHashes {
     fn from(vs: Vec<HeaderHash>) -> Self {
+
         Self(vs)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SerializedBytes)]
+
 pub struct HeaderHashedVec(pub Vec<HeaderHashed>);
 
 impl From<Vec<HeaderHashed>> for HeaderHashedVec {
     fn from(vs: Vec<HeaderHashed>) -> Self {
+
         Self(vs)
     }
 }
@@ -53,6 +58,7 @@ impl From<Vec<HeaderHashed>> for HeaderHashedVec {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[serde(tag = "type")]
+
 pub enum Header {
     // The first header in a chain (for the DNA) doesn't have a previous header
     Dna(Dna),
@@ -70,6 +76,7 @@ pub enum Header {
 pub type HeaderHashed = HoloHashed<Header>;
 
 /// a utility wrapper to write intos for our data types
+
 macro_rules! write_into_header {
     ($($n:ident),*,) => {
         $(
@@ -113,13 +120,16 @@ macro_rules! write_into_header {
 }
 
 /// A trait to specify the common parts of a Header
+
 pub trait HeaderInner {
     /// Get a full header from the subset
+
     fn into_header(self) -> Header;
 }
 
 impl<I: HeaderInner> From<I> for Header {
     fn from(i: I) -> Self {
+
         i.into_header()
     }
 }
@@ -138,9 +148,11 @@ write_into_header! {
 }
 
 #[cfg(feature = "rusqlite")]
+
 impl_to_sql_via_display!(HeaderType);
 
 /// a utility macro just to not have to type in the match statement everywhere.
+
 macro_rules! match_header {
     ($h:ident => |$i:ident| { $($t:tt)* }) => {
         match $h {
@@ -160,9 +172,11 @@ macro_rules! match_header {
 
 impl Header {
     /// Returns the address and entry type of the Entry, if applicable.
+
     // TODO: DRY: possibly create an `EntryData` struct which is used by both
     // Create and Update
     pub fn entry_data(&self) -> Option<(&EntryHash, &EntryType)> {
+
         match self {
             Self::Create(Create {
                 entry_hash,
@@ -179,29 +193,38 @@ impl Header {
     }
 
     pub fn entry_hash(&self) -> Option<&EntryHash> {
+
         self.entry_data().map(|d| d.0)
     }
 
     pub fn entry_type(&self) -> Option<&EntryType> {
+
         self.entry_data().map(|d| d.1)
     }
 
     pub fn header_type(&self) -> HeaderType {
+
         self.into()
     }
 
     /// returns the public key of the agent who signed this header.
+
     pub fn author(&self) -> &AgentPubKey {
+
         match_header!(self => |i| { &i.author })
     }
 
     /// returns the timestamp of when the header was created
+
     pub fn timestamp(&self) -> Timestamp {
+
         match_header!(self => |i| { i.timestamp })
     }
 
     /// returns the sequence ordinal of this header
+
     pub fn header_seq(&self) -> u32 {
+
         match self {
             // Dna is always 0
             Self::Dna(Dna { .. }) => 0,
@@ -218,7 +241,9 @@ impl Header {
     }
 
     /// returns the previous header except for the DNA header which doesn't have a previous
+
     pub fn prev_header(&self) -> Option<&HeaderHash> {
+
         Some(match self {
             Self::Dna(Dna { .. }) => return None,
             Self::AgentValidationPkg(AgentValidationPkg { prev_header, .. }) => prev_header,
@@ -234,6 +259,7 @@ impl Header {
     }
 
     pub fn is_genesis(&self) -> bool {
+
         self.header_seq() < POST_GENESIS_SEQ_THRESHOLD
     }
 }
@@ -257,6 +283,7 @@ impl_hashable_content!(Header, Header);
     SerializedBytes,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct ZomeId(u8);
 
 #[derive(
@@ -273,11 +300,13 @@ pub struct ZomeId(u8);
     SerializedBytes,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct EntryDefIndex(pub u8);
 
 /// The Dna Header is always the first header in a source chain
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Dna {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -289,6 +318,7 @@ pub struct Dna {
 /// is allowed to participate in this DNA
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct AgentValidationPkg {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -302,6 +332,7 @@ pub struct AgentValidationPkg {
 /// completed, and the chain is ready for commits. Contains no explicit data.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct InitZomesComplete {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -312,6 +343,7 @@ pub struct InitZomesComplete {
 /// Declares that a metadata Link should be made between two EntryHashes
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct CreateLink {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -327,6 +359,7 @@ pub struct CreateLink {
 /// Declares that a previously made Link should be nullified and considered removed.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct DeleteLink {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -345,6 +378,7 @@ pub struct DeleteLink {
 /// new chain to declare the migration path taken. **Currently unused**
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct OpenChain {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -358,6 +392,7 @@ pub struct OpenChain {
 /// old chain to declare the migration path taken. **Currently unused**
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct CloseChain {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -371,6 +406,7 @@ pub struct CloseChain {
 /// referenced by multiple such headers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Create {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -395,6 +431,7 @@ pub struct Create {
 /// or how to break the loop.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Update {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -416,6 +453,7 @@ pub struct Update {
 /// Headers are marked deleted.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Delete {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -431,6 +469,7 @@ pub struct Delete {
 /// Not currently in use.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct UpdateHeader {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -444,6 +483,7 @@ pub struct UpdateHeader {
 /// Not currently in use.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct DeleteHeader {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -459,6 +499,7 @@ pub struct DeleteHeader {
 /// corresponding Entries.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub enum EntryType {
     /// An AgentPubKey
     AgentPubKey,
@@ -472,6 +513,7 @@ pub enum EntryType {
 
 impl EntryType {
     pub fn visibility(&self) -> &EntryVisibility {
+
         match self {
             EntryType::AgentPubKey => &EntryVisibility::Public,
             EntryType::App(t) => &t.visibility(),
@@ -483,6 +525,7 @@ impl EntryType {
 
 impl std::fmt::Display for EntryType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         match self {
             EntryType::AgentPubKey => writeln!(f, "AgentPubKey"),
             EntryType::App(aet) => writeln!(
@@ -499,11 +542,13 @@ impl std::fmt::Display for EntryType {
 }
 
 #[cfg(feature = "rusqlite")]
+
 impl_to_sql_via_display!(EntryType);
 
 /// Information about a class of Entries provided by the DNA
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, SerializedBytes, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct AppEntryType {
     /// u8 identifier of what entry type this is
     /// this needs to match the position of the entry type returned by entry defs
@@ -518,6 +563,7 @@ pub struct AppEntryType {
 
 impl AppEntryType {
     pub fn new(id: EntryDefIndex, zome_id: ZomeId, visibility: EntryVisibility) -> Self {
+
         Self {
             id,
             zome_id,
@@ -526,39 +572,51 @@ impl AppEntryType {
     }
 
     pub fn id(&self) -> EntryDefIndex {
+
         self.id
     }
+
     pub fn zome_id(&self) -> ZomeId {
+
         self.zome_id
     }
+
     pub fn visibility(&self) -> &EntryVisibility {
+
         &self.visibility
     }
 }
 
 impl From<EntryDefIndex> for u8 {
     fn from(ei: EntryDefIndex) -> Self {
+
         ei.0
     }
 }
 
 impl EntryDefIndex {
     /// Use as an index into a slice
+
     pub fn index(&self) -> usize {
+
         self.0 as usize
     }
 }
 
 impl ZomeId {
     /// Use as an index into a slice
+
     pub fn index(&self) -> usize {
+
         self.0 as usize
     }
 }
 
 #[cfg(feature = "full")]
+
 impl rusqlite::ToSql for ZomeId {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput> {
+
         Ok(self.0.into())
     }
 }

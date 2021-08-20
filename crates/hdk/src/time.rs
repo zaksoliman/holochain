@@ -61,16 +61,22 @@ use crate::prelude::*;
 /// on the current time within relatively tight accuracy/precision up-front in a relatively trusted
 /// environment e.g. a chess game between friends with time moves that balances security/trust and
 /// flaky networking, etc.
+
 pub fn sys_time() -> ExternResult<Timestamp> {
+
     HDK.with(|h| h.borrow().sys_time(()))
 }
 
 /// @todo Not implemented
+
 pub fn schedule(execute_after: std::time::Duration) -> ExternResult<()> {
+
     HDK.with(|h| h.borrow().schedule(execute_after))
 }
 
 /// @todo Not implemented
+
 pub fn sleep(wake_after: std::time::Duration) -> ExternResult<()> {
+
     HDK.with(|h| h.borrow().sleep(wake_after))
 }

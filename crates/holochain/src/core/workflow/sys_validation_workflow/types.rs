@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 /// The outcome of sys validation
+
 pub(super) enum Outcome {
     /// Moves to app validation
     Accepted,

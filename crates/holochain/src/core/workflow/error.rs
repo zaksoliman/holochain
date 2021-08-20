@@ -17,6 +17,7 @@ use holochain_types::prelude::*;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+
 pub enum WorkflowError {
     #[error("The genesis self-check failed. App cannot be installed. Reason: {0}")]
     GenesisFailure(String),
@@ -98,4 +99,5 @@ pub enum WorkflowError {
 }
 
 /// Internal type to handle running workflows
+
 pub type WorkflowResult<T> = Result<T, WorkflowError>;

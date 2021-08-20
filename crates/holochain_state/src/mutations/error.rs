@@ -1,7 +1,9 @@
 use thiserror::Error;
 
 use crate::query::StateQueryError;
+
 #[derive(Error, Debug)]
+
 pub enum StateMutationError {
     #[error(transparent)]
     Sql(#[from] holochain_sqlite::rusqlite::Error),

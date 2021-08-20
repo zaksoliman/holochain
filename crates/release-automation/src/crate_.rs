@@ -8,12 +8,14 @@ use structopt::StructOpt;
 use crate::{release::ReleaseWorkspace, CommandResult, Fallible};
 
 #[derive(StructOpt, Debug)]
+
 pub(crate) struct CrateArgs {
     #[structopt(subcommand)]
     pub(crate) command: CrateCommands,
 }
 
 #[derive(Debug, StructOpt)]
+
 pub(crate) struct CrateSetVersionArgs {
     #[structopt(long)]
     pub(crate) crate_name: String,
@@ -33,16 +35,19 @@ pub(crate) struct CrateApplyDevVersionsArgs {
 }
 
 #[derive(Debug, StructOpt)]
+
 pub(crate) enum CrateCommands {
     SetVersion(CrateSetVersionArgs),
     ApplyDevVersions(CrateApplyDevVersionsArgs),
 }
 
 pub(crate) fn cmd(args: &crate::cli::Args, cmd_args: &CrateArgs) -> CommandResult {
+
     let ws = ReleaseWorkspace::try_new(args.workspace_path.clone())?;
 
     match &cmd_args.command {
         CrateCommands::SetVersion(subcmd_args) => {
+
             let crt = *ws
                 .members()?
                 .iter()
@@ -71,11 +76,13 @@ pub(crate) fn cmd(args: &crate::cli::Args, cmd_args: &CrateArgs) -> CommandResul
 /// To prevent this, we increase crate B's version to a develop version that hasn't been published yet.
 /// This will detect a missing dependency in an attempt to publish crate A, as the dev version of crate B is not found on the registry.
 /// Note that we wouldn't publish the develop version of crate B, as the regular workspace release flow also increases its version according to the configured scheme.
+
 pub(crate) fn apply_dev_versions<'a>(
     ws: &'a ReleaseWorkspace<'a>,
     dev_suffix: &str,
     dry_run: bool,
 ) -> Fallible<()> {
+
     let mut applicable_crates = ws
         .members()?
         .iter()
@@ -84,12 +91,15 @@ pub(crate) fn apply_dev_versions<'a>(
         .collect::<HashMap<_, _>>();
 
     let mut queue = applicable_crates.values().copied().collect::<Vec<_>>();
+
     let mut msg = String::new();
 
     while let Some(crt) = queue.pop() {
+
         let mut version = crt.version();
 
         if version.is_prerelease() {
+
             debug!(
                 "[{}] ignoring due to prerelease version '{}' after supposed release",
                 crt.name(),
@@ -100,6 +110,7 @@ pub(crate) fn apply_dev_versions<'a>(
         }
 
         version.increment_patch();
+
         version = semver::Version::parse(&format!("{}-{}", version, dev_suffix))?;
 
         debug!(
@@ -110,11 +121,13 @@ pub(crate) fn apply_dev_versions<'a>(
         );
 
         for changed_dependant in crate::common::set_version(dry_run, crt, &version)? {
+
             if applicable_crates
                 .insert(changed_dependant.name(), changed_dependant)
                 .is_none()
                 && changed_dependant.state().has_previous_release()
             {
+
                 queue.push(changed_dependant);
             }
         }
@@ -124,6 +137,7 @@ pub(crate) fn apply_dev_versions<'a>(
     }
 
     if !msg.is_empty() {
+
         let commit_msg = indoc::formatdoc! {r#"
             apply develop versions to changed crates
 
@@ -136,6 +150,7 @@ pub(crate) fn apply_dev_versions<'a>(
         info!("creating commit with message '{}' ", commit_msg);
 
         if !dry_run {
+
             // this checks consistency and also updates the Cargo.lock file(s)
             ws.cargo_check()?;
 

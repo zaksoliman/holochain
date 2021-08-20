@@ -2,6 +2,7 @@ use super::*;
 
 impl NewEntryHeader {
     pub fn header_seq_mut(&mut self) -> &mut u32 {
+
         match self {
             Self::Create(Create {
                 ref mut header_seq, ..
@@ -13,6 +14,7 @@ impl NewEntryHeader {
     }
 
     pub fn entry_data_mut(&mut self) -> (&mut EntryHash, &mut EntryType) {
+
         match self {
             Self::Create(Create {
                 ref mut entry_hash,
@@ -28,6 +30,7 @@ impl NewEntryHeader {
     }
 
     pub fn entry_hash_mut(&mut self) -> &mut EntryHash {
+
         self.entry_data_mut().0
     }
 }

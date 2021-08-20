@@ -19,30 +19,44 @@ pub use holochain_zome_types::capability::CapSecret;
 use observability;
 
 #[derive(Serialize, Deserialize, SerializedBytes, Debug)]
+
 struct CreateMessageInput {
     channel_hash: EntryHash,
     content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, SerializedBytes)]
+
 pub struct ChannelName(String);
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn ser_entry_hash_test() {
+
     observability::test_run().ok();
+
     let eh = fixt!(EntryHash);
+
     let extern_io: ExternIO = ExternIO::encode(eh).unwrap();
+
     tracing::debug!(?extern_io);
+
     let o: EntryHash = extern_io.decode().unwrap();
+
     let extern_io: ExternIO = ExternIO::encode(o).unwrap();
+
     tracing::debug!(?extern_io);
+
     let _eh: EntryHash = extern_io.decode().unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]
 /// we can call a fn on a remote
+
 async fn ser_regression_test() {
+
     observability::test_run().ok();
+
     // ////////////
     // START DNA
     // ////////////
@@ -68,7 +82,9 @@ async fn ser_regression_test() {
     // ///////////
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     // /////////
@@ -80,7 +96,9 @@ async fn ser_regression_test() {
     // /////////
 
     let bob_agent_id = fake_agent_pubkey_2();
+
     let bob_cell_id = CellId::new(dna_file.dna_hash().to_owned(), bob_agent_id.clone());
+
     let bob_installed_cell = InstalledCell::new(bob_cell_id.clone(), "bob_handle".into());
 
     // ///////
@@ -94,14 +112,17 @@ async fn ser_regression_test() {
     let mut dna_store = MockDnaStore::new();
 
     dna_store.expect_get().return_const(Some(dna_file.clone()));
+
     dna_store
         .expect_add_dnas::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store
         .expect_add_entry_defs::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store.expect_get_entry_def().return_const(None);
 
     let (_tmpdir, app_api, handle) = setup_app(
@@ -128,7 +149,9 @@ async fn ser_regression_test() {
     };
 
     let request = Box::new(invocation.clone());
+
     let request = AppRequest::ZomeCall(request).try_into().unwrap();
+
     let response = app_api.handle_app_request(request).await;
 
     let _channel_hash: EntryHash = match response {
@@ -147,6 +170,7 @@ async fn ser_regression_test() {
         channel_hash,
         content: "Hello from alice :)".into(),
     };
+
     let invocation = ZomeCall {
         cell_id: alice_cell_id.clone(),
         zome_name: TestWasm::SerRegression.into(),
@@ -157,7 +181,9 @@ async fn ser_regression_test() {
     };
 
     let request = Box::new(invocation.clone());
+
     let request = AppRequest::ZomeCall(request).try_into().unwrap();
+
     let response = app_api.handle_app_request(request).await;
 
     let _msg_hash: EntryHash = match response {
@@ -173,7 +199,9 @@ async fn ser_regression_test() {
     };
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
@@ -181,7 +209,9 @@ pub async fn setup_app(
     cell_data: Vec<(InstalledCell, Option<SerializedBytes>)>,
     dna_store: MockDnaStore,
 ) -> (TestEnvs, RealAppInterfaceApi, ConductorHandle) {
+
     let envs = test_environments();
+
     let conductor_handle = ConductorBuilder::with_mock_dna_store(dna_store)
         .test(&envs, &[])
         .await

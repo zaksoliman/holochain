@@ -58,6 +58,7 @@ impl Iterator for RealRibosomeFixturator<curve::Zomes> {
     type Item = RealRibosome;
 
     fn next(&mut self) -> Option<Self::Item> {
+
         // @todo fixturate this
         let dna_file = fake_dna_zomes(
             &StringFixturator::new(Unpredictable).next().unwrap(),
@@ -74,8 +75,11 @@ impl Iterator for RealRibosomeFixturator<curve::Zomes> {
 
         // warm the module cache for each wasm in the ribosome
         for zome in self.0.curve.0.clone() {
+
             let mut call_context = CallContextFixturator::new(Empty).next().unwrap();
+
             call_context.zome = zome.into();
+
             ribosome.module(call_context.zome.zome_name()).unwrap();
         }
 
@@ -204,23 +208,34 @@ fixturator!(
     HeaderHashes,
     vec![].into(),
     {
+
         let mut rng = rand::thread_rng();
+
         let number_of_hashes = rng.gen_range(0, 5);
 
         let mut hashes: Vec<HeaderHash> = vec![];
+
         let mut header_hash_fixturator = HeaderHashFixturator::new(Unpredictable);
+
         for _ in 0..number_of_hashes {
+
             hashes.push(header_hash_fixturator.next().unwrap());
         }
+
         hashes.into()
     },
     {
+
         let mut hashes: Vec<HeaderHash> = vec![];
+
         let mut header_hash_fixturator =
             HeaderHashFixturator::new_indexed(Predictable, get_fixt_index!());
+
         for _ in 0..3 {
+
             hashes.push(header_hash_fixturator.next().unwrap());
         }
+
         hashes.into()
     }
 );
@@ -290,8 +305,11 @@ fixturator!(
 );
 
 fn make_call_zome_handle(cell_id: CellId) -> CellConductorReadHandle {
+
     let handle = Arc::new(MockConductorHandleT::new());
+
     let cell_conductor_api = CellConductorApi::new(handle, cell_id);
+
     Arc::new(cell_conductor_api)
 }
 
@@ -354,6 +372,7 @@ fn make_validate_invocation(
     zomes_to_invoke: ZomesToInvoke,
     element: Element,
 ) -> ValidateInvocation {
+
     ValidateInvocation {
         zomes_to_invoke,
         element: Arc::new(element),
@@ -378,6 +397,7 @@ fixturator!(
 );
 
 /// Macros don't get along with generics.
+
 type ValidateLinkInvocationCreate = ValidateLinkInvocation<ValidateCreateLinkInvocation>;
 
 fixturator!(
@@ -393,6 +413,7 @@ fixturator!(
 );
 
 /// Macros don't get along with generics.
+
 type ValidateLinkInvocationDelete = ValidateLinkInvocation<ValidateDeleteLinkInvocation>;
 
 fixturator!(
@@ -480,22 +501,30 @@ fixturator!(
 
 /// Fixturator curve for a named zome invocation
 /// cell id, test wasm for zome to call, function name, host input payload
+
 pub struct NamedInvocation(pub CellId, pub TestWasm, pub String, pub ExternIO);
 
 impl Iterator for ZomeCallInvocationFixturator<NamedInvocation> {
     type Item = ZomeCallInvocation;
+
     fn next(&mut self) -> Option<Self::Item> {
+
         let mut ret = ZomeCallInvocationFixturator::new(Unpredictable)
             .next()
             .unwrap();
+
         ret.cell_id = self.0.curve.0.clone();
+
         ret.zome = self.0.curve.1.into();
+
         ret.fn_name = self.0.curve.2.clone().into();
+
         ret.payload = self.0.curve.3.clone();
 
         // simulate a local transaction by setting the cap to empty and matching the provenance of
         // the call to the cell id
         ret.cap = None;
+
         ret.provenance = ret.cell_id.agent_pubkey().clone();
 
         Some(ret)

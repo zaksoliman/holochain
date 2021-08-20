@@ -11,21 +11,26 @@ use holochain_wasm_test_utils::TestWasm;
 use holochain_zome_types::inline_zome::BoxApi;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, SerializedBytes, derive_more::From)]
+
 struct BaseTarget(EntryHash, EntryHash);
 
 fn links_zome() -> InlineZome {
+
     InlineZome::new_unique(vec![])
         .callback("create_link", move |api, base_target: BaseTarget| {
+
             let hash = api.create_link(CreateLinkInput::new(
                 base_target.0,
                 base_target.1,
                 ().into(),
             ))?;
+
             Ok(hash)
         })
         .callback(
             "get_links",
             move |api: BoxApi, base: EntryHash| -> InlineZomeResult<Vec<Links>> {
+
                 Ok(api.get_links(vec![GetLinksInput::new(base, None)])?)
             },
         )
@@ -35,8 +40,11 @@ fn links_zome() -> InlineZome {
 /// one agent, and after a delay, all agents can get the link
 #[tokio::test(flavor = "multi_thread")]
 #[cfg(feature = "slow_tests")]
+
 async fn many_agents_can_reach_consistency_agent_links() {
+
     observability::test_run().ok();
+
     const NUM_AGENTS: usize = 20;
 
     let (dna_file, _) = SweetDnaFile::unique_from_inline_zome("links", links_zome())
@@ -47,17 +55,21 @@ async fn many_agents_can_reach_consistency_agent_links() {
     let mut conductor = SweetConductor::from_config(Default::default()).await;
 
     let agents = SweetAgents::get(conductor.keystore(), NUM_AGENTS).await;
+
     let apps = conductor
         .setup_app_for_agents("app", &agents, &[dna_file])
         .await
         .unwrap();
+
     let cells = apps.cells_flattened();
+
     let alice = cells[0].zome("links");
 
     // Must have integrated or be able to get the agent key to link from it
     consistency_10s(&cells[..]).await;
 
     let base: EntryHash = cells[0].agent_pubkey().clone().into();
+
     let target: EntryHash = cells[1].agent_pubkey().clone().into();
 
     let _: HeaderHash = conductor
@@ -73,10 +85,12 @@ async fn many_agents_can_reach_consistency_agent_links() {
     let mut seen = [0usize; NUM_AGENTS];
 
     for (i, cell) in cells.iter().enumerate() {
+
         // let links: Links = conductor.call(&cell.zome(TestWasm::Link), "get_links", ()).await;
         let links: Vec<Links> = conductor
             .call(&cell.zome("links"), "get_links", base.clone())
             .await;
+
         seen[i] = links.into_iter().next().unwrap().into_inner().len();
     }
 
@@ -87,8 +101,11 @@ async fn many_agents_can_reach_consistency_agent_links() {
 /// agent, and after a delay, all agents can get the link
 #[tokio::test(flavor = "multi_thread")]
 #[cfg(feature = "slow_tests")]
+
 async fn many_agents_can_reach_consistency_normal_links() {
+
     observability::test_run().ok();
+
     const NUM_AGENTS: usize = 30;
 
     let (dna_file, _) = SweetDnaFile::unique_from_test_wasms(vec![TestWasm::Link])
@@ -99,11 +116,14 @@ async fn many_agents_can_reach_consistency_normal_links() {
     let mut conductor = SweetConductor::from_config(Default::default()).await;
 
     let agents = SweetAgents::get(conductor.keystore(), NUM_AGENTS).await;
+
     let apps = conductor
         .setup_app_for_agents("app", &agents, &[dna_file])
         .await
         .unwrap();
+
     let cells = apps.cells_flattened();
+
     let alice = cells[0].zome(TestWasm::Link);
 
     let _: HeaderHash = conductor.call(&alice, "create_link", ()).await;
@@ -113,9 +133,11 @@ async fn many_agents_can_reach_consistency_normal_links() {
     let mut num_seen = 0;
 
     for cell in &cells {
+
         let links: Links = conductor
             .call(&cell.zome(TestWasm::Link), "get_links", ())
             .await;
+
         num_seen += links.into_inner().len();
     }
 
@@ -125,8 +147,11 @@ async fn many_agents_can_reach_consistency_normal_links() {
 #[tokio::test(flavor = "multi_thread")]
 #[cfg(feature = "test_utils")]
 #[ignore = "Slow test for CI that is only useful for timing"]
+
 async fn stuck_conductor_wasm_calls() -> anyhow::Result<()> {
+
     observability::test_run().ok();
+
     // Bundle the single zome into a DnaFile
     let (dna_file, _) = SweetDnaFile::unique_from_test_wasms(vec![TestWasm::MultipleCalls]).await?;
 
@@ -142,15 +167,18 @@ async fn stuck_conductor_wasm_calls() -> anyhow::Result<()> {
         .into_iter()
         .next()
         .unwrap();
+
     let alice = alice.zome(TestWasm::MultipleCalls);
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
+
     pub struct TwoInt(pub u32, pub u32);
 
     // Make init run to avoid head moved errors
     let _: () = conductor.call(&alice, "slow_fn", TwoInt(0, 0)).await;
 
     let all_now = std::time::Instant::now();
+
     tracing::debug!("starting slow fn");
 
     // NB: there's currently no reason to independently create a bunch of tasks here,
@@ -158,22 +186,34 @@ async fn stuck_conductor_wasm_calls() -> anyhow::Result<()> {
     // in an Arc. However, maybe this test was written to make it easy to try running some
     // or all of the closures concurrently, in which case the Arc is indeed necessary.
     let conductor_arc = std::sync::Arc::new(conductor);
+
     let mut handles = Vec::new();
+
     for i in 0..1000 {
+
         let h = tokio::task::spawn({
+
             let alice = alice.clone();
+
             let conductor = conductor_arc.clone();
+
             async move {
+
                 let now = std::time::Instant::now();
+
                 tracing::debug!("starting slow fn {}", i);
+
                 let _: () = conductor.call(&alice, "slow_fn", TwoInt(i, 5)).await;
+
                 tracing::debug!("finished slow fn {} in {}", i, now.elapsed().as_secs());
             }
         });
+
         handles.push(h);
     }
 
     for h in handles {
+
         h.await.unwrap();
     }
 

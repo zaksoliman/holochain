@@ -2,6 +2,7 @@ use super::*;
 
 /// Errors involving app entry creation
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
+
 pub enum EntryError {
     /// The entry is too large to be created
     #[error(

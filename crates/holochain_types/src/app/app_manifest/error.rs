@@ -4,6 +4,7 @@ use crate::prelude::CellNick;
 
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
+
 pub enum AppManifestError {
     #[error("Missing required field in app manifest: {0}")]
     MissingField(String),

@@ -1,5 +1,7 @@
 #[cfg(test)]
+
 mod tests {
+
     use ::fixt::prelude::*;
     use holo_hash::fixt::*;
     use holo_hash::*;
@@ -25,6 +27,7 @@ mod tests {
         // TODO: fixt: would be nice if this new fn could take a generic Curve
         // and guarantee that the fixturator is an Iterator
         pub fn new() -> Self {
+
             Self {
                 header_hashes: Box::new(HeaderHashFixturator::new(Unpredictable)),
                 entry_hashes: Box::new(EntryHashFixturator::new(Unpredictable).map(Into::into)),
@@ -36,18 +39,22 @@ mod tests {
         }
 
         pub fn header_hash(&mut self) -> HeaderHash {
+
             self.header_hashes.next().unwrap()
         }
 
         pub fn entry_hash(&mut self) -> EntryHash {
+
             self.entry_hashes.next().unwrap()
         }
 
         pub fn entry_type(&mut self) -> EntryType {
+
             self.entry_types.next().unwrap()
         }
 
         pub fn common(&mut self) -> HeaderBuilderCommon {
+
             self.commons.next().unwrap()
         }
     }
@@ -58,14 +65,18 @@ mod tests {
         original_entry_address: EntryHash,
         fx: &mut TestFixtures,
     ) -> (header::Update, HeaderHashed) {
+
         let builder = builder::Update {
             original_entry_address,
             original_header_address,
             entry_hash,
             entry_type: fx.entry_type(),
         };
+
         let update = builder.build(fx.common());
+
         let header = HeaderHashed::from_content_sync(update.clone().into());
+
         (update, header)
     }
 
@@ -73,12 +84,16 @@ mod tests {
         entry_hash: EntryHash,
         fx: &mut TestFixtures,
     ) -> (header::Create, HeaderHashed) {
+
         let builder = builder::Create {
             entry_hash,
             entry_type: fx.entry_type(),
         };
+
         let create = builder.build(fx.common());
+
         let header = HeaderHashed::from_content_sync(create.clone().into());
+
         (create, header)
     }
 
@@ -87,19 +102,25 @@ mod tests {
         deletes_entry_address: EntryHash,
         fx: &mut TestFixtures,
     ) -> (header::Delete, HeaderHashed) {
+
         let builder = builder::Delete {
             deletes_address,
             deletes_entry_address,
         };
+
         let delete = builder.build(fx.common());
+
         let header = HeaderHashed::from_content_sync(delete.clone().into());
+
         (delete, header)
     }
 
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "can't be tested until redirects are implemented"]
     /// Test that a header can be redirected a single hop
+
     async fn test_redirect_header_one_hop() -> anyhow::Result<()> {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -124,7 +145,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "can't be tested until redirects are implemented"]
     /// Test that a header can be redirected three hops
+
     async fn test_redirect_header_three_hops() -> anyhow::Result<()> {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -166,7 +189,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "can't be tested until redirects are implemented"]
     /// Test that an entry can be redirected a single hop
+
     async fn test_redirect_entry_one_hop() -> anyhow::Result<()> {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -200,7 +225,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "can't be tested until redirects are implemented"]
     /// Test that an entry can be redirected three hops
+
     async fn test_redirect_entry_three_hops() -> anyhow::Result<()> {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -249,7 +276,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "can't be tested until redirects are implemented"]
     /// Test that a header can be redirected a single hop
+
     async fn test_redirect_header_and_entry() -> anyhow::Result<()> {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -295,7 +324,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn add_entry_get_headers() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -346,7 +377,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn add_entry_get_updates() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -406,7 +439,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn add_entry_get_updates_header() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -466,7 +501,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn add_entry_get_deletes() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -523,6 +560,7 @@ mod tests {
         _entry_hash: &EntryHash,
         env: EnvWrite,
     ) {
+
         // let mut meta_buf = MetadataBuf::vault(env.clone().into()).unwrap();
         // for e in new_entries.iter().chain(update_entries.iter()) {
         //     meta_buf.register_header(e.clone()).unwrap();
@@ -545,20 +583,31 @@ mod tests {
         entry_hash: &EntryHash,
         fx: &mut TestFixtures,
     ) {
+
         for _ in 0..10 {
+
             let (e, h) = test_create(entry_hash.clone(), fx).await;
+
             entry_creates.push(NewEntryHeader::Create(e));
+
             let (e, _) = test_delete(h.clone().into_hash(), entry_hash.clone(), fx).await;
+
             entry_deletes.push(e);
+
             let (e, h) = test_update(h.into_hash(), entry_hash.clone(), fx.entry_hash(), fx).await;
+
             entry_updates.push(NewEntryHeader::Update(e));
+
             let (e, _) = test_delete(h.into_hash(), entry_hash.clone(), fx).await;
+
             delete_updates.push(e);
         }
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_entry_dht_status() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();
@@ -707,7 +756,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_entry_dht_status_one_less() {
+
         // let test_env = test_cell_env();
         // let arc = test_env.env();
         // let mut fx = TestFixtures::new();

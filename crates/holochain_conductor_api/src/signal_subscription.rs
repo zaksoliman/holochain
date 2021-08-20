@@ -6,6 +6,7 @@ use std::collections::HashMap;
 /// Declares updated Signal subscription settings for an App.
 /// This message is part of the AppInterfaceApi
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, SerializedBytes)]
+
 pub struct SignalSubscription {
     /// The app for which to manage subscription
     installed_app_id: InstalledAppId,
@@ -20,6 +21,7 @@ pub struct SignalSubscription {
 /// An empty Exclude filter means "allow all signals" (subscribe to all).
 /// An empty Include filter means "block all signals" (unsubscribe from all).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, SerializedBytes)]
+
 pub enum SignalFilterSet {
     /// Only allow signals from the specified Cells with the specified filters,
     /// block everything else
@@ -31,6 +33,7 @@ pub enum SignalFilterSet {
 
 impl Default for SignalFilterSet {
     fn default() -> Self {
+
         // The default is no filter
         Self::allow_all()
     }
@@ -38,22 +41,28 @@ impl Default for SignalFilterSet {
 
 impl SignalFilterSet {
     /// Allow all signals to come through (subscribe to all)
+
     pub fn allow_all() -> Self {
+
         SignalFilterSet::Exclude(HashMap::new())
     }
 
     /// Block all signals (unsubscribe from all)
+
     pub fn block_all() -> Self {
+
         SignalFilterSet::Include(HashMap::new())
     }
 }
 
 /// Specifies fine-grained filter controls for the signals
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, SerializedBytes)]
+
 pub struct SignalFilter;
 
 impl Default for SignalFilter {
     fn default() -> Self {
+
         // The default is no filter
         Self::empty()
     }
@@ -61,7 +70,9 @@ impl Default for SignalFilter {
 
 impl SignalFilter {
     /// A passthrough filter which filters nothing
+
     pub fn empty() -> Self {
+
         SignalFilter
     }
 }

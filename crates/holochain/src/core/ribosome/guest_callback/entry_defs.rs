@@ -8,50 +8,63 @@ use holochain_types::prelude::*;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
+
 pub struct EntryDefsInvocation;
 
 impl EntryDefsInvocation {
     #[allow(clippy::new_without_default)]
+
     pub fn new() -> Self {
+
         Self
     }
 }
 
 #[derive(Clone, Constructor)]
+
 pub struct EntryDefsHostAccess;
 
 impl From<&HostContext> for EntryDefsHostAccess {
     fn from(_: &HostContext) -> Self {
+
         Self
     }
 }
 
 impl From<EntryDefsHostAccess> for HostContext {
     fn from(entry_defs_host_access: EntryDefsHostAccess) -> Self {
+
         Self::EntryDefs(entry_defs_host_access)
     }
 }
 
 impl From<&EntryDefsHostAccess> for HostFnAccess {
     fn from(_: &EntryDefsHostAccess) -> Self {
+
         Self::none()
     }
 }
 
 impl Invocation for EntryDefsInvocation {
     fn zomes(&self) -> ZomesToInvoke {
+
         ZomesToInvoke::All
     }
+
     fn fn_components(&self) -> FnComponents {
+
         vec!["entry_defs".into()].into()
     }
+
     fn host_input(self) -> Result<ExternIO, SerializedBytesError> {
+
         ExternIO::encode(())
     }
 }
 
 /// the aggregate result of _all_ entry defs callbacks
 #[derive(PartialEq, Debug, Clone)]
+
 pub enum EntryDefsResult {
     /// simple mapping between zome and defs
     Defs(BTreeMap<ZomeName, EntryDefs>),
@@ -60,13 +73,16 @@ pub enum EntryDefsResult {
 
 impl From<Vec<(ZomeName, EntryDefsCallbackResult)>> for EntryDefsResult {
     fn from(callback_results: Vec<(ZomeName, EntryDefsCallbackResult)>) -> Self {
+
         callback_results.into_iter().fold(
             EntryDefsResult::Defs(BTreeMap::new()),
             |acc, x| match x {
                 // passing callback allows the acc to carry forward
                 (zome_name, EntryDefsCallbackResult::Defs(defs)) => match acc {
                     Self::Defs(mut btreemap) => {
+
                         btreemap.insert(zome_name, defs);
+
                         Self::Defs(btreemap)
                     }
                     Self::Err(_, _) => acc,
@@ -77,7 +93,9 @@ impl From<Vec<(ZomeName, EntryDefsCallbackResult)>> for EntryDefsResult {
 }
 
 #[cfg(test)]
+
 mod test {
+
     use super::EntryDefsHostAccess;
     use super::EntryDefsResult;
     use crate::core::ribosome::Invocation;
@@ -92,8 +110,11 @@ mod test {
 
     #[test]
     /// this is a non-standard fold test because the result is not so simple
+
     fn entry_defs_callback_result_fold() {
+
         let mut zome_name_fixturator = ZomeNameFixturator::new(::fixt::Unpredictable);
+
         let mut entry_defs_fixturator = EntryDefsFixturator::new(::fixt::Unpredictable);
 
         // zero defs
@@ -101,11 +122,16 @@ mod test {
 
         // one defs
         let zome_name = zome_name_fixturator.next().unwrap();
+
         let entry_defs = entry_defs_fixturator.next().unwrap();
+
         assert_eq!(
             EntryDefsResult::Defs({
+
                 let mut tree = BTreeMap::new();
+
                 tree.insert(zome_name.clone(), entry_defs.clone());
+
                 tree
             }),
             vec![(zome_name, EntryDefsCallbackResult::Defs(entry_defs)),].into(),
@@ -113,14 +139,22 @@ mod test {
 
         // two defs
         let zome_name_one = zome_name_fixturator.next().unwrap();
+
         let entry_defs_one = entry_defs_fixturator.next().unwrap();
+
         let zome_name_two = zome_name_fixturator.next().unwrap();
+
         let entry_defs_two = entry_defs_fixturator.next().unwrap();
+
         assert_eq!(
             EntryDefsResult::Defs({
+
                 let mut tree = BTreeMap::new();
+
                 tree.insert(zome_name_one.clone(), entry_defs_one.clone());
+
                 tree.insert(zome_name_two.clone(), entry_defs_two.clone());
+
                 tree
             }),
             vec![
@@ -132,7 +166,9 @@ mod test {
     }
 
     #[test]
+
     fn entry_defs_host_access() {
+
         assert_eq!(
             HostFnAccess::from(&EntryDefsHostAccess),
             HostFnAccess::none()
@@ -140,27 +176,36 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn entry_defs_invocation_zomes() {
+
         let entry_defs_invocation = EntryDefsInvocationFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
+
         assert_eq!(ZomesToInvoke::All, entry_defs_invocation.zomes(),);
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn entry_defs_invocation_fn_components() {
+
         let entry_defs_invocation = EntryDefsInvocationFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
 
         let mut expected = vec!["entry_defs"];
+
         for fn_component in entry_defs_invocation.fn_components() {
+
             assert_eq!(fn_component, expected.pop().unwrap());
         }
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn entry_defs_invocation_host_input() {
+
         let entry_defs_invocation = EntryDefsInvocationFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
@@ -173,7 +218,9 @@ mod test {
 
 #[cfg(test)]
 #[cfg(feature = "slow_tests")]
+
 mod slow_tests {
+
     use crate::core::ribosome::guest_callback::entry_defs::EntryDefsHostAccess;
     use crate::core::ribosome::guest_callback::entry_defs::EntryDefsResult;
     use crate::core::ribosome::RibosomeT;
@@ -188,10 +235,13 @@ mod slow_tests {
     use std::collections::BTreeMap;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_entry_defs_unimplemented() {
+
         let ribosome = RealRibosomeFixturator::new(Zomes(vec![TestWasm::Foo]))
             .next()
             .unwrap();
+
         let entry_defs_invocation = EntryDefsInvocationFixturator::new(::fixt::Empty)
             .next()
             .unwrap();
@@ -199,12 +249,16 @@ mod slow_tests {
         let result = ribosome
             .run_entry_defs(EntryDefsHostAccess, entry_defs_invocation)
             .unwrap();
+
         assert_eq!(result, EntryDefsResult::Defs(BTreeMap::new()),);
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_entry_defs_index_lookup() {
+
         let host_access = fixt!(ZomeCallHostAccess, Predictable);
+
         let output: () =
             crate::call_test_ribosome!(host_access, TestWasm::EntryDefs, "assert_indexes", ())
                 .unwrap();
@@ -213,10 +267,13 @@ mod slow_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_entry_defs_implemented_defs() {
+
         let ribosome = RealRibosomeFixturator::new(Zomes(vec![TestWasm::EntryDefs]))
             .next()
             .unwrap();
+
         let entry_defs_invocation = EntryDefsInvocationFixturator::new(::fixt::Empty)
             .next()
             .unwrap();
@@ -224,11 +281,15 @@ mod slow_tests {
         let result = ribosome
             .run_entry_defs(EntryDefsHostAccess, entry_defs_invocation)
             .unwrap();
+
         assert_eq!(
             result,
             EntryDefsResult::Defs({
+
                 let mut tree = BTreeMap::new();
+
                 let zome_name: ZomeName = "entry_defs".into();
+
                 let defs: EntryDefs = vec![
                     EntryDef {
                         id: "post".into(),
@@ -246,7 +307,9 @@ mod slow_tests {
                     },
                 ]
                 .into();
+
                 tree.insert(zome_name, defs);
+
                 tree
             }),
         );

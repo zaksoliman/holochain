@@ -6,20 +6,26 @@ use crate::*;
 #[derive(
     Debug, Clone, PartialEq, Deref, AsRef, From, Into, serde::Serialize, serde::Deserialize,
 )]
+
 pub struct ChannelData(#[serde(with = "serde_bytes")] pub Vec<u8>);
 
 /// Wire type for transfering urls.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+
 pub struct WireUrl(String);
 
 impl WireUrl {
     /// Convert to url2.
+
     pub fn to_url(&self) -> ProxyUrl {
+
         self.into()
     }
 
     /// Convert to url2.
+
     pub fn into_url(self) -> ProxyUrl {
+
         self.into()
     }
 }

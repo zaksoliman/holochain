@@ -11,11 +11,14 @@ impl ShardedGossipLocal {
     /// No empty bloom filters.
     /// - Bloom has a 1% chance of false positive (which will lead to agents not being sent back).
     /// - Expect this function to complete in an average of 10 ms and worst case 100 ms.
+
     pub(super) async fn generate_agent_bloom(
         &self,
         state: RoundState,
     ) -> KitsuneResult<Option<BloomFilter>> {
+
         let RoundState { common_arc_set, .. } = state;
+
         // Get the time range for this gossip.
         // Get all the agent info that is within the common arc set.
         let agents_within_arc: Vec<_> =
@@ -26,6 +29,7 @@ impl ShardedGossipLocal {
 
         // There was no agents so we don't create a bloom.
         if agents_within_arc.is_empty() {
+
             return Ok(None);
         }
 
@@ -33,11 +37,15 @@ impl ShardedGossipLocal {
         let mut bloom = bloomfilter::Bloom::new_for_fp_rate(agents_within_arc.len(), Self::TGT_FP);
 
         for info in agents_within_arc {
+
             let signed_at_ms = info.signed_at_ms;
+
             // The key is the agent hash + the signed at.
             let key = Arc::new(MetaOpKey::Agent(info.0.agent.clone(), signed_at_ms));
+
             bloom.set(&key);
         }
+
         Ok(Some(bloom))
     }
 
@@ -49,14 +57,18 @@ impl ShardedGossipLocal {
     /// No empty bloom filters.
     /// - Bloom has a 1% chance of false positive (which will lead to agents not being sent back).
     /// - Expect this function to complete in an average of 10 ms and worst case 100 ms.
+
     pub(super) async fn generate_ops_blooms_for_time_window(
         &self,
         local_agents: &HashSet<Arc<KitsuneAgent>>,
         common_arc_set: &Arc<DhtArcSet>,
         mut search_time_window: Range<u64>,
     ) -> KitsuneResult<Vec<TimedBloomFilter>> {
+
         let mut results = Vec::new();
+
         loop {
+
             // Get the local agents within the arc set.
             let local_agents_within_arc_set: Vec<_> =
                 store::agents_within_arcset(&self.evt_sender, &self.space, common_arc_set.clone())
@@ -81,14 +93,18 @@ impl ShardedGossipLocal {
             let (ops_within_common_arc, found_time_window) = match result {
                 Some(r) => r,
                 None => {
+
                     if !local_agents_within_arc_set.is_empty() {
+
                         // We have local agents within the arc but no hashes.
                         let bloom = TimedBloomFilter {
                             bloom: None,
                             time: search_time_window,
                         };
+
                         results.push(bloom);
                     }
+
                     break;
                 }
             };
@@ -100,6 +116,7 @@ impl ShardedGossipLocal {
                 bloomfilter::Bloom::new_for_fp_rate(ops_within_common_arc.len(), Self::TGT_FP);
 
             for hash in ops_within_common_arc {
+
                 bloom.set(&Arc::new(MetaOpKey::Op(hash)));
             }
 
@@ -109,26 +126,33 @@ impl ShardedGossipLocal {
             if num_found >= Self::UPPER_HASHES_BOUND
                 && found_time_window.end <= search_time_window.end
             {
+
                 let bloom = TimedBloomFilter {
                     bloom: Some(bloom),
                     // the `time_window.end` is exclusive, but has already been incremented
                     // to account for this
                     time: search_time_window.start..found_time_window.end,
                 };
+
                 // Adjust the search window to search the remaining time window.
                 // Include the end of the last time bound.
                 search_time_window =
                     found_time_window.end.saturating_sub(1)..search_time_window.end;
+
                 results.push(bloom);
             } else {
+
                 let bloom = TimedBloomFilter {
                     bloom: Some(bloom),
                     time: search_time_window,
                 };
+
                 results.push(bloom);
+
                 break;
             }
         }
+
         Ok(results)
     }
 
@@ -140,17 +164,21 @@ impl ShardedGossipLocal {
     ///   above criteria and the number of local agents.
     /// - The worst case is maximum amount of ops that could be created for the time period.
     /// - The expected performance per op is average 10ms and worst 100 ms.
+
     pub(super) async fn check_ops_bloom(
         &self,
         local_agents_within_arc_set: Vec<(Arc<KitsuneAgent>, ArcInterval)>,
         state: RoundState,
         remote_bloom: TimedBloomFilter,
     ) -> KitsuneResult<HashMap<Arc<KitsuneOpHash>, Vec<u8>>> {
+
         let RoundState { common_arc_set, .. } = state;
+
         let TimedBloomFilter {
             bloom: remote_bloom,
             time,
         } = remote_bloom;
+
         if let Some((hashes, _)) = store::all_op_hashes_within_arcset(
             &self.evt_sender,
             &self.space,
@@ -164,6 +192,7 @@ impl ShardedGossipLocal {
         )
         .await?
         {
+
             let missing_hashes: Vec<_> = match remote_bloom {
                 Some(remote_bloom) => hashes
                     .into_iter()
@@ -172,11 +201,13 @@ impl ShardedGossipLocal {
                 // No remote bloom so they are missing everything.
                 None => hashes,
             };
+
             let agents = local_agents_within_arc_set
                 .iter()
                 .map(|(a, _)| a)
                 .cloned()
                 .collect();
+
             let missing_ops = self
                 .evt_sender
                 .fetch_op_data(FetchOpDataEvt {
@@ -186,8 +217,10 @@ impl ShardedGossipLocal {
                 })
                 .await
                 .map_err(KitsuneError::other)?;
+
             Ok(missing_ops.into_iter().collect())
         } else {
+
             Ok(HashMap::new())
         }
     }

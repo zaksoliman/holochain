@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+
 pub enum CellError {
     #[error("error dealing with workspace state: {0}")]
     DatabaseError(#[from] DatabaseError),

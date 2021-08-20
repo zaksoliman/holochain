@@ -6,6 +6,7 @@ use warp::Filter;
 pub(crate) fn clear(
     store: Store,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+
     warp::post()
         .and(warp::header::exact("content-type", "application/octet"))
         .and(warp::header::exact("X-Op", "clear"))
@@ -14,12 +15,16 @@ pub(crate) fn clear(
 }
 
 async fn clear_info(store: Store) -> Result<impl warp::Reply, warp::Rejection> {
+
     store.clear();
+
     Ok(warp::reply())
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use std::sync::Arc;
 
     use super::*;
@@ -27,13 +32,17 @@ mod tests {
     use kitsune_p2p::{agent_store::AgentInfoSigned, fixt::*, KitsuneSpace};
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_clear() {
+
         let store = Store::new();
 
         let filter = super::clear(store.clone());
+
         let space: Arc<KitsuneSpace> = Arc::new(fixt!(KitsuneSpace));
 
         for _ in 0..20 {
+
             let info = AgentInfoSigned::sign(
                 space.clone(),
                 Arc::new(fixt!(KitsuneAgent, Unpredictable)),
@@ -45,6 +54,7 @@ mod tests {
             )
             .await
             .unwrap();
+
             store.put(info);
         }
 
@@ -54,7 +64,9 @@ mod tests {
             .header("X-Op", "clear")
             .reply(&filter)
             .await;
+
         assert_eq!(res.status(), 200);
+
         assert!(store.all().is_empty());
     }
 }

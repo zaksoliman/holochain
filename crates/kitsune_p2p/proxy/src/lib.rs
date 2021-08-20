@@ -13,6 +13,7 @@ use lair_keystore_api::actor::*;
 use std::sync::Arc;
 
 pub(crate) fn blake2b_32(data: &[u8]) -> Vec<u8> {
+
     blake2b_simd::Params::new()
         .hash_length(32)
         .to_state()
@@ -25,9 +26,11 @@ pub(crate) fn blake2b_32(data: &[u8]) -> Vec<u8> {
 pub mod tx2;
 
 mod proxy_url;
+
 pub use proxy_url::*;
 
 pub mod wire;
+
 pub(crate) use wire::*;
 
 mod wire_read;
@@ -40,7 +43,9 @@ mod tls_srv;
 mod tls_tests;
 
 mod inner_listen;
+
 pub use inner_listen::*;
 
 mod config;
+
 pub use config::*;

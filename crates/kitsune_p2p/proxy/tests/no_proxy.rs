@@ -5,6 +5,7 @@ use kitsune_p2p_types::dependencies::ghost_actor;
 use kitsune_p2p_types::transport::*;
 
 fn init_tracing() {
+
     let _ = ghost_actor::dependencies::tracing::subscriber::set_global_default(
         tracing_subscriber::FmtSubscriber::builder()
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -13,13 +14,17 @@ fn init_tracing() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn test_no_proxy() {
+
     if let Err(e) = test_inner().await {
+
         panic!("{:?}", e);
     }
 }
 
 async fn test_inner() -> TransportResult<()> {
+
     init_tracing();
 
     const FAKE_ADDR: &'static str = "kitsune-proxy://FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAK/kitsune-mem/h/FAKEFAKEFAKEFAKEFAKEF/--";
@@ -28,6 +33,7 @@ async fn test_inner() -> TransportResult<()> {
         ProxyConfig::remote_proxy_client(TlsConfig::new_ephemeral().await?, FAKE_ADDR.into());
 
     let (bind, evt) = kitsune_p2p_types::transport_mem::spawn_bind_transport_mem().await?;
+
     let (_bind, _evt) =
         spawn_kitsune_proxy_listener(proxy_config, KitsuneP2pTuningParams::default(), bind, evt)
             .await?;

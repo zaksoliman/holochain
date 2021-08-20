@@ -11,6 +11,7 @@ mod app_bundle;
 mod app_manifest;
 mod dna_gamut;
 pub mod error;
+
 use crate::{dna::DnaBundle, properties::YamlProperties};
 pub use app_bundle::*;
 pub use app_manifest::app_manifest_validated::*;
@@ -30,18 +31,22 @@ use std::{
 use self::error::{AppError, AppResult};
 
 /// The unique identifier for an installed app in this conductor
+
 pub type InstalledAppId = String;
 
 /// A friendly (nick)name used by UIs to refer to the Cells which make up the app
 #[deprecated = "Remove when InstallApp goes away; use SlotId instead"]
+
 pub type CellNick = String;
 
 /// Identifier for an AppSlot
+
 pub type SlotId = String;
 
 /// The source of the DNA to be installed, either as binary data, or from a path
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+
 pub enum DnaSource {
     /// register the dna loaded from a bundle file on disk
     Path(PathBuf),
@@ -53,6 +58,7 @@ pub enum DnaSource {
 
 /// The instructions on how to get the DNA to be registered
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct RegisterDnaPayload {
     /// UID to override when installing this Dna
     pub uid: Option<String>,
@@ -65,6 +71,7 @@ pub struct RegisterDnaPayload {
 
 /// The instructions on how to get the DNA to be registered
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct CreateCloneCellPayload {
     /// Properties to override when installing this Dna
     pub properties: Option<YamlProperties>,
@@ -84,13 +91,16 @@ pub struct CreateCloneCellPayload {
 
 impl CreateCloneCellPayload {
     /// Get the CellId of the to-be-created clone cell
+
     pub fn cell_id(&self) -> CellId {
+
         CellId::new(self.dna_hash.clone(), self.agent_key.clone())
     }
 }
 
 /// A collection of [DnaHash]es paired with an [AgentPubKey] and an app id
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct InstallAppPayload {
     /// The unique identifier for an installed app in this conductor
     pub installed_app_id: InstalledAppId,
@@ -104,6 +114,7 @@ pub struct InstallAppPayload {
 
 /// An [AppBundle] along with an [AgentPubKey] and optional [InstalledAppId]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct InstallAppBundlePayload {
     /// The unique identifier for an installed app in this conductor.
     #[serde(flatten)]
@@ -129,6 +140,7 @@ pub struct InstallAppBundlePayload {
 /// The possible locations of an AppBundle
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+
 pub enum AppBundleSource {
     /// The actual serialized bytes of a bundle
     Bundle(AppBundle),
@@ -140,7 +152,9 @@ pub enum AppBundleSource {
 
 impl AppBundleSource {
     /// Get the bundle from the source. Consumes the source.
+
     pub async fn resolve(self) -> Result<AppBundle, AppBundleError> {
+
         Ok(match self {
             Self::Bundle(bundle) => bundle,
             Self::Path(path) => AppBundle::decode(&ffs::read(&path).await?)?,
@@ -151,6 +165,7 @@ impl AppBundleSource {
 
 /// Information needed to specify a Dna as part of an App
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct InstallAppDnaPayload {
     /// The hash of the DNA
     pub hash: DnaHash,
@@ -162,7 +177,9 @@ pub struct InstallAppDnaPayload {
 
 impl InstallAppDnaPayload {
     /// Create a payload from hash. Good for tests.
+
     pub fn hash_only(hash: DnaHash, nick: CellNick) -> Self {
+
         Self {
             hash,
             nick,
@@ -175,6 +192,7 @@ impl InstallAppDnaPayload {
 /// the new installation scheme using AppBundles.
 #[deprecated = "can be removed after the old way of installing apps (`InstallApp`) is phased out"]
 #[derive(Clone, Debug, Into, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+
 pub struct InstalledCell {
     cell_id: CellId,
     // TODO: rename to slot_id
@@ -183,32 +201,44 @@ pub struct InstalledCell {
 
 impl InstalledCell {
     /// Constructor
+
     pub fn new(cell_id: CellId, cell_nick: CellNick) -> Self {
+
         Self { cell_id, cell_nick }
     }
 
     /// Get the CellId
+
     pub fn into_id(self) -> CellId {
+
         self.cell_id
     }
 
     /// Get the CellNick
+
     pub fn into_nick(self) -> CellNick {
+
         self.cell_nick
     }
 
     /// Get the inner data as a tuple
+
     pub fn into_inner(self) -> (CellId, CellNick) {
+
         (self.cell_id, self.cell_nick)
     }
 
     /// Get the CellId
+
     pub fn as_id(&self) -> &CellId {
+
         &self.cell_id
     }
 
     /// Get the CellNick
+
     pub fn as_nick(&self) -> &CellNick {
+
         &self.cell_nick
     }
 }
@@ -226,6 +256,7 @@ impl InstalledCell {
     shrinkwraprs::Shrinkwrap,
 )]
 #[shrinkwrap(mutable, unsafe_ignore_visibility)]
+
 pub struct InstalledApp {
     #[shrinkwrap(main_field)]
     app: InstalledAppCommon,
@@ -235,7 +266,9 @@ pub struct InstalledApp {
 
 impl InstalledApp {
     /// Constructor for freshly installed app
+
     pub fn new_fresh(app: InstalledAppCommon) -> Self {
+
         Self {
             app,
             status: AppStatus::Disabled(DisabledAppReason::NeverStarted),
@@ -244,7 +277,9 @@ impl InstalledApp {
 
     /// Constructor for freshly installed app
     #[cfg(feature = "test_utils")]
+
     pub fn new_running(app: InstalledAppCommon) -> Self {
+
         Self {
             app,
             status: AppStatus::Running,
@@ -253,17 +288,23 @@ impl InstalledApp {
 
     /// Return the common app info, as well as a status which encodes the remaining
     /// information
+
     pub fn into_app_and_status(self) -> (InstalledAppCommon, AppStatus) {
+
         (self.app, self.status)
     }
 
     /// Accessor
+
     pub fn status(&self) -> &AppStatus {
+
         &self.status
     }
 
     /// Accessor
+
     pub fn id(&self) -> &InstalledAppId {
+
         &self.app.installed_app_id
     }
 }
@@ -272,11 +313,13 @@ impl automap::AutoMapped for InstalledApp {
     type Key = InstalledAppId;
 
     fn key(&self) -> &Self::Key {
+
         &self.app.installed_app_id
     }
 }
 
 /// A map from InstalledAppId -> InstalledApp
+
 pub type InstalledAppMap = automap::AutoHashMap<InstalledApp>;
 
 /// An active app
@@ -291,11 +334,14 @@ pub type InstalledAppMap = automap::AutoHashMap<InstalledApp>;
     shrinkwraprs::Shrinkwrap,
 )]
 #[shrinkwrap(mutable, unsafe_ignore_visibility)]
+
 pub struct RunningApp(InstalledAppCommon);
 
 impl RunningApp {
     /// Convert to a StoppedApp with the given reason
+
     pub fn into_stopped(self, reason: StoppedAppReason) -> StoppedApp {
+
         StoppedApp {
             app: self.0,
             reason,
@@ -303,13 +349,16 @@ impl RunningApp {
     }
 
     /// Move inner type out
+
     pub fn into_common(self) -> InstalledAppCommon {
+
         self.0
     }
 }
 
 impl From<RunningApp> for InstalledApp {
     fn from(app: RunningApp) -> Self {
+
         Self {
             app: app.into_common(),
             status: AppStatus::Running,
@@ -322,6 +371,7 @@ impl From<RunningApp> for InstalledApp {
     Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, shrinkwraprs::Shrinkwrap,
 )]
 #[shrinkwrap(mutable, unsafe_ignore_visibility)]
+
 pub struct StoppedApp {
     #[shrinkwrap(main_field)]
     app: InstalledAppCommon,
@@ -331,12 +381,16 @@ pub struct StoppedApp {
 impl StoppedApp {
     /// Constructor
     #[deprecated = "should only be constructable through conversions from other types"]
+
     pub fn new(app: InstalledAppCommon, reason: StoppedAppReason) -> Self {
+
         Self { app, reason }
     }
 
     /// Constructor
+
     pub fn new_fresh(app: InstalledAppCommon) -> Self {
+
         Self {
             app,
             reason: StoppedAppReason::Disabled(DisabledAppReason::NeverStarted),
@@ -345,7 +399,9 @@ impl StoppedApp {
 
     /// If the app is Stopped, convert into a StoppedApp.
     /// Returns None if app is Running.
+
     pub fn from_app(app: &InstalledApp) -> Option<Self> {
+
         StoppedAppReason::from_status(app.status()).map(|reason| Self {
             app: app.as_ref().clone(),
             reason,
@@ -353,24 +409,30 @@ impl StoppedApp {
     }
 
     /// Convert to a RunningApp
+
     pub fn into_active(self) -> RunningApp {
+
         RunningApp(self.app)
     }
 
     /// Move inner type out
+
     pub fn into_common(self) -> InstalledAppCommon {
+
         self.app
     }
 }
 
 impl From<StoppedApp> for InstalledAppCommon {
     fn from(d: StoppedApp) -> Self {
+
         d.app
     }
 }
 
 impl From<StoppedApp> for InstalledApp {
     fn from(d: StoppedApp) -> Self {
+
         Self {
             app: d.app,
             status: d.reason.into(),
@@ -380,6 +442,7 @@ impl From<StoppedApp> for InstalledApp {
 
 /// The common data between apps of any status
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+
 pub struct InstalledAppCommon {
     /// The unique identifier for an installed app in this conductor
     installed_app_id: InstalledAppId,
@@ -393,11 +456,13 @@ pub struct InstalledAppCommon {
 
 impl InstalledAppCommon {
     /// Constructor
+
     pub fn new<S: ToString, I: IntoIterator<Item = (SlotId, AppSlot)>>(
         installed_app_id: S,
         _agent_key: AgentPubKey,
         slots: I,
     ) -> Self {
+
         InstalledAppCommon {
             installed_app_id: installed_app_id.to_string(),
             _agent_key,
@@ -406,31 +471,41 @@ impl InstalledAppCommon {
     }
 
     /// Accessor
+
     pub fn id(&self) -> &InstalledAppId {
+
         &self.installed_app_id
     }
 
     /// Accessor
+
     pub fn provisioned_cells(&self) -> impl Iterator<Item = (&SlotId, &CellId)> {
+
         self.slots
             .iter()
             .filter_map(|(nick, slot)| slot.provisioned_cell().map(|c| (nick, c)))
     }
 
     /// Accessor
+
     pub fn into_provisioned_cells(self) -> impl Iterator<Item = (SlotId, CellId)> {
+
         self.slots
             .into_iter()
             .filter_map(|(nick, slot)| slot.into_provisioned_cell().map(|c| (nick, c)))
     }
 
     /// Accessor
+
     pub fn cloned_cells(&self) -> impl Iterator<Item = &CellId> {
+
         self.slots.iter().map(|(_, slot)| &slot.clones).flatten()
     }
 
     /// Iterator of all cells, both provisioned and cloned
+
     pub fn all_cells(&self) -> impl Iterator<Item = &CellId> {
+
         self.provisioned_cells()
             .map(|(_, c)| c)
             .chain(self.cloned_cells())
@@ -439,61 +514,83 @@ impl InstalledAppCommon {
     /// Iterator of all "required" cells, meaning Cells which must be running
     /// for this App to be able to run. The notion of "required cells" is not
     /// yet solidified, so for now this placeholder equates to "all cells".
+
     pub fn required_cells(&self) -> impl Iterator<Item = &CellId> {
+
         self.all_cells()
     }
 
     /// Accessor for particular slot
+
     pub fn slot(&self, slot_id: &SlotId) -> AppResult<&AppSlot> {
+
         self.slots
             .get(slot_id)
             .ok_or_else(|| AppError::SlotIdMissing(slot_id.clone()))
     }
 
     fn slot_mut(&mut self, slot_id: &SlotId) -> AppResult<&mut AppSlot> {
+
         self.slots
             .get_mut(slot_id)
             .ok_or_else(|| AppError::SlotIdMissing(slot_id.clone()))
     }
 
     /// Accessor
+
     pub fn slots(&self) -> &HashMap<SlotId, AppSlot> {
+
         &self.slots
     }
 
     /// Add a cloned cell
+
     pub fn add_clone(&mut self, slot_id: &SlotId, cell_id: CellId) -> AppResult<()> {
+
         let slot = self.slot_mut(slot_id)?;
+
         assert_eq!(
             cell_id.agent_pubkey(),
             slot.agent_key(),
             "A clone cell must use the same agent key as the slot it is added to"
         );
+
         if slot.clones.len() as u32 >= slot.clone_limit {
+
             return Err(AppError::CloneLimitExceeded(slot.clone_limit, slot.clone()));
         }
+
         let _ = slot.clones.insert(cell_id);
+
         Ok(())
     }
 
     /// Remove a cloned cell
+
     pub fn remove_clone(&mut self, slot_id: &SlotId, cell_id: &CellId) -> AppResult<bool> {
+
         let slot = self.slot_mut(slot_id)?;
+
         Ok(slot.clones.remove(cell_id))
     }
 
     /// Accessor
+
     pub fn _agent_key(&self) -> &AgentPubKey {
+
         &self._agent_key
     }
 
     /// Constructor for apps not using a manifest.
     /// Disables cloning, and implies immediate provisioning.
+
     pub fn new_legacy<S: ToString, I: IntoIterator<Item = InstalledCell>>(
         installed_app_id: S,
         installed_cells: I,
     ) -> AppResult<Self> {
+
         let installed_app_id = installed_app_id.to_string();
+
         let installed_cells: Vec<_> = installed_cells.into_iter().collect();
 
         // Get the agent key of the first cell
@@ -510,6 +607,7 @@ impl InstalledAppCommon {
             .iter()
             .any(|c| *c.cell_id.agent_pubkey() != _agent_key)
         {
+
             tracing::warn!(
                 "It's kind of an informal convention that all cells in a legacy installation should use the same agent key. But, no big deal... Cell data: {:#?}",
                 installed_cells
@@ -522,24 +620,37 @@ impl InstalledAppCommon {
             .map(|c| c.cell_nick.to_owned())
             .counts()
             .into_iter()
-            .filter_map(|(nick, count)| if count > 1 { Some(nick) } else { None })
+            .filter_map(|(nick, count)| {
+                if count > 1 {
+
+                    Some(nick)
+                } else {
+
+                    None
+                }
+            })
             .collect();
+
         if !duplicates.is_empty() {
+
             return Err(AppError::DuplicateSlotIds(installed_app_id, duplicates));
         }
 
         let slots = installed_cells
             .into_iter()
             .map(|InstalledCell { cell_nick, cell_id }| {
+
                 let slot = AppSlot {
                     base_cell_id: cell_id,
                     is_provisioned: true,
                     clones: HashSet::new(),
                     clone_limit: 0,
                 };
+
                 (cell_nick, slot)
             })
             .collect();
+
         Ok(Self {
             installed_app_id,
             _agent_key,
@@ -551,6 +662,7 @@ impl InstalledAppCommon {
 /// The status of an installed app.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case")]
+
 pub enum AppStatus {
     /// The app is enabled and running normally.
     Running,
@@ -571,6 +683,7 @@ pub enum AppStatus {
 /// The AppStatus without the reasons.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(missing_docs)]
+
 pub enum AppStatusKind {
     Running,
     Paused,
@@ -579,6 +692,7 @@ pub enum AppStatusKind {
 
 impl From<AppStatus> for AppStatusKind {
     fn from(status: AppStatus) -> Self {
+
         match status {
             AppStatus::Running => Self::Running,
             AppStatus::Paused(_) => Self::Paused,
@@ -589,6 +703,7 @@ impl From<AppStatus> for AppStatusKind {
 
 /// Represents a state transition operation from one state to another
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub enum AppStatusTransition {
     /// Attempt to unpause a Paused app
     Start,
@@ -603,27 +718,36 @@ pub enum AppStatusTransition {
 impl AppStatus {
     /// Does this status correspond to an Enabled state?
     /// If false, this indicates a Disabled state.
+
     pub fn is_enabled(&self) -> bool {
+
         matches!(self, Self::Running | Self::Paused(_))
     }
 
     /// Does this status correspond to a Running state?
     /// If false, this indicates a Stopped state.
+
     pub fn is_running(&self) -> bool {
+
         matches!(self, Self::Running)
     }
 
     /// Does this status correspond to a Paused state?
+
     pub fn is_paused(&self) -> bool {
+
         matches!(self, Self::Paused(_))
     }
 
     /// Transition a status from one state to another.
     /// If None, the transition was not valid, and the status did not change.
+
     pub fn transition(&mut self, transition: AppStatusTransition) -> AppStatusFx {
+
         use AppStatus::*;
         use AppStatusFx::*;
         use AppStatusTransition::*;
+
         match (&self, transition) {
             (Running, Pause(reason)) => Some((Paused(reason), SpinDown)),
             (Running, Disable(reason)) => Some((Disabled(reason), SpinDown)),
@@ -638,7 +762,9 @@ impl AppStatus {
             (Disabled(_), Pause(_)) | (Disabled(_), Disable(_)) | (Disabled(_), Start) => None,
         }
         .map(|(new_status, delta)| {
+
             *self = new_status;
+
             delta
         })
         .unwrap_or(NoChange)
@@ -655,6 +781,7 @@ impl AppStatus {
 /// in order to reconcile the cell state with the new app state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "be sure to run this value through `process_app_status_fx` to handle any transition effects"]
+
 pub enum AppStatusFx {
     /// The transition did not result in any change to CellState.
     NoChange,
@@ -668,14 +795,18 @@ pub enum AppStatusFx {
 
 impl Default for AppStatusFx {
     fn default() -> Self {
+
         Self::NoChange
     }
 }
 
 impl AppStatusFx {
     /// Combine two effects into one. Think "monoidal append", if that helps.
+
     pub fn combine(self, other: Self) -> Self {
+
         use AppStatusFx::*;
+
         match (self, other) {
             (NoChange, a) | (a, NoChange) => a,
             (SpinDown, SpinDown) => SpinDown,
@@ -698,6 +829,7 @@ impl AppStatusFx {
     derive_more::From,
 )]
 #[serde(rename_all = "snake_case")]
+
 pub enum StoppedAppReason {
     /// Same meaning as [`InstalledAppStatus::Paused`].
     Paused(PausedAppReason),
@@ -709,7 +841,9 @@ pub enum StoppedAppReason {
 impl StoppedAppReason {
     /// Convert a status into a StoppedAppReason.
     /// If the status is Running, returns None.
+
     pub fn from_status(status: &AppStatus) -> Option<Self> {
+
         match status {
             AppStatus::Paused(reason) => Some(Self::Paused(reason.clone())),
             AppStatus::Disabled(reason) => Some(Self::Disabled(reason.clone())),
@@ -720,6 +854,7 @@ impl StoppedAppReason {
 
 impl From<StoppedAppReason> for AppStatus {
     fn from(reason: StoppedAppReason) -> Self {
+
         match reason {
             StoppedAppReason::Paused(reason) => Self::Paused(reason),
             StoppedAppReason::Disabled(reason) => Self::Disabled(reason),
@@ -731,6 +866,7 @@ impl From<StoppedAppReason> for AppStatus {
 /// NB: there is no way to manually pause an app.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case")]
+
 pub enum PausedAppReason {
     /// The pause was due to a RECOVERABLE error
     Error(String),
@@ -739,6 +875,7 @@ pub enum PausedAppReason {
 /// The reason for an app being in a Disabled state.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case")]
+
 pub enum DisabledAppReason {
     /// The app is freshly installed, and never started
     NeverStarted,
@@ -750,6 +887,7 @@ pub enum DisabledAppReason {
 
 /// Cell "slots" correspond to cell entries in the AppManifest.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+
 pub struct AppSlot {
     /// The Id of the Cell which will be provisioned for this slot.
     /// This also identifies the basis for cloned DNAs, and this is how the
@@ -769,7 +907,9 @@ pub struct AppSlot {
 
 impl AppSlot {
     /// Constructor. List of clones always starts empty.
+
     pub fn new(base_cell_id: CellId, is_provisioned: bool, clone_limit: u32) -> Self {
+
         Self {
             base_cell_id,
             is_provisioned,
@@ -779,61 +919,88 @@ impl AppSlot {
     }
 
     /// Accessor
+
     pub fn cell_id(&self) -> &CellId {
+
         &self.base_cell_id
     }
 
     /// Accessor
+
     pub fn dna_hash(&self) -> &DnaHash {
+
         &self.base_cell_id.dna_hash()
     }
 
     /// Accessor
+
     pub fn agent_key(&self) -> &AgentPubKey {
+
         &self.base_cell_id.agent_pubkey()
     }
 
     /// Accessor
+
     pub fn provisioned_cell(&self) -> Option<&CellId> {
+
         if self.is_provisioned {
+
             Some(&self.base_cell_id)
         } else {
+
             None
         }
     }
 
     /// Transformer
+
     pub fn into_provisioned_cell(self) -> Option<CellId> {
+
         if self.is_provisioned {
+
             Some(self.base_cell_id)
         } else {
+
             None
         }
     }
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::{AppSlot, RunningApp};
     use crate::prelude::*;
     use ::fixt::prelude::*;
     use std::collections::HashSet;
 
     #[test]
+
     fn clone_management() {
+
         let base_cell_id = fixt!(CellId);
+
         let agent = base_cell_id.agent_pubkey().clone();
+
         let new_clone = || CellId::new(fixt!(DnaHash), agent.clone());
+
         let slot1 = AppSlot::new(base_cell_id, false, 3);
+
         let agent = fixt!(AgentPubKey);
+
         let slot_id: SlotId = "slot_id".into();
+
         let mut app: RunningApp =
             InstalledAppCommon::new("app", agent.clone(), vec![(slot_id.clone(), slot1)]).into();
 
         // Can add clones up to the limit
         let clones: Vec<_> = vec![new_clone(), new_clone(), new_clone()];
+
         app.add_clone(&slot_id, clones[0].clone()).unwrap();
+
         app.add_clone(&slot_id, clones[1].clone()).unwrap();
+
         app.add_clone(&slot_id, clones[2].clone()).unwrap();
 
         // Adding a clone beyond the clone_limit is an error
@@ -848,6 +1015,7 @@ mod tests {
         );
 
         assert_eq!(app.remove_clone(&slot_id, &clones[1]).unwrap(), true);
+
         assert_eq!(app.remove_clone(&slot_id, &clones[1]).unwrap(), false);
 
         assert_eq!(

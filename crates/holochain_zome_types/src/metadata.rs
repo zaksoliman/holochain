@@ -1,4 +1,5 @@
 //! Metadata types for use in wasm
+
 use crate::element::Element;
 use crate::element::SignedHeaderHashed;
 use crate::validate::ValidationStatus;
@@ -10,6 +11,7 @@ use holochain_serialized_bytes::prelude::*;
 /// Return type for get_details calls.
 /// HeaderHash returns an Element.
 /// EntryHash returns an Entry.
+
 pub enum Details {
     /// Variant asking for a specific element
     Element(ElementDetails),
@@ -20,6 +22,7 @@ pub enum Details {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerializedBytes)]
 /// A specific Element with any deletes
 /// This is all the metadata available for an element.
+
 pub struct ElementDetails {
     /// The specific element.
     /// Either a Create or an Update.
@@ -34,6 +37,7 @@ pub struct ElementDetails {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerializedBytes)]
 /// An Entry with all it's metadata.
+
 pub struct EntryDetails {
     /// The data
     pub entry: Entry,
@@ -71,6 +75,7 @@ pub struct EntryDetails {
 
 /// The status of an [Entry] in the Dht
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+
 pub enum EntryDhtStatus {
     /// This [Entry] has active headers
     Live,

@@ -11,6 +11,7 @@ use crate::prelude::*;
 /// - fn_name: The name of the function in the zome you are calling.
 /// - cap_secret: The capability secret if required.
 /// - payload: The arguments to the function you are calling.
+
 pub fn call<I>(
     to_cell: Option<CellId>,
     zome_name: ZomeName,
@@ -21,10 +22,13 @@ pub fn call<I>(
 where
     I: serde::Serialize + std::fmt::Debug,
 {
+
     // @todo is this secure to set this in the wasm rather than have the host inject it?
     let provenance = agent_info()?.agent_latest_pubkey;
+
     Ok(HDK
         .with(|h| {
+
             h.borrow().call(vec![Call::new(
                 to_cell,
                 zome_name,
@@ -62,6 +66,7 @@ where
 /// let foo: Foo = call_remote(bob, "foo_zome", "do_it", secret, serializable_payload)?;
 /// ...
 /// ```
+
 pub fn call_remote<I>(
     agent: AgentPubKey,
     zome: ZomeName,
@@ -72,8 +77,10 @@ pub fn call_remote<I>(
 where
     I: serde::Serialize + std::fmt::Debug,
 {
+
     Ok(HDK
         .with(|h| {
+
             h.borrow().call_remote(vec![CallRemote::new(
                 agent,
                 zome,
@@ -96,11 +103,14 @@ where
 /// statically typed languages can more easily get a hint of what type to
 /// deserialize to. This of course requires a corresponding change to the
 /// Signal type.
+
 pub fn emit_signal<I>(input: I) -> ExternResult<()>
 where
     I: serde::Serialize + std::fmt::Debug,
 {
+
     HDK.with(|h| {
+
         h.borrow()
             .emit_signal(AppSignal::new(ExternIO::encode(input)?))
     })
@@ -133,11 +143,14 @@ where
 ///
 /// This requirements will likely be removed in the future as
 /// we design a better way to grant the capability to remote signal.
+
 pub fn remote_signal<I>(input: I, agents: Vec<AgentPubKey>) -> ExternResult<()>
 where
     I: serde::Serialize + std::fmt::Debug,
 {
+
     HDK.with(|h| {
+
         h.borrow().remote_signal(RemoteSignal {
             signal: ExternIO::encode(input)?,
             agents,

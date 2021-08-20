@@ -20,6 +20,7 @@ async fn assert_can_get<N: HolochainP2pCellT + Clone + Send + 'static>(
     cascade: &mut Cascade<N>,
     options: GetOptions,
 ) {
+
     // - Get via entry hash
     let r = cascade
         .dht_get(td_entry.hash.clone().into(), options.clone())
@@ -28,6 +29,7 @@ async fn assert_can_get<N: HolochainP2pCellT + Clone + Send + 'static>(
         .expect("Failed to get entry");
 
     assert_eq!(*r.header_address(), td_entry.create_hash);
+
     assert_eq!(r.header().entry_hash(), Some(&td_entry.hash));
 
     // - Get via header hash
@@ -38,6 +40,7 @@ async fn assert_can_get<N: HolochainP2pCellT + Clone + Send + 'static>(
         .expect("Failed to get element");
 
     assert_eq!(*r.header_address(), td_element.any_header_hash);
+
     assert_eq!(r.header().entry_hash(), td_element.any_entry_hash.as_ref());
 
     // - Get details via entry hash
@@ -75,6 +78,7 @@ async fn assert_can_get<N: HolochainP2pCellT + Clone + Send + 'static>(
         deletes: vec![],
         updates: vec![],
     });
+
     assert_eq!(r, expected);
 }
 
@@ -84,6 +88,7 @@ async fn assert_is_none<N: HolochainP2pCellT + Clone + Send + 'static>(
     cascade: &mut Cascade<N>,
     options: GetOptions,
 ) {
+
     // - Get via entry hash
     let r = cascade
         .dht_get(td_entry.hash.clone().into(), options.clone())
@@ -123,6 +128,7 @@ async fn assert_rejected<N: HolochainP2pCellT + Clone + Send + 'static>(
     cascade: &mut Cascade<N>,
     options: GetOptions,
 ) {
+
     // - Get via entry hash
     let r = cascade
         .dht_get(td_entry.hash.clone().into(), options.clone())
@@ -184,6 +190,7 @@ async fn assert_can_retrieve<N: HolochainP2pCellT + Clone + Send + 'static>(
     cascade: &mut Cascade<N>,
     options: GetOptions,
 ) {
+
     // - Retrieve via entry hash
     let r = cascade
         .retrieve(td_entry.hash.clone().into(), options.clone().into())
@@ -192,6 +199,7 @@ async fn assert_can_retrieve<N: HolochainP2pCellT + Clone + Send + 'static>(
         .expect("Failed to retrieve element");
 
     assert_eq!(*r.header_address(), td_entry.create_hash);
+
     assert_eq!(r.header().entry_hash(), Some(&td_entry.hash));
 
     // - Retrieve via header hash
@@ -202,6 +210,7 @@ async fn assert_can_retrieve<N: HolochainP2pCellT + Clone + Send + 'static>(
         .expect("Failed to retrieve element");
 
     assert_eq!(*r.header_address(), td_entry.create_hash);
+
     assert_eq!(r.header().entry_hash(), Some(&td_entry.hash));
 
     // - Retrieve entry
@@ -224,17 +233,23 @@ async fn assert_can_retrieve<N: HolochainP2pCellT + Clone + Send + 'static>(
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn entry_not_authority_or_authoring() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let authority = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db(&authority.env(), td_entry.store_entry_op.clone());
+
     fill_db(&authority.env(), td_element.any_store_element_op.clone());
 
     // Network
@@ -247,23 +262,31 @@ async fn entry_not_authority_or_authoring() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn entry_authoring() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let mut scratch = Scratch::new();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     insert_op_scratch(&mut scratch, td_entry.store_entry_op.clone()).unwrap();
+
     insert_op_scratch(&mut scratch, td_element.any_store_element_op.clone()).unwrap();
 
     // Network
     // - Not expecting any calls to the network.
     let mut mock = MockHolochainP2pCellT::new();
+
     mock.expect_authority_for_hash().returning(|_| Ok(false));
+
     let mock = MockNetwork::new(mock);
 
     // Cascade
@@ -275,23 +298,31 @@ async fn entry_authoring() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn entry_authority() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let vault = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db(&vault.env(), td_entry.store_entry_op.clone());
+
     fill_db(&vault.env(), td_element.any_store_element_op.clone());
 
     // Network
     // - Not expecting any calls to the network.
     let mut mock = MockHolochainP2pCellT::new();
+
     mock.expect_authority_for_hash().returning(|_| Ok(true));
+
     let mock = MockNetwork::new(mock);
 
     // Cascade
@@ -303,23 +334,31 @@ async fn entry_authority() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn content_not_authority_or_authoring() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let vault = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db(&vault.env(), td_entry.store_entry_op.clone());
+
     fill_db(&vault.env(), td_element.any_store_element_op.clone());
 
     // Network
     // - Not expecting any calls to the network.
     let mut mock = MockHolochainP2pCellT::new();
+
     mock.expect_authority_for_hash().returning(|_| Ok(false));
+
     let mock = MockNetwork::new(mock);
 
     // Cascade
@@ -331,23 +370,31 @@ async fn content_not_authority_or_authoring() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn content_authoring() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let mut scratch = Scratch::new();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     insert_op_scratch(&mut scratch, td_entry.store_entry_op.clone()).unwrap();
+
     insert_op_scratch(&mut scratch, td_element.any_store_element_op.clone()).unwrap();
 
     // Network
     // - Not expecting any calls to the network.
     let mut mock = MockHolochainP2pCellT::new();
+
     mock.expect_authority_for_hash().returning(|_| Ok(false));
+
     let mock = MockNetwork::new(mock);
 
     // Cascade
@@ -359,21 +406,27 @@ async fn content_authoring() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn content_authority() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let vault = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
 
     // Network
     // - Not expecting any calls to the network.
     let mut mock = MockHolochainP2pCellT::new();
+
     mock.expect_authority_for_hash().returning(|_| Ok(true));
+
     let mock = MockNetwork::new(mock);
 
     // Cascade
@@ -385,17 +438,23 @@ async fn content_authority() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn rejected_ops() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let authority = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db_rejected(&authority.env(), td_entry.store_entry_op.clone());
+
     fill_db_rejected(&authority.env(), td_element.any_store_element_op.clone());
 
     // Network
@@ -403,21 +462,28 @@ async fn rejected_ops() {
 
     // Cascade
     let mut cascade = Cascade::empty().with_network(network, cache.env());
+
     assert_rejected(&td_entry, &td_element, &mut cascade, GetOptions::latest()).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn check_can_handle_rejected_ops_in_cache() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let authority = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db_rejected(&cache.env(), td_entry.store_entry_op.clone());
+
     fill_db_rejected(&cache.env(), td_element.any_store_element_op.clone());
 
     // Network
@@ -425,12 +491,15 @@ async fn check_can_handle_rejected_ops_in_cache() {
 
     // Cascade
     let mut cascade = Cascade::empty().with_network(network, cache.env());
+
     assert_rejected(&td_entry, &td_element, &mut cascade, GetOptions::latest()).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "todo"]
+
 async fn check_all_queries_still_work() {
+
     // TODO: Come up with a list of different states the authority could
     // have data in (updates, rejected, abandoned, nothing etc.)
     // then create an iterator that can put databases in these states and
@@ -440,33 +509,48 @@ async fn check_all_queries_still_work() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "todo"]
+
 async fn check_all_queries_still_work_with_cache() {
+
     todo!()
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "todo"]
+
 async fn check_all_queries_still_work_with_scratch() {
+
     todo!()
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn test_pending_data_isnt_returned() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let authority = test_cell_env();
+
     let vault = test_cell_env();
 
     // Data
     let td_entry = EntryTestData::create();
+
     let td_element = ElementTestData::create();
+
     fill_db_pending(&authority.env(), td_entry.store_entry_op.clone());
+
     fill_db_pending(&authority.env(), td_element.any_store_element_op.clone());
+
     fill_db_pending(&vault.env(), td_entry.store_entry_op.clone());
+
     fill_db_pending(&vault.env(), td_element.any_store_element_op.clone());
+
     fill_db_pending(&cache.env(), td_entry.store_entry_op.clone());
+
     fill_db_pending(&cache.env(), td_element.any_store_element_op.clone());
 
     // Network

@@ -4,6 +4,7 @@ use strum_macros::EnumIter;
 const WASM_WORKSPACE_TARGET: &str = "wasm_workspace/target";
 
 #[derive(EnumIter, Clone, Copy)]
+
 pub enum TestWasm {
     AgentInfo,
     Anchor,
@@ -52,6 +53,7 @@ pub enum TestWasm {
 
 impl From<TestWasm> for ZomeName {
     fn from(test_wasm: TestWasm) -> ZomeName {
+
         ZomeName::from(match test_wasm {
             TestWasm::AgentInfo => "agent_info",
             TestWasm::Anchor => "anchor",
@@ -102,6 +104,7 @@ impl From<TestWasm> for ZomeName {
 
 impl From<TestWasm> for DnaWasm {
     fn from(test_wasm: TestWasm) -> DnaWasm {
+
         DnaWasm::from(match test_wasm {
             TestWasm::AgentInfo => {
                 get_code("wasm32-unknown-unknown/release/test_wasm_agent_info.wasm")
@@ -213,6 +216,7 @@ impl From<TestWasm> for DnaWasm {
 }
 
 fn get_code(path: &'static str) -> Vec<u8> {
+
     let path = match option_env!("HC_TEST_WASM_DIR") {
         Some(dir) => format!("{}/{}", dir, path),
         None => format!(
@@ -222,6 +226,7 @@ fn get_code(path: &'static str) -> Vec<u8> {
             path
         ),
     };
+
     let warning = format!(
         "Wasm: {:?} was not found. Maybe you need to build the test wasms\n
         Run `cargo build --features 'build_wasms' --manifest-path=crates/holochain/Cargo.toml`
@@ -229,16 +234,21 @@ fn get_code(path: &'static str) -> Vec<u8> {
         ",
         path
     );
+
     std::fs::read(path).expect(&warning)
 }
 
 impl From<TestWasm> for ZomeDef {
     fn from(test_wasm: TestWasm) -> Self {
+
         tokio_helper::block_forever_on(async move {
+
             let dna_wasm: DnaWasm = test_wasm.into();
+
             let (_, wasm_hash) = holochain_types::dna::wasm::DnaWasmHashed::from_content(dna_wasm)
                 .await
                 .into_inner();
+
             ZomeDef::Wasm(WasmZome { wasm_hash })
         })
     }
@@ -246,12 +256,14 @@ impl From<TestWasm> for ZomeDef {
 
 impl From<TestWasm> for (ZomeName, ZomeDef) {
     fn from(test_wasm: TestWasm) -> Self {
+
         (test_wasm.into(), test_wasm.into())
     }
 }
 
 impl From<TestWasm> for Zome {
     fn from(test_wasm: TestWasm) -> Self {
+
         Zome::new(test_wasm.into(), test_wasm.into())
     }
 }

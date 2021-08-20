@@ -24,6 +24,7 @@ use tracing::*;
 mod publish_query;
 
 /// Default redundancy factor for validation receipts
+
 pub const DEFAULT_RECEIPT_BUNDLE_SIZE: u8 = 5;
 
 /// Don't publish a DhtOp more than once during this interval.
@@ -32,58 +33,82 @@ pub const DEFAULT_RECEIPT_BUNDLE_SIZE: u8 = 5;
 /// Republish an op at most once per day.
 /// Publish is only triggered by new commits so at worst we'll publish never
 /// republish.
+
 // TODO: We need a republish workflow to make sure the data is actually saturated.
 pub const MIN_PUBLISH_INTERVAL: time::Duration = time::Duration::from_secs(60 * 60 * 24);
 
 #[instrument(skip(env, network))]
+
 pub async fn publish_dht_ops_workflow(
     env: EnvWrite,
     network: HolochainP2pCell,
 ) -> WorkflowResult<WorkComplete> {
+
     let mut complete = WorkComplete::Complete;
+
     let to_publish =
         publish_dht_ops_workflow_inner(env.clone().into(), network.from_agent()).await?;
 
     // Commit to the network
     tracing::info!("sending {} ops", to_publish.len());
+
     let mut success = Vec::new();
+
     for (basis, ops) in to_publish {
+
         let hashes: Vec<_> = ops.iter().map(|(h, _)| h.clone()).collect();
+
         if let Err(e) = network.publish(true, false, basis, ops, None).await {
+
             // If we get a routing error it means the space hasn't started yet and we should try publishing again.
             if let holochain_p2p::HolochainP2pError::RoutingDnaError(_) = e {
+
                 complete = WorkComplete::Incomplete;
             }
+
             tracing::info!(failed_to_send_publish = ?e);
         } else {
+
             success.extend(hashes);
         }
     }
+
     tracing::info!("sent {} ops", success.len());
+
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+
     env.async_commit(move |writer| {
+
         for hash in success {
+
             mutations::set_last_publish_time(writer, hash, now)?;
         }
+
         WorkflowResult::Ok(())
     })
     .await?;
+
     tracing::info!("commited sent ops");
+
     // --- END OF WORKFLOW, BEGIN FINISHER BOILERPLATE ---
 
     Ok(complete)
 }
 
 /// Read the authored for ops with receipt count < R
+
 pub async fn publish_dht_ops_workflow_inner(
     env: EnvRead,
     agent: AgentPubKey,
 ) -> WorkflowResult<HashMap<AnyDhtHash, Vec<(DhtOpHash, DhtOp)>>> {
+
     // Ops to publish by basis
     let mut to_publish = HashMap::new();
 
     for op_hashed in publish_query::get_ops_to_publish(agent.clone(), &env).await? {
+
         let (op, op_hash) = op_hashed.into_inner();
+
         // For every op publish a request
         // Collect and sort ops by basis
         to_publish
@@ -96,7 +121,9 @@ pub async fn publish_dht_ops_workflow_inner(
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
     use crate::fixt::CreateLinkFixturator;
     use crate::fixt::EntryFixturator;
@@ -122,6 +149,7 @@ mod tests {
     const RECV_TIMEOUT: Duration = Duration::from_millis(3000);
 
     /// publish ops setup
+
     async fn setup<'env>(
         env: EnvWrite,
         num_agents: u32,
@@ -133,31 +161,43 @@ mod tests {
         JoinHandle<()>,
         tokio::sync::oneshot::Receiver<()>,
     ) {
+
         // Create data fixts for op
         let mut sig_fixt = SignatureFixturator::new(Unpredictable);
+
         let mut link_add_fixt = CreateLinkFixturator::new(Unpredictable);
+
         let author = fake_agent_pubkey_1();
 
         env.conn()
             .unwrap()
             .with_commit_sync(|txn| {
+
                 for _ in 0..num_hash {
+
                     // Create data for op
                     let sig = sig_fixt.next().unwrap();
+
                     let mut link_add = link_add_fixt.next().unwrap();
+
                     link_add.author = author.clone();
+
                     // Create DhtOp
                     let op = DhtOp::RegisterAddLink(sig.clone(), link_add.clone());
+
                     // Get the hash from the op
                     let op_hashed = DhtOpHashed::from_content_sync(op.clone());
+
                     mutations::insert_op(txn, op_hashed, true)?;
                 }
+
                 StateMutationResult::Ok(())
             })
             .unwrap();
 
         // Create cell data
         let dna = fixt!(DnaHash);
+
         let agents = AgentPubKeyFixturator::new(Unpredictable)
             .take(num_agents as usize)
             .collect::<Vec<_>>();
@@ -167,33 +207,52 @@ mod tests {
             holochain_p2p::event::HolochainP2pEvent::Publish { .. } => true,
             _ => false,
         };
+
         let (tx, mut recv) = tokio::sync::mpsc::channel(10);
+
         let test_network =
             test_network_with_events(Some(dna.clone()), Some(author.clone()), filter_events, tx)
                 .await;
+
         let (tx_complete, rx_complete) = tokio::sync::oneshot::channel();
+
         let cell_network = test_network.cell_network();
+
         let network = test_network.network();
+
         let mut recv_count: u32 = 0;
+
         let total_expected = num_agents * num_hash;
 
         // Receive events and increment count
         let recv_task = tokio::task::spawn({
+
             async move {
+
                 // use tokio_stream::StreamExt;
                 let mut tx_complete = Some(tx_complete);
+
                 while let Some(evt) = recv.recv().await {
+
                     use holochain_p2p::event::HolochainP2pEvent::*;
+
                     match evt {
                         Publish { respond, .. } => {
+
                             respond.respond(Ok(async move { Ok(()) }.boxed().into()));
+
                             if panic_on_publish {
+
                                 panic!("Published, when expecting not to")
                             }
+
                             recv_count += 1;
+
                             if recv_count == total_expected {
+
                                 // notify the test that all items have been received
                                 tx_complete.take().unwrap().send(()).unwrap();
+
                                 break;
                             }
                         }
@@ -206,6 +265,7 @@ mod tests {
         // Join some agents onto the network
         // Skip the first agent as it has already joined
         for agent in agents.into_iter().skip(1) {
+
             HolochainP2pRef::join(&network, dna.clone(), agent)
                 .await
                 .unwrap();
@@ -215,7 +275,9 @@ mod tests {
     }
 
     /// Call the workflow
+
     async fn call_workflow(env: EnvWrite, cell_network: HolochainP2pCell) {
+
         publish_dht_ops_workflow(env.clone().into(), cell_network)
             .await
             .unwrap();
@@ -231,12 +293,16 @@ mod tests {
     #[test_case(100, 1)]
     #[test_case(100, 10)]
     #[test_case(100, 100)]
+
     fn test_sent_to_r_nodes(num_agents: u32, num_hash: u32) {
+
         tokio_helper::block_forever_on(async {
+
             observability::test_run().ok();
 
             // Create test env
             let test_env = test_cell_env();
+
             let env = test_env.env();
 
             // Setup
@@ -254,8 +320,11 @@ mod tests {
             };
 
             let check = async move {
+
                 recv_task.await.unwrap();
+
                 fresh_reader_test!(env, |txn: Transaction| {
+
                     let unpublished_ops: bool = txn
                         .query_row(
                             "SELECT EXISTS(SELECT 1 FROM DhtOp WHERE last_publish_time IS NULL)",
@@ -263,6 +332,7 @@ mod tests {
                             |row| row.get(0),
                         )
                         .unwrap();
+
                     assert!(!unpublished_ops);
                 })
             };
@@ -285,12 +355,16 @@ mod tests {
     #[test_case(100, 1)]
     #[test_case(100, 10)]
     #[test_case(100, 100)]
+
     fn test_no_republish(num_agents: u32, num_hash: u32) {
+
         tokio_helper::block_forever_on(async {
+
             observability::test_run().ok();
 
             // Create test env
             let test_env = test_cell_env();
+
             let env = test_env.env();
 
             // Setup
@@ -301,6 +375,7 @@ mod tests {
             env.conn()
                 .unwrap()
                 .with_commit_test(|txn| {
+
                     txn.execute("UPDATE DhtOp SET receipts_complete = 1", [])
                         .unwrap();
                 })
@@ -341,40 +416,53 @@ mod tests {
     #[test_case(1)]
     #[test_case(10)]
     #[test_case(100)]
+
     fn test_private_entries(num_agents: u32) {
+
         tokio_helper::block_forever_on(
             async {
+
                 observability::test_run().ok();
 
                 // Create test env
                 let test_env = test_cell_env();
+
                 let env = test_env.env();
 
                 // Setup data
                 let original_entry = fixt!(Entry);
+
                 let new_entry = fixt!(Entry);
+
                 let original_entry_hash = EntryHash::with_data_sync(&original_entry);
+
                 let new_entry_hash = EntryHash::with_data_sync(&new_entry);
 
                 // Make them private
                 let visibility = EntryVisibility::Private;
+
                 let mut entry_type_fixt =
                     AppEntryTypeFixturator::new(visibility.clone()).map(EntryType::App);
+
                 let ec_entry_type = entry_type_fixt.next().unwrap();
+
                 let eu_entry_type = entry_type_fixt.next().unwrap();
 
                 // Genesis and produce ops to clear these from the chains
                 fake_genesis(env.clone()).await.unwrap();
+
                 env.conn()
                     .unwrap()
                     .execute("UPDATE DhtOp SET receipts_complete = 1", [])
                     .unwrap();
+
                 let author = fake_agent_pubkey_1();
 
                 // Put data in elements
                 let source_chain = SourceChain::new(env.clone().into(), author.clone())
                     .await
                     .unwrap();
+
                 // Produces 3 ops but minus 1 for store entry so 2 ops.
                 let original_header_address = source_chain
                     .put(
@@ -402,13 +490,18 @@ mod tests {
                     .unwrap();
 
                 source_chain.flush().await.unwrap();
+
                 let (entry_create_header, entry_update_header) = env
                     .conn()
                     .unwrap()
                     .with_commit_test(|writer| {
+
                         let store = Txn::from(writer);
+
                         let ech = store.get_header(&original_header_address).unwrap().unwrap();
+
                         let euh = store.get_header(&entry_update_hash).unwrap().unwrap();
+
                         (ech, euh)
                     })
                     .unwrap();
@@ -416,20 +509,28 @@ mod tests {
                 // Gather the expected op hashes, ops and basis
                 // We are only expecting Store Element and Register Replaced By ops and nothing else
                 let store_element_count = Arc::new(AtomicU32::new(0));
+
                 let register_replaced_by_count = Arc::new(AtomicU32::new(0));
+
                 let register_updated_element_count = Arc::new(AtomicU32::new(0));
+
                 let register_agent_activity_count = Arc::new(AtomicU32::new(0));
 
                 let expected = {
+
                     let mut map = HashMap::new();
+
                     // Op is expected to not contain the Entry even though the above contains the entry
                     let (entry_create_header, sig) =
                         entry_create_header.into_header_and_signature();
+
                     let expected_op = DhtOp::RegisterAgentActivity(
                         sig.clone(),
                         entry_create_header.clone().into_content(),
                     );
+
                     let op_hash = expected_op.to_hash();
+
                     map.insert(
                         op_hash,
                         (expected_op, register_agent_activity_count.clone()),
@@ -440,6 +541,7 @@ mod tests {
                         entry_create_header.into_content().try_into().unwrap(),
                         None,
                     );
+
                     let op_hash = expected_op.to_hash();
 
                     map.insert(op_hash, (expected_op, store_element_count.clone()));
@@ -448,10 +550,13 @@ mod tests {
                     // Op is expected to not contain the Entry
                     let (entry_update_header, sig) =
                         entry_update_header.into_header_and_signature();
+
                     let entry_update_header: Update =
                         entry_update_header.into_content().try_into().unwrap();
+
                     let expected_op =
                         DhtOp::StoreElement(sig.clone(), entry_update_header.clone().into(), None);
+
                     let op_hash = expected_op.to_hash();
 
                     map.insert(op_hash, (expected_op, store_element_count.clone()));
@@ -461,22 +566,28 @@ mod tests {
                         entry_update_header.clone(),
                         None,
                     );
+
                     let op_hash = expected_op.to_hash();
 
                     map.insert(op_hash, (expected_op, register_replaced_by_count.clone()));
+
                     let expected_op = DhtOp::RegisterUpdatedElement(
                         sig.clone(),
                         entry_update_header.clone(),
                         None,
                     );
+
                     let op_hash = expected_op.to_hash();
 
                     map.insert(
                         op_hash,
                         (expected_op, register_updated_element_count.clone()),
                     );
+
                     let expected_op = DhtOp::RegisterAgentActivity(sig, entry_update_header.into());
+
                     let op_hash = expected_op.to_hash();
+
                     map.insert(
                         op_hash,
                         (expected_op, register_agent_activity_count.clone()),
@@ -487,6 +598,7 @@ mod tests {
 
                 // Create cell data
                 let dna = fixt!(DnaHash);
+
                 let agents = AgentPubKeyFixturator::new(Unpredictable)
                     .take(num_agents as usize)
                     .collect::<Vec<_>>();
@@ -497,7 +609,9 @@ mod tests {
                     holochain_p2p::event::HolochainP2pEvent::Publish { .. } => true,
                     _ => false,
                 };
+
                 let (tx, mut recv) = tokio::sync::mpsc::channel(10);
+
                 let test_network = test_network_with_events(
                     Some(dna.clone()),
                     Some(fake_agent_pubkey_1()),
@@ -505,34 +619,49 @@ mod tests {
                     tx,
                 )
                 .await;
+
                 let cell_network = test_network.cell_network();
+
                 let (tx_complete, rx_complete) = tokio::sync::oneshot::channel();
+
                 // We are expecting six ops per agent plus one for self.
                 // The 7 genesis ops were already recently published, so
                 // won't be published again this time.
                 let total_expected = (num_agents + 1) * 6;
+
                 let mut recv_count: u32 = 0;
 
                 // Receive events and increment count
                 let recv_task = tokio::task::spawn({
+
                     async move {
+
                         let mut tx_complete = Some(tx_complete);
+
                         while let Some(evt) = recv.recv().await {
+
                             use holochain_p2p::event::HolochainP2pEvent::*;
+
                             match evt {
                                 Publish { respond, ops, .. } => {
+
                                     tracing::debug!(?ops);
 
                                     // Check the ops are correct
                                     for (op_hash, op) in ops {
+
                                         match expected.get(&op_hash) {
                                             Some((expected_op, count)) => {
+
                                                 assert_eq!(&op, expected_op);
+
                                                 count.fetch_add(1, Ordering::SeqCst);
                                             }
                                             None => {
                                                 if let DhtOp::StoreEntry(_, h, _) = op {
+
                                                     if *h.visibility() == EntryVisibility::Private {
+
                                                         panic!(
                                                             "A private op has been published: {:?}",
                                                             h
@@ -541,10 +670,14 @@ mod tests {
                                                 }
                                             }
                                         }
+
                                         recv_count += 1;
                                     }
+
                                     respond.respond(Ok(async move { Ok(()) }.boxed().into()));
+
                                     if recv_count == total_expected {
+
                                         tx_complete.take().unwrap().send(()).unwrap();
                                     }
                                 }
@@ -557,8 +690,11 @@ mod tests {
 
                 // Join some agents onto the network
                 {
+
                     let network = test_network.network();
+
                     for agent in agents {
+
                         HolochainP2pRef::join(&network, dna.clone(), agent)
                             .await
                             .unwrap()
@@ -578,16 +714,20 @@ mod tests {
                 // We publish to ourself in a full sync network so we need
                 // to expect one more op.
                 let num_agents = num_agents + 1;
+
                 // Check there is no ops left that didn't come through
                 assert_eq!(
                     num_agents * 1,
                     register_replaced_by_count.load(Ordering::SeqCst)
                 );
+
                 assert_eq!(
                     num_agents * 1,
                     register_updated_element_count.load(Ordering::SeqCst)
                 );
+
                 assert_eq!(num_agents * 2, store_element_count.load(Ordering::SeqCst));
+
                 assert_eq!(
                     num_agents * 2,
                     register_agent_activity_count.load(Ordering::SeqCst)

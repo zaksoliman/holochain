@@ -43,8 +43,10 @@ mock! {
 }
 
 #[async_trait]
+
 impl CellConductorApiT for MockCellConductorApi {
     fn cell_id(&self) -> &CellId {
+
         self.cell_id()
     }
 
@@ -53,38 +55,47 @@ impl CellConductorApiT for MockCellConductorApi {
         cell_id: &CellId,
         call: ZomeCall,
     ) -> ConductorApiResult<ZomeCallResult> {
+
         self.sync_call_zome(cell_id, call)
     }
 
     async fn dpki_request(&self, method: String, args: String) -> ConductorApiResult<String> {
+
         self.sync_dpki_request(method, args)
     }
 
     fn keystore(&self) -> &KeystoreSender {
+
         self.mock_keystore()
     }
 
     async fn signal_broadcaster(&self) -> SignalBroadcaster {
+
         self.mock_signal_broadcaster()
     }
 
     async fn get_dna(&self, dna_hash: &DnaHash) -> Option<DnaFile> {
+
         self.sync_get_dna(dna_hash)
     }
 
     async fn get_this_dna(&self) -> ConductorApiResult<DnaFile> {
+
         self.sync_get_this_dna()
     }
 
     async fn get_zome(&self, dna_hash: &DnaHash, zome_name: &ZomeName) -> ConductorApiResult<Zome> {
+
         self.sync_get_zome(dna_hash, zome_name)
     }
 
     async fn get_entry_def(&self, key: &EntryDefBufferKey) -> Option<EntryDef> {
+
         self.sync_get_entry_def(key)
     }
 
     fn into_call_zome_handle(self) -> super::CellConductorReadHandle {
+
         self.into_call_zome_handle()
     }
 }

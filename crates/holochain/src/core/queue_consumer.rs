@@ -35,14 +35,23 @@ use tokio::sync::mpsc;
 
 // TODO: move these to workflow mod
 mod integrate_dht_ops_consumer;
+
 use integrate_dht_ops_consumer::*;
+
 mod sys_validation_consumer;
+
 use sys_validation_consumer::*;
+
 mod app_validation_consumer;
+
 use app_validation_consumer::*;
+
 mod publish_dht_ops_consumer;
+
 use validation_receipt_consumer::*;
+
 mod validation_receipt_consumer;
+
 use crate::conductor::{api::CellConductorApiT, error::ConductorError, manager::ManagedTaskResult};
 use crate::conductor::{manager::ManagedTaskAdd, ConductorHandle};
 use holochain_p2p::HolochainP2pCell;
@@ -50,6 +59,7 @@ use holochain_p2p::*;
 use publish_dht_ops_consumer::*;
 
 mod countersigning_consumer;
+
 use countersigning_consumer::*;
 
 use super::workflow::countersigning_workflow::CountersigningWorkspace;
@@ -61,6 +71,7 @@ use super::workflow::error::WorkflowError;
 /// Waits for the initial loop to complete before returning, to prevent causing
 /// a race condition by trying to run a workflow too soon after cell creation.
 #[allow(clippy::too_many_arguments)]
+
 pub async fn spawn_queue_consumer_tasks(
     env: EnvWrite,
     cache: EnvWrite,
@@ -71,7 +82,9 @@ pub async fn spawn_queue_consumer_tasks(
     stop: sync::broadcast::Sender<()>,
     countersigning_workspace: CountersigningWorkspace,
 ) -> (QueueTriggers, InitialQueueTriggers) {
+
     let cell_id = cell_network.cell_id();
+
     // Publish
     let (tx_publish, handle) = spawn_publish_dht_ops_consumer(
         env.clone(),
@@ -79,6 +92,7 @@ pub async fn spawn_queue_consumer_tasks(
         stop.subscribe(),
         cell_network.clone(),
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -95,6 +109,7 @@ pub async fn spawn_queue_consumer_tasks(
         stop.subscribe(),
         cell_network.clone(),
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -113,6 +128,7 @@ pub async fn spawn_queue_consumer_tasks(
         tx_receipt.clone(),
         cell_network.clone(),
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -132,6 +148,7 @@ pub async fn spawn_queue_consumer_tasks(
         conductor_api.clone(),
         cell_network.clone(),
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -151,6 +168,7 @@ pub async fn spawn_queue_consumer_tasks(
         cell_network.clone(),
         conductor_api,
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -159,6 +177,7 @@ pub async fn spawn_queue_consumer_tasks(
         ))
         .await
         .expect("Failed to manage workflow handle");
+
     let (tx_cs, handle) = spawn_countersigning_consumer(
         env.clone(),
         stop.subscribe(),
@@ -167,6 +186,7 @@ pub async fn spawn_queue_consumer_tasks(
         cell_network.clone(),
         tx_sys.clone(),
     );
+
     task_sender
         .send(ManagedTaskAdd::cell_critical(
             handle,
@@ -189,6 +209,7 @@ pub async fn spawn_queue_consumer_tasks(
 
 /// The entry points for kicking off a chain reaction of queue activity
 #[derive(Clone)]
+
 pub struct QueueTriggers {
     /// Notify the SysValidation workflow to run, i.e. after handling gossip
     pub sys_validation: TriggerSender,
@@ -203,6 +224,7 @@ pub struct QueueTriggers {
 
 /// The triggers to run once at the start of a cell
 #[derive(Clone)]
+
 pub struct InitialQueueTriggers {
     /// These triggers can only be run once
     /// so they are private
@@ -221,6 +243,7 @@ impl InitialQueueTriggers {
         integrate_dht_ops: TriggerSender,
         validation_receipt: TriggerSender,
     ) -> Self {
+
         Self {
             sys_validation,
             publish_dht_ops,
@@ -231,19 +254,28 @@ impl InitialQueueTriggers {
     }
 
     /// Initialize all the workflows once.
+
     pub fn initialize_workflows(mut self) {
+
         self.sys_validation.trigger();
+
         self.app_validation.trigger();
+
         self.integrate_dht_ops.trigger();
+
         self.publish_dht_ops.trigger();
+
         self.validation_receipt.trigger();
     }
 }
+
 /// The means of nudging a queue consumer to tell it to look for more work
 #[derive(Clone)]
+
 pub struct TriggerSender(mpsc::Sender<()>);
 
 /// The receiving end of a queue trigger channel
+
 pub struct TriggerReceiver {
     rx: mpsc::Receiver<()>,
     waker: core::task::Waker,
@@ -254,17 +286,24 @@ impl TriggerSender {
     ///
     /// The channel buffer is set to num_cpus to deal with the potential
     /// inconsistency from the perspective of any particular CPU thread
+
     pub fn new() -> (TriggerSender, TriggerReceiver) {
+
         let (tx, rx) = mpsc::channel(num_cpus::get());
+
         let waker = futures::task::noop_waker();
+
         (TriggerSender(tx), TriggerReceiver { rx, waker })
     }
 
     /// Lazily nudge the consumer task, ignoring the case where the consumer
     /// already has a pending trigger signal
+
     pub fn trigger(&mut self) {
+
         match self.0.try_send(()) {
             Err(mpsc::error::TrySendError::Closed(_)) => {
+
                 tracing::warn!(
                     "Queue consumer trigger was sent while Cell is shutting down: ignoring."
                 );
@@ -278,14 +317,19 @@ impl TriggerSender {
 impl TriggerReceiver {
     /// Listen for one or more items to come through, draining the channel
     /// each time. Bubble up errors on empty channel.
+
     pub async fn listen(&mut self) -> Result<(), QueueTriggerClosedError> {
+
         use core::task::Poll;
 
         // wait for next item
         if self.rx.recv().await.is_some() {
+
             // drain the channel
             let mut ctx = core::task::Context::from_waker(&self.waker);
+
             loop {
+
                 match self.rx.poll_recv(&mut ctx) {
                     Poll::Ready(None) => return Err(QueueTriggerClosedError),
                     Poll::Pending => return Ok(()),
@@ -293,6 +337,7 @@ impl TriggerReceiver {
                 }
             }
         } else {
+
             Err(QueueTriggerClosedError)
         }
     }
@@ -300,6 +345,7 @@ impl TriggerReceiver {
 
 /// Declares whether a workflow has exhausted the queue or not
 #[derive(Clone, Debug, PartialEq)]
+
 pub enum WorkComplete {
     /// The queue has been exhausted
     Complete,
@@ -309,43 +355,56 @@ pub enum WorkComplete {
 
 /// The only error possible when attempting to trigger: the channel is closed
 #[derive(Debug, Display, thiserror::Error)]
+
 pub struct QueueTriggerClosedError;
 
 /// Inform a workflow to run a job or shutdown
+
 enum Job {
     Run,
     Shutdown,
 }
 
 /// Wait for the next job or exit command
+
 async fn next_job_or_exit(
     rx: &mut TriggerReceiver,
     stop: &mut sync::broadcast::Receiver<()>,
 ) -> Job {
+
     if stop.try_recv().is_ok() {
+
         return Job::Shutdown;
     }
+
     // Check for shutdown or next job
     let next_job = rx.listen();
+
     let kill = stop.recv();
+
     tokio::pin!(next_job);
+
     tokio::pin!(kill);
 
     if let Either::Left((Err(_), _)) | Either::Right((_, _)) =
         futures::future::select(next_job, kill).await
     {
+
         Job::Shutdown
     } else {
+
         Job::Run
     }
 }
 
 /// Does nothing.
+
 async fn handle_workflow_error(
     _conductor: ConductorHandle,
     _cell_id: CellId,
     err: WorkflowError,
     _reason: &str,
 ) -> ManagedTaskResult {
+
     Err(ConductorError::from(err).into())
 }

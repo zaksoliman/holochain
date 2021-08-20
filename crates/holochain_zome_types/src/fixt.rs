@@ -71,8 +71,11 @@ fixturator!(
 
 impl Iterator for AppEntryTypeFixturator<EntryVisibility> {
     type Item = AppEntryType;
+
     fn next(&mut self) -> Option<Self::Item> {
+
         let app_entry = AppEntryTypeFixturator::new(Unpredictable).next().unwrap();
+
         Some(AppEntryType::new(
             app_entry.id(),
             app_entry.zome_id(),
@@ -82,6 +85,7 @@ impl Iterator for AppEntryTypeFixturator<EntryVisibility> {
 }
 
 /// Alias
+
 pub type MaybeSerializedBytes = Option<SerializedBytes>;
 
 fixturator!(
@@ -117,32 +121,46 @@ pub struct KnownDeleteLink {
 
 impl Iterator for CreateLinkFixturator<KnownCreateLink> {
     type Item = CreateLink;
+
     fn next(&mut self) -> Option<Self::Item> {
+
         let mut f = fixt!(CreateLink);
+
         f.base_address = self.0.curve.base_address.clone();
+
         f.target_address = self.0.curve.target_address.clone();
+
         f.tag = self.0.curve.tag.clone();
+
         f.zome_id = self.0.curve.zome_id;
+
         Some(f)
     }
 }
 
 impl Iterator for DeleteLinkFixturator<KnownDeleteLink> {
     type Item = DeleteLink;
+
     fn next(&mut self) -> Option<Self::Item> {
+
         let mut f = fixt!(DeleteLink);
+
         f.link_add_address = self.0.curve.link_add_address.clone();
+
         f.base_address = self.0.curve.base_address.clone();
+
         Some(f)
     }
 }
 
 /// a curve to spit out Entry::App values
 #[derive(Clone)]
+
 pub struct AppEntry;
 
 /// A curve to make headers have public entry types
 #[derive(Clone)]
+
 pub struct PublicCurve;
 
 fixturator!(
@@ -193,6 +211,7 @@ fixturator!(
 newtype_fixturator!(Signature<SixtyFourBytes>);
 
 pub type SignatureVec = Vec<Signature>;
+
 fixturator!(
     SignatureVec;
     curve Empty vec![];
@@ -394,8 +413,10 @@ fixturator!(
 );
 
 pub fn element_with_no_entry(signature: Signature, header: Header) -> Element {
+
     let shh =
         SignedHeaderHashed::with_presigned(HeaderHashed::from_content_sync(header), signature);
+
     Element::new(shh, None)
 }
 
@@ -414,6 +435,7 @@ fixturator!(
         )
     };
 );
+
 use std::convert::TryFrom;
 
 fixturator!(

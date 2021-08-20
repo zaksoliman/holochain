@@ -1,5 +1,6 @@
 //! # Entry Defs Store
 //! Stores all the entry definitions across zomes
+
 use crate::core::ribosome::guest_callback::entry_defs::EntryDefsHostAccess;
 use crate::core::ribosome::guest_callback::entry_defs::EntryDefsInvocation;
 use crate::core::ribosome::guest_callback::entry_defs::EntryDefsResult;
@@ -18,16 +19,21 @@ pub mod error;
 
 /// Get an [EntryDef] from the entry def store
 /// or fallback to running the zome
+
 pub(crate) async fn get_entry_def(
     entry_def_index: EntryDefIndex,
     zome: ZomeDef,
     dna_def: &DnaDefHashed,
     conductor_api: &impl CellConductorApiT,
 ) -> EntryDefStoreResult<Option<EntryDef>> {
+
     // Try to get the entry def from the entry def store
     let key = EntryDefBufferKey::new(zome, entry_def_index);
+
     let entry_def = conductor_api.get_entry_def(&key).await;
+
     let dna_hash = dna_def.as_hash();
+
     let dna_file = conductor_api
         .get_dna(dna_hash)
         .await
@@ -48,6 +54,7 @@ pub(crate) async fn get_entry_def_from_ids(
     dna_def: &DnaDefHashed,
     conductor_api: &impl CellConductorApiT,
 ) -> EntryDefStoreResult<Option<EntryDef>> {
+
     match dna_def.zomes.get(zome_id.index()) {
         Some((_, zome)) => {
             get_entry_def(entry_def_index, zome.clone(), dna_def, conductor_api).await
@@ -58,9 +65,11 @@ pub(crate) async fn get_entry_def_from_ids(
 
 #[tracing::instrument(skip(dna))]
 /// Get all the [EntryDef] for this dna
+
 pub(crate) fn get_entry_defs(
     dna: DnaFile, // TODO: make generic
 ) -> EntryDefStoreResult<Vec<(EntryDefBufferKey, EntryDef)>> {
+
     let invocation = EntryDefsInvocation;
 
     // Get the zomes hashes
@@ -73,23 +82,31 @@ pub(crate) fn get_entry_defs(
         .collect::<HashMap<_, _>>();
 
     let ribosome = RealRibosome::new(dna);
+
     match ribosome.run_entry_defs(EntryDefsHostAccess, invocation)? {
         EntryDefsResult::Defs(map) => {
+
             // Turn the defs map into a vec of keys and entry defs
             map.into_iter()
                 // Skip zomes without entry defs
                 .filter_map(|(zome_name, entry_defs)| {
+
                     zomes.get(&zome_name).map(|zome| (zome.clone(), entry_defs))
                 })
                 // Get each entry def and pair with a key
                 .flat_map(|(zome, entry_defs)| {
+
                     entry_defs
                         .into_iter()
                         .enumerate()
                         .map(move |(i, entry_def)| {
+
                             let s = tracing::debug_span!("entry_def");
+
                             let _g = s.enter();
+
                             tracing::debug!(?entry_def);
+
                             Ok((
                                 EntryDefBufferKey {
                                     zome: zome.clone(),
@@ -111,7 +128,9 @@ pub(crate) fn get_entry_defs(
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::EntryDefBufferKey;
     use crate::conductor::Conductor;
     use holo_hash::HasHash;
@@ -121,11 +140,14 @@ mod tests {
     use holochain_wasm_test_utils::TestWasm;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_store_entry_defs() {
+
         observability::test_run().ok();
 
         // all the stuff needed to have a WasmBuf
         let envs = test_environments();
+
         let handle = Conductor::builder().test(&envs, &[]).await.unwrap();
 
         let dna = fake_dna_zomes(
@@ -141,6 +163,7 @@ mod tests {
             required_validations: 5.into(),
             required_validation_type: Default::default(),
         };
+
         let comment_def = EntryDef {
             id: "comment".into(),
             visibility: EntryVisibility::Private,
@@ -148,6 +171,7 @@ mod tests {
             required_validations: 5.into(),
             required_validation_type: Default::default(),
         };
+
         let dna_wasm = DnaWasmHashed::from_content(TestWasm::EntryDefs.into())
             .await
             .into_hash();
@@ -156,17 +180,20 @@ mod tests {
             zome: ZomeDef::from_hash(dna_wasm.clone()),
             entry_def_position: 0.into(),
         };
+
         let comment_def_key = EntryDefBufferKey {
             zome: ZomeDef::from_hash(dna_wasm),
             entry_def_position: 1.into(),
         };
 
         handle.register_dna(dna).await.unwrap();
+
         // Check entry defs are here
         assert_eq!(
             handle.get_entry_def(&post_def_key).await,
             Some(post_def.clone())
         );
+
         assert_eq!(
             handle.get_entry_def(&comment_def_key).await,
             Some(comment_def.clone())
@@ -178,6 +205,7 @@ mod tests {
         let handle = Conductor::builder().test(&envs.into(), &[]).await.unwrap();
 
         assert_eq!(handle.get_entry_def(&post_def_key).await, Some(post_def));
+
         assert_eq!(
             handle.get_entry_def(&comment_def_key).await,
             Some(comment_def.clone())

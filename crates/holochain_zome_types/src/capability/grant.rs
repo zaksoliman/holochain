@@ -19,6 +19,7 @@ use std::collections::BTreeSet;
 /// See `.is_valid()`
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[allow(clippy::large_enum_variant)]
+
 pub enum CapGrant {
     /// Grants the capability of calling every extern to the calling agent, provided the calling
     /// agent is the local chain author.
@@ -34,12 +35,14 @@ pub enum CapGrant {
 
 impl From<holo_hash::AgentPubKey> for CapGrant {
     fn from(agent_hash: holo_hash::AgentPubKey) -> Self {
+
         CapGrant::ChainAuthor(agent_hash)
     }
 }
 
 #[derive(Default, PartialEq, Eq, Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// @todo Ability to forcibly curry payloads into functions that are called with a claim.
+
 pub struct CurryPayloads(pub BTreeMap<GrantedFunction, SerializedBytes>);
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -48,6 +51,7 @@ pub struct CurryPayloads(pub BTreeMap<GrantedFunction, SerializedBytes>);
 /// This data is committed to the callee's source chain as a private entry.
 /// The remote calling agent must provide a secret and we source their pubkey from the active
 /// network connection. This must match the strictness of the CapAccess.
+
 pub struct ZomeCallCapGrant {
     /// A string by which to later query for saved grants.
     /// This does not need to be unique within a source chain.
@@ -62,12 +66,14 @@ pub struct ZomeCallCapGrant {
 
 impl ZomeCallCapGrant {
     /// Constructor
+
     pub fn new(
         tag: String,
         access: CapAccess,
         functions: GrantedFunctions,
         // @todo curry_payloads: CurryPayloads,
     ) -> Self {
+
         Self {
             tag,
             access,
@@ -79,7 +85,9 @@ impl ZomeCallCapGrant {
 
 impl From<ZomeCallCapGrant> for CapGrant {
     /// Create a new ZomeCall capability grant
+
     fn from(zccg: ZomeCallCapGrant) -> Self {
+
         CapGrant::RemoteAgent(zccg)
     }
 }
@@ -88,12 +96,14 @@ impl CapGrant {
     /// Given a grant, is it valid in isolation?
     /// In a world of CRUD, some new entry might update or delete an existing one, but we can check
     /// if a grant is valid in a standalone way.
+
     pub fn is_valid(
         &self,
         check_function: &GrantedFunction,
         check_agent: &AgentPubKey,
         check_secret: Option<&CapSecret>,
     ) -> bool {
+
         match self {
             // Grant is always valid if the author matches the check agent.
             CapGrant::ChainAuthor(author) => author == check_agent,
@@ -101,6 +111,7 @@ impl CapGrant {
             CapGrant::RemoteAgent(ZomeCallCapGrant {
                 access, functions, ..
             }) => {
+
                 // The checked function needs to be in the grant…
                 functions.contains(check_function)
                 // The agent needs to be valid…
@@ -126,6 +137,7 @@ impl CapGrant {
 /// Represents access requirements for capability grants.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub enum CapAccess {
     /// No restriction: callable by anyone.
     Unrestricted,
@@ -144,37 +156,50 @@ pub enum CapAccess {
 }
 
 /// Implements ().into() shorthand for CapAccess::Unrestricted
+
 impl From<()> for CapAccess {
     fn from(_: ()) -> Self {
+
         Self::Unrestricted
     }
 }
 
 /// Implements secret.into() shorthand for CapAccess::Transferable(secret)
+
 impl From<CapSecret> for CapAccess {
     fn from(secret: CapSecret) -> Self {
+
         Self::Transferable { secret }
     }
 }
 
 /// Implements (secret, assignees).into() shorthand for CapAccess::Assigned { secret, assignees }
+
 impl From<(CapSecret, BTreeSet<AgentPubKey>)> for CapAccess {
     fn from((secret, assignees): (CapSecret, BTreeSet<AgentPubKey>)) -> Self {
+
         Self::Assigned { secret, assignees }
     }
 }
 
 /// Implements (secret, agent_pub_key).into() shorthand for
 /// CapAccess::Assigned { secret, assignees: hashset!{ agent } }
+
 impl From<(CapSecret, AgentPubKey)> for CapAccess {
     fn from((secret, assignee): (CapSecret, AgentPubKey)) -> Self {
+
         let mut assignees = BTreeSet::new();
+
         assignees.insert(assignee);
+
         Self::from((secret, assignees))
     }
 }
 
 /// a single zome/function pair
+
 pub type GrantedFunction = (ZomeName, FunctionName);
+
 /// A collection of zome/function pairs
+
 pub type GrantedFunctions = BTreeSet<GrantedFunction>;

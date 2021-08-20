@@ -52,11 +52,13 @@ fixturator!(
 );
 
 /// make fixturators sync for now
+
 fn block_on<F>(f: F) -> F::Output
 where
     F: 'static + std::future::Future + Send,
     F::Output: 'static + Send,
 {
+
     tokio::task::block_in_place(move || tokio::runtime::Handle::current().block_on(f))
 }
 

@@ -8,7 +8,9 @@ use chrono::TimeZone;
 use crate::release::ReleaseSteps;
 
 #[test]
+
 fn release_steps_are_ordered() {
+
     let input = "BumpReleaseVersions,VerifyMainBranch,PushForPrToMain,CreatePrToMain,PublishToCratesIo,PushReleaseTag,PushForDevelopPr,CreatePrToDevelop,CreateReleaseBranch";
 
     let parsed = super::cli::parse_releasesteps(input)
@@ -24,7 +26,9 @@ fn release_steps_are_ordered() {
 }
 
 #[test]
+
 fn parse_publish_error() {
+
     use crate::release::PublishError;
 
     struct TestCase<'a> {
@@ -176,6 +180,7 @@ fn parse_publish_error() {
     ];
 
     for case in cases {
+
         let result = PublishError::with_str(
             case.package.to_string(),
             case.version.to_string(),

@@ -122,6 +122,7 @@ pub use ports::force_admin_port;
 
 /// Print a msg with `hc-sandbox: ` pre-pended
 /// and ansi colors.
+
 macro_rules! msg {
     ($($arg:tt)*) => ({
         use ansi_term::Color::*;
@@ -140,59 +141,77 @@ pub mod generate;
 pub mod run;
 pub mod sandbox;
 pub mod save;
+
 pub use cli::HcSandbox;
 
 mod ports;
 
 /// An active connection to a running conductor.
+
 pub struct CmdRunner {
     client: WebsocketSender,
 }
 
 impl CmdRunner {
     const HOLOCHAIN_PATH: &'static str = "holochain";
+
     /// Create a new connection for calling admin interface commands.
     /// Panics if admin port fails to connect.
+
     pub async fn new(port: u16) -> Self {
+
         Self::try_new(port)
             .await
             .expect("Failed to create CmdRunner because admin port failed to connect")
     }
 
     /// Create a new connection for calling admin interface commands.
+
     pub async fn try_new(port: u16) -> WebsocketResult<Self> {
+
         let client = get_admin_api(port).await?;
+
         Ok(Self { client })
     }
 
     /// Create a command runner from a sandbox path.
     /// This expects holochain to be on the path.
+
     pub async fn from_sandbox(
         sandbox_path: PathBuf,
     ) -> anyhow::Result<(Self, tokio::process::Child)> {
+
         Self::from_sandbox_with_bin_path(&Path::new(Self::HOLOCHAIN_PATH), sandbox_path).await
     }
 
     /// Create a command runner from a sandbox path and
     /// set the path to the holochain binary.
+
     pub async fn from_sandbox_with_bin_path(
         holochain_bin_path: &Path,
         sandbox_path: PathBuf,
     ) -> anyhow::Result<(Self, tokio::process::Child)> {
+
         let conductor = run::run_async(holochain_bin_path, sandbox_path, None).await?;
+
         let cmd = CmdRunner::try_new(conductor.0).await?;
+
         Ok((cmd, conductor.1))
     }
 
     /// Make an Admin request to this conductor.
+
     pub async fn command(&mut self, cmd: AdminRequest) -> anyhow::Result<AdminResponse> {
+
         let response: Result<AdminResponse, _> = self.client.request(cmd).await;
+
         Ok(response?)
     }
 }
 
 #[macro_export]
 /// Expect that an enum matches a variant and panic if it doesn't.
+
 macro_rules! expect_variant {
     ($var:expr => $variant:path, $error_msg:expr) => {
         match $var {
@@ -207,6 +226,7 @@ macro_rules! expect_variant {
 
 #[macro_export]
 /// Expect that an enum matches a variant and return an error if it doesn't.
+
 macro_rules! expect_match {
     ($var:expr => $variant:path, $error_msg:expr) => {
         match $var {

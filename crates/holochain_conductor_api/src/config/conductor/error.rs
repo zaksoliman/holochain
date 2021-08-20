@@ -4,6 +4,7 @@ use thiserror::Error;
 pub type ConductorConfigResult<T> = Result<T, ConductorConfigError>;
 
 #[derive(Error, Debug)]
+
 pub enum ConductorConfigError {
     #[error("No conductor config found at this path: {0}")]
     ConfigMissing(PathBuf),

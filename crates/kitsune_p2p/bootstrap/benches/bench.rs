@@ -21,41 +21,61 @@ criterion_group!(benches, bootstrap);
 criterion_main!(benches);
 
 fn bootstrap(bench: &mut Criterion) {
+
     let mut group = bench.benchmark_group("bootstrap");
+
     group.sample_size(
         std::env::var_os("BENCH_SAMPLE_SIZE")
             .and_then(|s| s.to_string_lossy().parse::<usize>().ok())
             .unwrap_or(100),
     );
+
     let runtime = rt();
+
     let client = reqwest::Client::new();
 
     let mut url = url2!("http://127.0.0.1:0");
+
     let (driver, addr) = runtime.block_on(async {
+
         kitsune_p2p_bootstrap::run(([127, 0, 0, 1], 0))
             .await
             .unwrap()
     });
+
     runtime.spawn(async move {
+
         driver.await;
+
         println!("BOOTSTRAP CLOSED");
     });
+
     url.set_port(Some(addr.port())).unwrap();
+
     group.bench_function(BenchmarkId::new("test", format!("now")), |b| {
+
         b.iter(|| {
+
             runtime.block_on(async {
+
                 let time: u64 = do_api(url.clone(), "now", (), &client)
                     .await
                     .unwrap()
                     .unwrap();
+
                 assert!(time > 0);
             });
         });
     });
+
     let space: Arc<KitsuneSpace> = runtime.block_on(async { Arc::new(fixt!(KitsuneSpace)) });
+
     group.bench_function(BenchmarkId::new("test", format!("put")), |b| {
+
         b.iter(|| {
+
             runtime.block_on(async {
+
                 let info = AgentInfoSigned::sign(
                     space.clone(),
                     Arc::new(fixt!(KitsuneAgent, Unpredictable)),
@@ -67,6 +87,7 @@ fn bootstrap(bench: &mut Criterion) {
                 )
                 .await
                 .unwrap();
+
                 let _: Option<()> = do_api(url.clone(), "put", info, &client)
                     .await
                     .unwrap()
@@ -74,22 +95,29 @@ fn bootstrap(bench: &mut Criterion) {
             });
         });
     });
+
     let query = RandomQuery {
         space,
         limit: RandomLimit(10),
     };
+
     group.bench_function(BenchmarkId::new("test", format!("random")), |b| {
+
         b.iter(|| {
+
             runtime.block_on(async {
+
                 let peers: Vec<serde_bytes::ByteBuf> =
                     do_api(url.clone(), "random", query.clone(), &client)
                         .await
                         .unwrap()
                         .unwrap();
+
                 assert_eq!(peers.len(), 10);
             });
         });
     });
+
     runtime.shutdown_background();
 }
 
@@ -99,8 +127,11 @@ async fn do_api<I: serde::Serialize, O: serde::de::DeserializeOwned>(
     input: I,
     client: &reqwest::Client,
 ) -> KitsuneP2pResult<Option<O>> {
+
     let mut body_data = Vec::new();
+
     kitsune_p2p_types::codec::rmp_encode(&mut body_data, &input)?;
+
     let res = client
         .post(url.as_str())
         .body(body_data)
@@ -108,11 +139,14 @@ async fn do_api<I: serde::Serialize, O: serde::de::DeserializeOwned>(
         .header(reqwest::header::CONTENT_TYPE, "application/octet")
         .send()
         .await?;
+
     if res.status().is_success() {
+
         Ok(Some(kitsune_p2p_types::codec::rmp_decode(
             &mut res.bytes().await?.as_ref(),
         )?))
     } else {
+
         Err(kitsune_p2p::KitsuneP2pError::Bootstrap(
             res.text().await?.into_boxed_str(),
         ))
@@ -120,5 +154,6 @@ async fn do_api<I: serde::Serialize, O: serde::de::DeserializeOwned>(
 }
 
 pub fn rt() -> Runtime {
+
     Builder::new_multi_thread().enable_all().build().unwrap()
 }

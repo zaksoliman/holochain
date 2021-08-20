@@ -21,38 +21,49 @@ use std::fmt;
     Ord,
     PartialOrd,
 )]
+
 pub struct CellId(DnaHash, AgentPubKey);
 
 impl fmt::Display for CellId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
         write!(f, "Cell({}, {})", self.dna_hash(), self.agent_pubkey())
     }
 }
 
 impl CellId {
     /// Create a CellId from its components
+
     pub fn new(dna_hash: DnaHash, agent_pubkey: AgentPubKey) -> Self {
+
         CellId(dna_hash, agent_pubkey)
     }
 
     /// The dna hash/address for this cell.
+
     pub fn dna_hash(&self) -> &DnaHash {
+
         &self.0
     }
 
     /// The agent id / public key for this cell.
+
     pub fn agent_pubkey(&self) -> &AgentPubKey {
+
         &self.1
     }
 
     /// Into [DnaHash] and [AgentPubKey]
+
     pub fn into_dna_and_agent(self) -> (DnaHash, AgentPubKey) {
+
         (self.0, self.1)
     }
 }
 
 impl From<(DnaHash, AgentPubKey)> for CellId {
     fn from(pair: (DnaHash, AgentPubKey)) -> Self {
+
         Self(pair.0, pair.1)
     }
 }

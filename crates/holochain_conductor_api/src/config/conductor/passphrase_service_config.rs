@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde::Serialize;
+
 //use std::path::PathBuf;
 
 /// The default passphrase service is `Cmd` which will ask for a passphrase via stdout stdin.
@@ -12,6 +13,7 @@ use serde::Serialize;
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[non_exhaustive]
+
 pub enum PassphraseServiceConfig {
     // TODO (david.b) - we don't support these yet, so don't make them
     //                  seem like they are available
@@ -37,6 +39,7 @@ pub enum PassphraseServiceConfig {
 //                  but it's the only one available at the moment
 impl Default for PassphraseServiceConfig {
     fn default() -> PassphraseServiceConfig {
+
         PassphraseServiceConfig::DangerInsecureFromConfig {
             passphrase: "default-insecure-passphrase".into(),
         }

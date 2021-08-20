@@ -25,6 +25,7 @@ use thiserror::Error;
 /// unstable but when it lands we should use:
 /// https://docs.rs/try-guard/0.2.0/try_guard/
 #[derive(Error, Debug)]
+
 pub enum SysValidationError {
     #[error(transparent)]
     CascadeError(#[from] holochain_cascade::error::CascadeError),
@@ -51,6 +52,7 @@ pub enum SysValidationError {
 
 impl From<CounterSigningError> for SysValidationError {
     fn from(counter_signing_error: CounterSigningError) -> Self {
+
         SysValidationError::ValidationOutcome(ValidationOutcome::CounterSigningError(
             counter_signing_error,
         ))
@@ -58,18 +60,21 @@ impl From<CounterSigningError> for SysValidationError {
 }
 
 #[deprecated = "This will be replaced with SysValidationOutcome as we shouldn't treat outcomes as errors"]
+
 pub type SysValidationResult<T> = Result<T, SysValidationError>;
 
 /// Return either:
 /// - an Ok result
 /// - ValidationOutcome
 /// - SysValidationError
+
 pub type SysValidationOutcome<T> = Result<T, OutcomeOrError<ValidationOutcome, SysValidationError>>;
 
 from_sub_error!(SysValidationError, WorkspaceError);
 
 impl<T> From<SysValidationError> for OutcomeOrError<T, SysValidationError> {
     fn from(e: SysValidationError) -> Self {
+
         OutcomeOrError::Err(e)
     }
 }
@@ -77,10 +82,12 @@ impl<T> From<SysValidationError> for OutcomeOrError<T, SysValidationError> {
 /// Turn the OutcomeOrError into an Outcome or and Error
 /// This is the best way to convert into an outcome or
 /// exit early with a real error
+
 impl<E> TryFrom<OutcomeOrError<ValidationOutcome, E>> for ValidationOutcome {
     type Error = E;
 
     fn try_from(value: OutcomeOrError<ValidationOutcome, E>) -> Result<Self, Self::Error> {
+
         match value {
             OutcomeOrError::Outcome(o) => Ok(o),
             OutcomeOrError::Err(e) => Err(e),
@@ -94,6 +101,7 @@ impl<E> TryFrom<OutcomeOrError<ValidationOutcome, E>> for ValidationOutcome {
 /// This is not an error type it is the outcome of
 /// failed validation.
 #[derive(Error, Debug)]
+
 pub enum ValidationOutcome {
     #[error("The element with signature {0:?} and header {1:?} was found to be counterfeit")]
     Counterfeit(Signature, Header),
@@ -137,20 +145,26 @@ pub enum ValidationOutcome {
 
 impl ValidationOutcome {
     pub fn not_holding<I: Into<AnyDhtHash> + Clone>(h: &I) -> Self {
+
         Self::NotHoldingDep(h.clone().into())
     }
+
     pub fn not_found<I: Into<AnyDhtHash> + Clone>(h: &I) -> Self {
+
         Self::DepMissingFromDht(h.clone().into())
     }
 
     /// Convert into a OutcomeOrError<ValidationOutcome, SysValidationError>
     /// and exit early
+
     pub fn into_outcome<T>(self) -> SysValidationOutcome<T> {
+
         Err(OutcomeOrError::Outcome(self))
     }
 }
 
 #[derive(Error, Debug)]
+
 pub enum PrevHeaderError {
     #[error("Root of source chain must be Dna")]
     InvalidRoot,

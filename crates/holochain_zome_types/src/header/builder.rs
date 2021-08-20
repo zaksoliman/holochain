@@ -12,6 +12,7 @@ use holo_hash::HeaderHash;
 use holochain_serialized_bytes::SerializedBytes;
 
 #[derive(Clone, Debug)]
+
 pub struct HeaderBuilderCommon {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -26,6 +27,7 @@ impl HeaderBuilderCommon {
         header_seq: u32,
         prev_header: HeaderHash,
     ) -> Self {
+
         Self {
             author,
             timestamp,
@@ -46,6 +48,7 @@ impl HeaderBuilderCommon {
 /// there is no Agent associated with the source chain, and also the fact that
 /// the Dna header has no prev_entry causes a special case that need not be
 /// dealt with. SourceChain::genesis already handles genesis in one fell swoop.
+
 pub trait HeaderBuilder<H: HeaderInner>: Sized {
     fn build(self, common: HeaderBuilderCommon) -> H;
 }
@@ -160,7 +163,9 @@ builder_variant!(AgentValidationPkg {
 impl Dna {
     /// The Dna header can't implement HeaderBuilder because it lacks a
     /// `prev_header` field, so this helper is provided as a special case
+
     pub fn from_builder(hash: DnaHash, builder: HeaderBuilderCommon) -> Self {
+
         Self {
             author: builder.author,
             timestamp: builder.timestamp,

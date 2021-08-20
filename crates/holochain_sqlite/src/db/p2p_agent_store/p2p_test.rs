@@ -6,22 +6,29 @@ use rand::Rng;
 use std::sync::Arc;
 
 fn rand_space() -> Arc<KitsuneSpace> {
+
     let mut rng = rand::thread_rng();
 
     let mut data = vec![0_u8; 36];
+
     rng.fill(&mut data[..]);
+
     Arc::new(KitsuneSpace(data))
 }
 
 fn rand_agent() -> Arc<KitsuneAgent> {
+
     let mut rng = rand::thread_rng();
 
     let mut data = vec![0_u8; 36];
+
     rng.fill(&mut data[..]);
+
     Arc::new(KitsuneAgent(data))
 }
 
 fn rand_signed_at_ms() -> u64 {
+
     let mut rng = rand::thread_rng();
 
     let now = std::time::SystemTime::now()
@@ -33,9 +40,11 @@ fn rand_signed_at_ms() -> u64 {
 }
 
 async fn rand_insert(db: &DbWrite, space: &Arc<KitsuneSpace>, agent: &Arc<KitsuneAgent>) {
+
     let mut rng = rand::thread_rng();
 
     let signed_at_ms = rand_signed_at_ms();
+
     let expires_at_ms = signed_at_ms + rng.gen_range(100, 200);
 
     let half_len = match rng.gen_range(0_u8, 9_u8) {
@@ -61,7 +70,9 @@ async fn rand_insert(db: &DbWrite, space: &Arc<KitsuneSpace>, agent: &Arc<Kitsun
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn test_p2p_agent_store_gossip_query_sanity() {
+
     let tmp_dir = tempdir::TempDir::new("p2p_agent_store_gossip_query_sanity").unwrap();
 
     let space = rand_space();
@@ -71,10 +82,12 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
     let mut example_agent = rand_agent();
 
     for _ in 0..20 {
+
         example_agent = rand_agent();
 
         // insert multiple times to test idempotence of "upsert"
         for _ in 0..3 {
+
             rand_insert(&db, &space, &example_agent).await;
         }
     }
@@ -83,6 +96,7 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
 
     // check that we only get 20 results
     let all = con.p2p_list_agents().unwrap();
+
     assert_eq!(20, all.len());
 
     // agents with zero arc lengths will never be returned, so count only the
@@ -94,7 +108,9 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
 
     // make sure we can get our example result
     println!("after insert select all count: {}", all.len());
+
     let signed = con.p2p_get_agent(&example_agent).unwrap();
+
     assert!(signed.is_some());
 
     // check that gossip query over full range returns 20 results
@@ -105,6 +121,7 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
             DhtArc::new(0, u32::MAX).interval().into(),
         )
         .unwrap();
+
     assert_eq!(all.len(), num_nonzero);
 
     // check that gossip query over zero time returns zero results
@@ -115,12 +132,14 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
             DhtArc::new(0, u32::MAX).interval().into(),
         )
         .unwrap();
+
     assert_eq!(all.len(), 0);
 
     // check that gossip query over zero arc returns zero results
     let all = con
         .p2p_gossip_query_agents(u64::MIN, u64::MAX, DhtArc::new(0, 0).interval().into())
         .unwrap();
+
     assert_eq!(all.len(), 0);
 
     // check that gossip query over half arc returns some but not all results
@@ -132,43 +151,65 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
             DhtArc::new(0, u32::MAX / 4).interval().into(),
         )
         .unwrap();
+
     // TODO - not sure this is right with <= num_nonzero... but it breaks
     //        sometimes if we just use '<'
     assert!(all.len() > 0 && all.len() <= num_nonzero);
 
     // near
     let tgt = u32::MAX / 2;
+
     let near = con.p2p_query_near_basis(tgt, 20).unwrap();
+
     let mut prev = 0;
+
     for agent_info_signed in near {
+
         use kitsune_p2p::KitsuneBinType;
+
         let loc = agent_info_signed.agent.get_loc();
+
         let record = super::P2pRecord::from_signed(&agent_info_signed).unwrap();
+
         let mut dist = u32::MAX;
+
         let mut deb = "not reset";
 
         let start = record.storage_start_loc;
+
         let end = record.storage_end_loc;
 
         match (start, end) {
             (Some(start), Some(end)) => {
                 if start < end {
+
                     if tgt >= start && tgt <= end {
+
                         deb = "one-span-inside";
+
                         dist = 0;
                     } else if tgt < start {
+
                         deb = "one-span-before";
+
                         dist = std::cmp::min(start - tgt, (u32::MAX - end) + tgt);
                     } else {
+
                         deb = "one-span-after";
+
                         dist = std::cmp::min(tgt - end, (u32::MAX - tgt) + start);
                     }
                 } else {
+
                     if tgt <= end || tgt >= start {
+
                         deb = "two-span-inside";
+
                         dist = 0;
                     } else {
+
                         deb = "two-span-outside";
+
                         dist = std::cmp::min(tgt - end, start - tgt);
                     }
                 }
@@ -177,7 +218,9 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
         }
 
         assert!(dist >= prev);
+
         prev = dist;
+
         println!("loc({}) => dist({}) - {}", loc, dist, deb);
     }
 
@@ -186,11 +229,14 @@ async fn test_p2p_agent_store_gossip_query_sanity() {
 
     // after prune, make sure all are pruned
     let all = con.p2p_list_agents().unwrap();
+
     assert_eq!(0, all.len());
 
     // make sure our specific get also returns None
     println!("after prune_all select all count: {}", all.len());
+
     let signed = con.p2p_get_agent(&example_agent).unwrap();
+
     assert!(signed.is_none());
 
     // clean up temp dir

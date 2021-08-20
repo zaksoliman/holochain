@@ -9,29 +9,42 @@ use holochain_zome_types::test_utils::fake_agent_pubkey_1;
 use ChainStatus::*;
 
 fn setup() -> (TestEnv, MetadataBuf, Create, Create, AgentPubKey) {
+
     observability::test_run().ok();
+
     let test_env = test_cell_env();
+
     let meta_buf = MetadataBuf::vault(test_env.env().into()).unwrap();
+
     let agent_pubkey = fake_agent_pubkey_1();
+
     let mut h1 = fixt!(Create);
+
     let mut h2 = fixt!(Create);
+
     h1.author = agent_pubkey.clone();
+
     h2.author = agent_pubkey.clone();
+
     (test_env, meta_buf, h1, h2, agent_pubkey)
 }
 
 /// TEST: The following chain status transitions have the proper precedence
 #[test]
+
 fn add_chain_status_test() {
+
     // - Invalid overwrites valid
     let prev_status = Valid(ChainHead {
         header_seq: 1,
         hash: fixt!(HeaderHash),
     });
+
     let incoming_status = Invalid(ChainHead {
         header_seq: 1,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status, incoming_status.clone()),
         Some(incoming_status.clone())
@@ -42,10 +55,12 @@ fn add_chain_status_test() {
         header_seq: 2,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status.clone(), incoming_status.clone()),
         Some(incoming_status.clone())
     );
+
     // Reverse and expect reverse result
     assert_eq!(
         add_chain_status(incoming_status.clone(), prev_status.clone()),
@@ -58,10 +73,12 @@ fn add_chain_status_test() {
         first_header: fixt!(HeaderHash),
         second_header: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status.clone(), incoming_status.clone()),
         Some(incoming_status.clone())
     );
+
     // Reverse and expect reverse result
     assert_eq!(
         add_chain_status(incoming_status.clone(), prev_status.clone()),
@@ -74,15 +91,18 @@ fn add_chain_status_test() {
         first_header: fixt!(HeaderHash),
         second_header: fixt!(HeaderHash),
     });
+
     let incoming_status = Forked(ChainFork {
         fork_seq: 1,
         first_header: fixt!(HeaderHash),
         second_header: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status.clone(), incoming_status.clone()),
         Some(incoming_status.clone())
     );
+
     // Reverse and expect reverse result
     assert_eq!(
         add_chain_status(incoming_status.clone(), prev_status.clone()),
@@ -94,15 +114,18 @@ fn add_chain_status_test() {
         header_seq: 2,
         hash: fixt!(HeaderHash),
     });
+
     let incoming_status = Forked(ChainFork {
         fork_seq: 1,
         first_header: fixt!(HeaderHash),
         second_header: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status.clone(), incoming_status.clone()),
         Some(incoming_status.clone())
     );
+
     // Reverse and expect reverse result
     assert_eq!(
         add_chain_status(incoming_status.clone(), prev_status.clone()),
@@ -114,10 +137,12 @@ fn add_chain_status_test() {
         header_seq: 1,
         hash: fixt!(HeaderHash),
     });
+
     let incoming_status = Valid(ChainHead {
         header_seq: 2,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(
         add_chain_status(prev_status, incoming_status.clone()),
         Some(incoming_status)
@@ -125,19 +150,23 @@ fn add_chain_status_test() {
 
     // - If there are two Valid status at the same seq num then insert an Fork.
     let hashes: Vec<_> = HeaderHashFixturator::new(Predictable).take(2).collect();
+
     let prev_status = Valid(ChainHead {
         header_seq: 1,
         hash: hashes[0].clone(),
     });
+
     let incoming_status = Valid(ChainHead {
         header_seq: 1,
         hash: hashes[1].clone(),
     });
+
     let expected = Forked(ChainFork {
         fork_seq: 1,
         first_header: hashes[0].clone(),
         second_header: hashes[1].clone(),
     });
+
     assert_eq!(
         add_chain_status(prev_status, incoming_status),
         Some(expected)
@@ -148,6 +177,7 @@ fn add_chain_status_test() {
         header_seq: 1,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(add_chain_status(prev_status, ChainStatus::Empty), None);
 
     // Same doesn't overwrite
@@ -155,35 +185,49 @@ fn add_chain_status_test() {
         header_seq: 1,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(add_chain_status(prev_status.clone(), prev_status), None);
+
     let prev_status = Forked(ChainFork {
         fork_seq: 2,
         first_header: fixt!(HeaderHash),
         second_header: fixt!(HeaderHash),
     });
+
     assert_eq!(add_chain_status(prev_status.clone(), prev_status), None);
+
     let prev_status = Invalid(ChainHead {
         header_seq: 2,
         hash: fixt!(HeaderHash),
     });
+
     assert_eq!(add_chain_status(prev_status.clone(), prev_status), None);
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn check_different_seq_num_on_separate_queries() {
+
     let (_te, mut meta_buf, mut h1, mut h2, agent_pubkey) = setup();
+
     h1.header_seq = 1;
+
     h2.header_seq = 2;
+
     meta_buf
         .register_activity(&h1.into(), ValidationStatus::Valid)
         .unwrap();
+
     meta_buf
         .register_activity(&h2.into(), ValidationStatus::Valid)
         .unwrap();
 
     let mut conn = meta_buf.env().conn().unwrap();
+
     conn.with_reader_test(|mut reader| {
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 1);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -192,7 +236,9 @@ async fn check_different_seq_num_on_separate_queries() {
                 .unwrap(),
             1
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 2);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -201,7 +247,9 @@ async fn check_different_seq_num_on_separate_queries() {
                 .unwrap(),
             1
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 0);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -210,7 +258,9 @@ async fn check_different_seq_num_on_separate_queries() {
                 .unwrap(),
             0
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 3);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -223,22 +273,33 @@ async fn check_different_seq_num_on_separate_queries() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn check_equal_seq_num_on_same_query() {
+
     let (_te, mut meta_buf, mut h1, mut h2, agent_pubkey) = setup();
+
     h1.header_seq = 1;
+
     h2.header_seq = 1;
+
     let h1: Header = h1.into();
+
     let h2: Header = h2.into();
+
     meta_buf
         .register_activity(&h1, ValidationStatus::Valid)
         .unwrap();
+
     meta_buf
         .register_activity(&h2, ValidationStatus::Valid)
         .unwrap();
 
     let mut conn = meta_buf.env().conn().unwrap();
+
     conn.with_reader_test(|mut reader| {
+
         let k = ChainItemKey::new(&h1, ValidationStatus::Valid);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -247,7 +308,9 @@ async fn check_equal_seq_num_on_same_query() {
                 .unwrap(),
             1
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 1);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -256,7 +319,9 @@ async fn check_equal_seq_num_on_same_query() {
                 .unwrap(),
             2
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 2);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -265,7 +330,9 @@ async fn check_equal_seq_num_on_same_query() {
                 .unwrap(),
             0
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 0);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -274,7 +341,9 @@ async fn check_equal_seq_num_on_same_query() {
                 .unwrap(),
             0
         );
+
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 3);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -287,18 +356,27 @@ async fn check_equal_seq_num_on_same_query() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn chain_item_keys_ser() {
+
     let (_te, mut meta_buf, mut h, _, agent_pubkey) = setup();
+
     h.header_seq = 1;
+
     let h = Header::Create(h);
+
     let expect_hash = HeaderHash::with_data_sync(&h);
+
     meta_buf
         .register_activity(&h, ValidationStatus::Valid)
         .unwrap();
 
     let mut conn = meta_buf.env().conn().unwrap();
+
     conn.with_reader_test(|mut reader| {
+
         let k = ChainItemKey::new(&h, ValidationStatus::Valid);
+
         assert_eq!(
             meta_buf
                 .get_activity(&mut reader, k)
@@ -309,35 +387,49 @@ async fn chain_item_keys_ser() {
         );
 
         let k = ChainItemKey::AgentStatusSequence(agent_pubkey.clone(), ValidationStatus::Valid, 1);
+
         let mut headers: Vec<_> = meta_buf
             .get_activity(&mut reader, k)
             .unwrap()
             .collect()
             .unwrap();
+
         assert_eq!(headers.len(), 1);
+
         println!("expect hash {:?}", expect_hash.clone().into_inner());
+
         assert_eq!(headers.pop().unwrap().header_hash, expect_hash);
     });
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn check_large_seq_queries() {
+
     let (_te, mut meta_buf, mut h1, mut h2, agent_pubkey) = setup();
+
     h1.header_seq = 256;
+
     h2.header_seq = 1;
+
     let h1_hash = HeaderHash::with_data_sync(&Header::Create(h1.clone()));
+
     let h2_hash = HeaderHash::with_data_sync(&Header::Create(h2.clone()));
 
     meta_buf
         .register_activity(&h1.into(), ValidationStatus::Valid)
         .unwrap();
+
     meta_buf
         .register_activity(&h2.into(), ValidationStatus::Valid)
         .unwrap();
 
     let mut conn = meta_buf.env().conn().unwrap();
+
     conn.with_reader_test(|mut reader| {
+
         let k = ChainItemKey::Agent(agent_pubkey.clone());
+
         assert_eq!(
             &meta_buf
                 .get_activity_sequence(&mut reader, k)

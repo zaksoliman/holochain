@@ -12,28 +12,38 @@ use structopt::StructOpt;
 /// Option Parsing
 #[derive(structopt::StructOpt, Debug)]
 #[structopt(name = "proxy-tx2-cli")]
+
 pub struct Opt {
     /// kitsune-proxy Url to connect to.
     pub proxy_url: String,
 }
 
 #[tokio::main]
+
 async fn main() {
+
     observability::test_run().ok();
 
     if let Err(e) = inner().await {
+
         eprintln!("{:?}", e);
     }
 }
 
 async fn inner() -> KitsuneResult<()> {
+
     let opt = Opt::from_args();
 
     let tls_config = TlsConfig::new_ephemeral().await?;
+
     let mut conf = QuicConfig::default();
+
     conf.tls = Some(tls_config.clone());
+
     let f = QuicBackendAdapt::new(conf).await?;
+
     let f = tx2_pool_promote(f, Default::default());
+
     let f = tx2_proxy(f, Default::default())?;
 
     let t = KitsuneTimeout::from_millis(30 * 1000);
@@ -43,12 +53,17 @@ async fn inner() -> KitsuneResult<()> {
     let ep_hnd = ep.handle().clone();
 
     let task = metric_task(async move {
+
         while let Some(evt) = ep.next().await {
+
             if let EpEvent::IncomingData(EpIncomingData { data, .. }) = evt {
+
                 println!("{}", String::from_utf8_lossy(data.as_ref()));
+
                 break;
             }
         }
+
         KitsuneResult::Ok(())
     });
 

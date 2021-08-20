@@ -13,19 +13,25 @@ use std::sync::Arc;
 pub mod types;
 
 mod persist_mem;
+
 pub use persist_mem::*;
 
 mod srv;
+
 pub use srv::*;
 
 mod handle_ws;
+
 pub use handle_ws::*;
 
 mod v1;
+
 pub use v1::*;
 
 /// kdirect reexported dependencies
+
 pub mod dependencies {
+
     pub use futures;
     pub use kitsune_p2p;
     pub use kitsune_p2p_types;
@@ -34,7 +40,9 @@ pub mod dependencies {
 }
 
 /// kdirect prelude
+
 pub mod prelude {
+
     pub use crate::handle_ws::*;
     pub use crate::persist_mem::*;
     pub use crate::srv::*;

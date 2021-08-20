@@ -49,7 +49,9 @@ use holochain_serialized_bytes::prelude::*;
 pub use error::*;
 
 mod error;
+
 #[derive(Clone)]
+
 pub struct SourceChain {
     scratch: SyncScratch,
     vault: EnvWrite,
@@ -63,12 +65,14 @@ pub struct SourceChain {
 // TODO fix this.  We shouldn't really have nil values but this would
 // show if the database is corrupted and doesn't have an element
 #[derive(Serialize, Deserialize)]
+
 pub struct SourceChainJsonDump {
     pub elements: Vec<SourceChainJsonElement>,
     pub published_ops_count: usize,
 }
 
 #[derive(Serialize, Deserialize)]
+
 pub struct SourceChainJsonElement {
     pub signature: Signature,
     pub header_address: HeaderHash,
@@ -80,14 +84,20 @@ pub struct SourceChainJsonElement {
 //       not the entire source chain!
 impl SourceChain {
     pub async fn new(vault: EnvWrite, author: AgentPubKey) -> SourceChainResult<Self> {
+
         let scratch = Scratch::new().into_sync();
+
         let author = Arc::new(author);
+
         let (persisted_head, persisted_seq, persisted_timestamp) = vault
             .async_reader({
+
                 let author = author.clone();
+
                 move |txn| chain_head_db(&txn, author)
             })
             .await?;
+
         Ok(Self {
             scratch,
             vault,
@@ -98,43 +108,57 @@ impl SourceChain {
             public_only: false,
         })
     }
+
     pub fn public_only(&mut self) {
+
         self.public_only = true;
     }
+
     /// Take a snapshot of the scratch space that will
     /// not remain in sync with future updates.
+
     pub fn snapshot(&self) -> SourceChainResult<Scratch> {
+
         Ok(self.scratch.apply(|scratch| scratch.clone())?)
     }
 
     pub fn scratch(&self) -> SyncScratch {
+
         self.scratch.clone()
     }
 
     pub fn agent_pubkey(&self) -> &AgentPubKey {
+
         self.author.as_ref()
     }
 
     /// This has to clone all the data because we can't return
     /// references to constructed data.
+
     // TODO: Maybe we should store data as elements in the scratch?
     // TODO: document that this is only the elemnts in the SCRATCH, not the
     //       entire source chain!
     pub fn scratch_elements(&self) -> SourceChainResult<Vec<Element>> {
+
         Ok(self.scratch.apply(|scratch| scratch.elements().collect())?)
     }
 
     pub fn chain_head(&self) -> SourceChainResult<(HeaderHash, u32, Timestamp)> {
+
         // Check scratch for newer head.
         Ok(self.scratch.apply(|scratch| {
+
             let chain_head = chain_head_scratch(&(*scratch), self.author.as_ref());
+
             let (prev_header, header_seq, timestamp) = chain_head.unwrap_or_else(|| {
+
                 (
                     self.persisted_head.clone(),
                     self.persisted_seq,
                     self.persisted_timestamp,
                 )
             });
+
             (prev_header, header_seq, timestamp)
         })?)
     }
@@ -144,24 +168,34 @@ impl SourceChain {
         header: Header,
         maybe_entry: Option<Entry>,
     ) -> SourceChainResult<HeaderHash> {
+
         let header = HeaderHashed::from_content_sync(header);
+
         let hash = header.as_hash().clone();
+
         let header = SignedHeaderHashed::new(&self.vault.keystore(), header).await?;
+
         let element = Element::new(header, maybe_entry);
+
         self.scratch
             .apply(|scratch| insert_element_scratch(scratch, element))?;
+
         Ok(hash)
     }
 
     pub async fn put_countersigned(&self, entry: Entry) -> SourceChainResult<HeaderHash> {
+
         let entry_hash = EntryHash::with_data_sync(&entry);
+
         if let Entry::CounterSign(ref session_data, _) = entry {
+
             self.put_with_header(
                 Header::from_countersigning_data(entry_hash, session_data, (*self.author).clone())?,
                 Some(entry),
             )
             .await
         } else {
+
             // The caller MUST guard against this case.
             unreachable!("Put countersigned called with the wrong entry type");
         }
@@ -172,7 +206,9 @@ impl SourceChain {
         header_builder: B,
         maybe_entry: Option<Entry>,
     ) -> SourceChainResult<HeaderHash> {
+
         let (prev_header, chain_head_seq, chain_head_timestamp) = self.chain_head()?;
+
         let header_seq = chain_head_seq + 1;
 
         // Build the header.
@@ -185,41 +221,54 @@ impl SourceChain {
             header_seq,
             prev_header,
         };
+
         self.put_with_header(header_builder.build(common).into(), maybe_entry)
             .await
     }
 
     pub fn has_initialized(&self) -> SourceChainResult<bool> {
+
         Ok(self.len()? > 3)
     }
 
     pub fn is_empty(&self) -> SourceChainResult<bool> {
+
         Ok(self.len()? == 0)
     }
 
     #[allow(clippy::len_without_is_empty)]
+
     pub fn len(&self) -> SourceChainResult<u32> {
+
         Ok(self.scratch.apply(|scratch| {
+
             let scratch_max =
                 chain_head_scratch(&(*scratch), self.author.as_ref()).map(|(_, s, _)| s);
+
             scratch_max
                 .map(|s| std::cmp::max(s, self.persisted_seq))
                 .unwrap_or(self.persisted_seq)
                 + 1
         })?)
     }
+
     pub fn valid_cap_grant(
         &self,
         check_function: &GrantedFunction,
         check_agent: &AgentPubKey,
         check_secret: Option<&CapSecret>,
     ) -> SourceChainResult<Option<CapGrant>> {
+
         let author_grant = CapGrant::from(self.agent_pubkey().clone());
+
         if author_grant.is_valid(check_function, check_agent, check_secret) {
+
             return Ok(Some(author_grant));
         }
+
         // TODO: SQL_PERF: This query could have a fast upper bound if we add indexes.
         let valid_cap_grant = self.vault.conn()?.with_reader(|txn| {
+
             let not_referenced_header = "
             SELECT COUNT(H_REF.hash)
             FROM Header AS H_REF
@@ -233,6 +282,7 @@ impl SourceChain {
                 H_REF.deletes_header_hash = Header.hash
             )
             ";
+
             let sql = format!(
                 "
                 SELECT DISTINCT Entry.blob
@@ -248,6 +298,7 @@ impl SourceChain {
                 ",
                 not_referenced_header
             );
+
             txn.prepare(&sql)?
                 .query_and_then([], |row| from_blob(row.get("blob")?))?
                 .filter_map(|result: StateQueryResult<Entry>| match result {
@@ -264,13 +315,18 @@ impl SourceChain {
                 .fold(
                     Ok(None),
                     |acc: StateQueryResult<Option<CapGrant>>, grant| {
+
                         let grant = grant?;
+
                         let acc = acc?;
+
                         let acc = match &grant {
                             CapGrant::RemoteAgent(zome_call_cap_grant) => {
+
                                 match &zome_call_cap_grant.access {
                                     CapAccess::Assigned { .. } => match &acc {
                                         Some(CapGrant::RemoteAgent(acc_zome_call_cap_grant)) => {
+
                                             match acc_zome_call_cap_grant.access {
                                                 // an assigned acc takes precedence
                                                 CapAccess::Assigned { .. } => acc,
@@ -284,6 +340,7 @@ impl SourceChain {
                                     },
                                     CapAccess::Transferable { .. } => match &acc {
                                         Some(CapGrant::RemoteAgent(acc_zome_call_cap_grant)) => {
+
                                             match acc_zome_call_cap_grant.access {
                                                 // an assigned acc takes precedence
                                                 CapAccess::Assigned { .. } => acc,
@@ -306,52 +363,67 @@ impl SourceChain {
                             // ChainAuthor should have short circuited and be filtered out already
                             _ => unreachable!(),
                         };
+
                         Ok(acc)
                     },
                 )
         })?;
+
         Ok(valid_cap_grant)
     }
 
     /// Query Headers in the source chain.
     /// This returns a Vec rather than an iterator because it is intended to be
     /// used by the `query` host function, which crosses the wasm boundary
+
     // FIXME: This query needs to be tested.
     pub async fn query(&self, query: QueryFilter) -> SourceChainResult<Vec<Element>> {
+
         let (range_min, range_max) = match query.sequence_range.clone() {
             Some(range) => (Some(range.start), Some(range.end)),
             None => (None, None),
         };
+
         let author = self.author.clone();
+
         let mut elements = self
             .vault
             .async_reader({
+
                 let query = query.clone();
+
                 move |txn| {
+
                     let mut sql = "
                 SELECT DISTINCT
                 Header.hash AS header_hash, Header.blob AS header_blob
             "
                     .to_string();
+
                     if query.include_entries {
+
                         sql.push_str(
                             "
                     , Entry.blob AS entry_blob
                     ",
                         );
                     }
+
                     sql.push_str(
                         "
                 FROM Header
                 ",
                     );
+
                     if query.include_entries {
+
                         sql.push_str(
                             "
                     LEFT JOIN Entry On Header.entry_hash = Entry.hash
                     ",
                         );
                     }
+
                     sql.push_str(
                         "
                 JOIN DhtOp On DhtOp.header_hash = Header.hash
@@ -369,7 +441,9 @@ impl SourceChain {
                 (:header_type IS NULL OR Header.type = :header_type)
                 ",
                     );
+
                     let mut stmt = txn.prepare(&sql)?;
+
                     let elements = stmt
                         .query_and_then(
                             named_params! {
@@ -380,52 +454,72 @@ impl SourceChain {
                                 ":header_type": query.header_type,
                             },
                             |row| {
+
                                 let header = from_blob::<SignedHeader>(row.get("header_blob")?)?;
+
                                 let SignedHeader(header, signature) = header;
+
                                 let hash: HeaderHash = row.get("header_hash")?;
+
                                 let header = HeaderHashed::with_pre_hashed(header, hash);
+
                                 let shh = SignedHeaderHashed::with_presigned(header, signature);
+
                                 let entry = if query.include_entries {
+
                                     let entry: Option<Vec<u8>> = row.get("entry_blob")?;
+
                                     match entry {
                                         Some(entry) => Some(from_blob::<Entry>(entry)?),
                                         None => None,
                                     }
                                 } else {
+
                                     None
                                 };
+
                                 StateQueryResult::Ok(Element::new(shh, entry))
                             },
                         )?
                         .collect::<StateQueryResult<Vec<_>>>();
+
                     elements
                 }
             })
             .await?;
+
         self.scratch.apply(|scratch| {
+
             let scratch_iter = scratch
                 .headers()
                 .filter(|shh| query.check(shh.header()))
                 .filter_map(|shh| {
+
                     let entry = match shh.header().entry_hash() {
                         Some(eh) if query.include_entries => scratch.get_entry(eh).ok()?,
                         _ => None,
                     };
+
                     Some(Element::new(shh.clone(), entry))
                 });
+
             elements.extend(scratch_iter);
         })?;
+
         Ok(elements)
     }
 
     pub async fn unlock_chain(&self) -> SourceChainResult<()> {
+
         self.vault
             .async_commit(move |txn| unlock_chain(txn))
             .await?;
+
         Ok(())
     }
 
     pub async fn is_chain_locked(&self, lock: Vec<u8>) -> SourceChainResult<bool> {
+
         Ok(self
             .vault
             .async_reader(move |txn| is_chain_locked(&txn, &lock))
@@ -437,12 +531,14 @@ impl SourceChain {
         preflight_request: PreflightRequest,
         agent_index: u8,
     ) -> SourceChainResult<CounterSigningAgentState> {
+
         let hashed_preflight_request = holo_hash::encode::blake2b_256(
             &holochain_serialized_bytes::encode(&preflight_request)?,
         );
 
         // This all needs to be ensured in a non-panicky way BEFORE calling into the source chain here.
         let author = self.author.clone();
+
         assert_eq!(
             *author,
             preflight_request.signing_agents()[agent_index as usize].0
@@ -451,40 +547,53 @@ impl SourceChain {
         let countersigning_agent_state = self
             .vault
             .async_commit(move |txn| {
+
                 if is_chain_locked(txn, &hashed_preflight_request)? {
+
                     return Err(SourceChainError::ChainLocked);
                 }
+
                 let (persisted_head, persisted_seq, _) = chain_head_db(&txn, author)?;
+
                 let countersigning_agent_state =
                     CounterSigningAgentState::new(agent_index, persisted_head, persisted_seq);
+
                 lock_chain(
                     txn,
                     &hashed_preflight_request,
                     preflight_request.session_times().end(),
                 )?;
+
                 SourceChainResult::Ok(countersigning_agent_state)
             })
             .await?;
+
         Ok(countersigning_agent_state)
     }
 
     /// If there is a countersigning session get the
     /// StoreEntry op to send to the entry authorities.
+
     pub fn countersigning_op(&self) -> SourceChainResult<Option<DhtOp>> {
+
         let r = self.scratch.apply(|scratch| {
+
             scratch
                 .entries()
                 .find(|e| matches!(**e.1, Entry::CounterSign(_, _)))
                 .and_then(|(entry_hash, entry)| {
+
                     scratch
                         .headers()
                         .find(|shh| {
+
                             shh.header()
                                 .entry_hash()
                                 .map(|eh| eh == entry_hash)
                                 .unwrap_or(false)
                         })
                         .and_then(|shh| {
+
                             Some(DhtOp::StoreEntry(
                                 shh.signature().clone(),
                                 shh.header().clone().try_into().ok()?,
@@ -493,10 +602,12 @@ impl SourceChain {
                         })
                 })
         })?;
+
         Ok(r)
     }
 
     pub fn lock_for_entry(entry: Option<&Entry>) -> SourceChainResult<Vec<u8>> {
+
         Ok(match entry {
             Some(Entry::CounterSign(session_data, _)) => holo_hash::encode::blake2b_256(
                 &holochain_serialized_bytes::encode(session_data.preflight_request())?,
@@ -506,11 +617,15 @@ impl SourceChain {
     }
 
     pub async fn flush(&self) -> SourceChainResult<()> {
+
         // Nothing to write
         if self.scratch.apply(|s| s.is_empty())? {
+
             return Ok(());
         }
+
         let (headers, ops, entries) = self.scratch.apply_and_then(|scratch| {
+
             let length = scratch.num_headers();
 
             // The op related data ends up here.
@@ -518,33 +633,47 @@ impl SourceChain {
 
             // Drain out the headers.
             let signed_headers = scratch.drain_headers().collect::<Vec<_>>();
+
             // Headers end up back in here.
             let mut headers = Vec::with_capacity(signed_headers.len());
 
             // Loop through each header and produce op related data.
             for shh in signed_headers {
+
                 // &HeaderHash, &Header, EntryHash are needed to produce the ops.
                 let entry_hash = shh.header().entry_hash().cloned();
+
                 let item = (shh.as_hash(), shh.header(), entry_hash);
+
                 let ops_inner = produce_op_lights_from_iter(vec![item].into_iter(), 1)?;
 
                 // Break apart the SignedHeaderHashed.
                 let (header, sig) = shh.into_header_and_signature();
+
                 let (header, hash) = header.into_inner();
 
                 // We need to take the header by value and put it back each loop.
                 let mut h = Some(header);
+
                 for op in ops_inner {
+
                     let op_type = op.get_type();
+
                     // Header is required by value to produce the DhtOpHash.
                     let (header, op_hash) =
                         UniqueForm::op_hash(op_type, h.expect("This can't be empty"))?;
+
                     let op_order = OpOrder::new(op_type, header.timestamp());
+
                     let timestamp = header.timestamp();
+
                     let visibility = header.entry_type().map(|et| *et.visibility());
+
                     // Put the header back by value.
                     let dependency = get_dependency(op_type, &header);
+
                     h = Some(header);
+
                     // Collect the DhtOpLight, DhtOpHash and OpOrder.
                     ops.push((op, op_hash, op_order, timestamp, visibility, dependency));
                 }
@@ -554,12 +683,14 @@ impl SourceChain {
                     HeaderHashed::with_pre_hashed(h.expect("This can't be empty"), hash),
                     sig,
                 );
+
                 // Put the header back in the list.
                 headers.push(shh);
             }
 
             // Drain out any entries.
             let entries = scratch.drain_entries().collect::<Vec<_>>();
+
             SourceChainResult::Ok((headers, ops, entries))
         })?;
 
@@ -570,22 +701,31 @@ impl SourceChain {
 
         if matches!(maybe_countersigned_entry, Some(Entry::CounterSign(_, _))) && headers.len() != 1
         {
+
             return Err(SourceChainError::DirtyCounterSigningWrite);
         }
+
         let lock = Self::lock_for_entry(maybe_countersigned_entry)?;
 
         // Write the entries, headers and ops to the database in one transaction.
         let author = self.author.clone();
+
         let persisted_head = self.persisted_head.clone();
+
         self.vault
             .async_commit(move |txn: &mut Transaction| {
+
                 // As at check.
                 let (new_persisted_head, _, _) = chain_head_db(&txn, author)?;
+
                 if headers.last().is_none() {
+
                     // Nothing to write
                     return Ok(());
                 }
+
                 if persisted_head != new_persisted_head {
+
                     return Err(SourceChainError::HeadMoved(
                         Some(persisted_head),
                         Some(new_persisted_head),
@@ -596,33 +736,45 @@ impl SourceChain {
                 let is_countersigning_session = !lock.is_empty();
 
                 if is_chain_locked(txn, &lock)? {
+
                     return Err(SourceChainError::ChainLocked);
                 }
                 // If this is a countersigning session, and the chain is NOT
                 // locked then either the session expired or the countersigning
                 // entry being committed now is the correct one for the lock.
                 else if is_countersigning_session {
+
                     // If the lock is expired then we can't write this countersigning session.
                     if is_lock_expired(txn, &lock)? {
+
                         return Err(SourceChainError::LockExpired);
                     }
                 }
 
                 for entry in entries {
+
                     insert_entry(txn, entry)?;
                 }
+
                 for header in headers {
+
                     insert_header(txn, header)?;
                 }
+
                 for (op, op_hash, op_order, timestamp, visibility, dependency) in ops {
+
                     let op_type = op.get_type();
+
                     insert_op_lite(txn, op, op_hash.clone(), true, op_order, timestamp)?;
+
                     set_validation_status(
                         txn,
                         op_hash.clone(),
                         holochain_zome_types::ValidationStatus::Valid,
                     )?;
+
                     set_dependency(txn, op_hash.clone(), dependency)?;
+
                     // TODO: SHARDING: Check if we are the authority here.
                     // StoreEntry ops with private entries are never gossiped or published
                     // so we don't need to integrate them.
@@ -632,21 +784,26 @@ impl SourceChain {
 
                     // Don't publish private entries or countersigning sessions.
                     if !is_private_entry && !is_countersigning_session {
+
                         set_validation_stage(
                             txn,
                             op_hash.clone(),
                             ValidationLimboStatus::AwaitingIntegration,
                         )?;
                     }
+
                     // If this is a countersigning session we want to withhold
                     // publishing the ops until the session is successful.
                     if is_countersigning_session {
+
                         set_withhold_publish(txn, op_hash)?;
                     }
                 }
+
                 SourceChainResult::Ok(())
             })
             .await?;
+
         Ok(())
     }
 }
@@ -657,17 +814,25 @@ pub async fn genesis(
     agent_pubkey: AgentPubKey,
     membrane_proof: Option<SerializedBytes>,
 ) -> SourceChainResult<()> {
+
     let keystore = vault.keystore().clone();
+
     let dna_header = Header::Dna(header::Dna {
         author: agent_pubkey.clone(),
         timestamp: timestamp::now(),
         hash: dna_hash,
     });
+
     let dna_header = HeaderHashed::from_content_sync(dna_header);
+
     let dna_header = SignedHeaderHashed::new(&keystore, dna_header).await?;
+
     let dna_header_address = dna_header.as_hash().clone();
+
     let element = Element::new(dna_header, None);
+
     let dna_ops = produce_op_lights_from_elements(vec![&element])?;
+
     let (dna_header, _) = element.into_inner();
 
     // create the agent validation entry and add it directly to the store
@@ -678,12 +843,18 @@ pub async fn genesis(
         prev_header: dna_header_address,
         membrane_proof,
     });
+
     let agent_validation_header = HeaderHashed::from_content_sync(agent_validation_header);
+
     let agent_validation_header =
         SignedHeaderHashed::new(&keystore, agent_validation_header).await?;
+
     let avh_addr = agent_validation_header.as_hash().clone();
+
     let element = Element::new(agent_validation_header, None);
+
     let avh_ops = produce_op_lights_from_elements(vec![&element])?;
+
     let (agent_validation_header, _) = element.into_inner();
 
     // create a agent chain element and add it directly to the store
@@ -695,18 +866,28 @@ pub async fn genesis(
         entry_type: header::EntryType::AgentPubKey,
         entry_hash: agent_pubkey.clone().into(),
     });
+
     let agent_header = HeaderHashed::from_content_sync(agent_header);
+
     let agent_header = SignedHeaderHashed::new(&keystore, agent_header).await?;
+
     let element = Element::new(agent_header, Some(Entry::Agent(agent_pubkey)));
+
     let agent_ops = produce_op_lights_from_elements(vec![&element])?;
+
     let (agent_header, agent_entry) = element.into_inner();
+
     let agent_entry = agent_entry.into_option();
 
     vault
         .async_commit(move |txn| {
+
             source_chain::put_raw(txn, dna_header, dna_ops, None)?;
+
             source_chain::put_raw(txn, agent_validation_header, avh_ops, None)?;
+
             source_chain::put_raw(txn, agent_header, agent_ops, agent_entry)?;
+
             SourceChainResult::Ok(())
         })
         .await
@@ -718,44 +899,67 @@ pub fn put_raw(
     ops: Vec<DhtOpLight>,
     entry: Option<Entry>,
 ) -> StateMutationResult<()> {
+
     let (header, signature) = shh.into_header_and_signature();
+
     let (header, hash) = header.into_inner();
+
     let mut header = Some(header);
+
     let mut hashes = Vec::with_capacity(ops.len());
+
     for op in &ops {
+
         let op_type = op.get_type();
+
         let (h, op_hash) =
             UniqueForm::op_hash(op_type, header.take().expect("This can't be empty"))?;
+
         let op_order = OpOrder::new(op_type, h.timestamp());
+
         let timestamp = h.timestamp();
+
         let visibility = h.entry_type().map(|et| *et.visibility());
+
         let dependency = get_dependency(op_type, &h);
+
         header = Some(h);
+
         hashes.push((
             op_hash, op_type, op_order, timestamp, visibility, dependency,
         ));
     }
+
     let shh = SignedHeaderHashed::with_presigned(
         HeaderHashed::with_pre_hashed(header.expect("This can't be empty"), hash),
         signature,
     );
+
     if let Some(entry) = entry {
+
         insert_entry(txn, EntryHashed::from_content_sync(entry))?;
     }
+
     insert_header(txn, shh)?;
+
     for (op, (op_hash, op_type, op_order, timestamp, visibility, dependency)) in
         ops.into_iter().zip(hashes)
     {
+
         insert_op_lite(txn, op, op_hash.clone(), true, op_order, timestamp)?;
+
         set_dependency(txn, op_hash.clone(), dependency)?;
+
         // TODO: SHARDING: Check if we are the authority here.
         // StoreEntry ops with private entries are never gossiped or published
         // so we don't need to integrate them.
         // TODO: Can anything every depend on a private store entry op? I don't think so.
         if !(op_type == DhtOpType::StoreEntry && visibility == Some(EntryVisibility::Private)) {
+
             set_validation_stage(txn, op_hash, ValidationLimboStatus::Pending)?;
         }
     }
+
     Ok(())
 }
 
@@ -763,10 +967,13 @@ fn chain_head_db(
     txn: &Transaction,
     author: Arc<AgentPubKey>,
 ) -> SourceChainResult<(HeaderHash, u32, Timestamp)> {
+
     let chain_head = ChainHeadQuery::new(author);
+
     let (prev_header, last_header_seq, last_header_timestamp) = chain_head
         .run(Txn::from(txn))?
         .ok_or(SourceChainError::ChainEmpty)?;
+
     Ok((prev_header, last_header_seq, last_header_timestamp))
 }
 
@@ -774,16 +981,19 @@ fn chain_head_scratch(
     scratch: &Scratch,
     author: &AgentPubKey,
 ) -> Option<(HeaderHash, u32, Timestamp)> {
+
     scratch
         .headers()
         .filter_map(|shh| {
             if shh.header().author() == author {
+
                 Some((
                     shh.header_address().clone(),
                     shh.header().header_seq(),
                     shh.header().timestamp(),
                 ))
             } else {
+
                 None
             }
         })
@@ -792,24 +1002,31 @@ fn chain_head_scratch(
 
 /// Check if there is a current countersigning session and if so, return the
 /// session data and the entry hash.
+
 pub fn current_countersigning_session(
     txn: &Transaction<'_>,
     author: Arc<AgentPubKey>,
 ) -> SourceChainResult<Option<(EntryHash, CounterSigningSessionData)>> {
+
     // The chain must be locked for a session to be active.
     if is_chain_locked(txn, &[])? {
+
         match chain_head_db(txn, author) {
             // We haven't done genesis so no session can be active.
             Err(SourceChainError::ChainEmpty) => Ok(None),
             Err(e) => Err(e),
             Ok((hash, _, _)) => {
+
                 let txn: Txn = txn.into();
+
                 // Get the session data from the database.
                 let element = match txn.get_element(&hash.into())? {
                     Some(element) => element,
                     None => return Ok(None),
                 };
+
                 let (shh, ee) = element.into_inner();
+
                 Ok(match (shh.header().entry_hash(), ee.into_option()) {
                     (Some(entry_hash), Some(Entry::CounterSign(cs, _))) => {
                         Some((entry_hash.to_owned(), *cs))
@@ -819,19 +1036,25 @@ pub fn current_countersigning_session(
             }
         }
     } else {
+
         Ok(None)
     }
 }
 
 #[cfg(test)]
+
 async fn _put_db<H: HeaderInner, B: HeaderBuilder<H>>(
     vault: holochain_types::env::EnvWrite,
     author: Arc<AgentPubKey>,
     header_builder: B,
     maybe_entry: Option<Entry>,
 ) -> SourceChainResult<HeaderHash> {
-    let (prev_header, last_header_seq, _) =
-        fresh_reader!(vault, |txn| { chain_head_db(&txn, author.clone()) })?;
+
+    let (prev_header, last_header_seq, _) = fresh_reader!(vault, |txn| {
+
+        chain_head_db(&txn, author.clone())
+    })?;
+
     let header_seq = last_header_seq + 1;
 
     let common = HeaderBuilderCommon {
@@ -840,34 +1063,51 @@ async fn _put_db<H: HeaderInner, B: HeaderBuilder<H>>(
         header_seq,
         prev_header: prev_header.clone(),
     };
+
     let header = header_builder.build(common).into();
+
     let header = HeaderHashed::from_content_sync(header);
+
     let header = SignedHeaderHashed::new(&vault.keystore(), header).await?;
+
     let element = Element::new(header, maybe_entry);
+
     let ops = produce_op_lights_from_elements(vec![&element])?;
+
     let (header, entry) = element.into_inner();
+
     let entry = entry.into_option();
+
     let hash = header.as_hash().clone();
+
     vault.conn()?.with_commit_sync(|txn| {
+
         let (new_head, _, _) = chain_head_db(txn, author.clone())?;
+
         if new_head != prev_header {
+
             return Err(SourceChainError::HeadMoved(
                 Some(prev_header),
                 Some(new_head),
             ));
         }
+
         SourceChainResult::Ok(put_raw(txn, header, ops, entry)?)
     })?;
+
     Ok(hash)
 }
 
 /// dump the entire source chain as a pretty-printed json string
+
 pub async fn dump_state(
     vault: EnvRead,
     author: AgentPubKey,
 ) -> Result<SourceChainJsonDump, SourceChainError> {
+
     Ok(vault
         .async_reader(move |txn| {
+
             let elements = txn
                 .prepare(
                     "
@@ -889,13 +1129,18 @@ pub async fn dump_state(
                         ":author": author,
                     },
                     |row| {
+
                         let SignedHeader(header, signature) = from_blob(row.get("header_blob")?)?;
+
                         let header_address = row.get("header_hash")?;
+
                         let entry: Option<Vec<u8>> = row.get("entry_blob")?;
+
                         let entry: Option<Entry> = match entry {
                             Some(entry) => Some(from_blob(entry)?),
                             None => None,
                         };
+
                         StateQueryResult::Ok(SourceChainJsonElement {
                             signature,
                             header_address,
@@ -905,6 +1150,7 @@ pub async fn dump_state(
                     },
                 )?
                 .collect::<StateQueryResult<Vec<_>>>()?;
+
             let published_ops_count = txn.query_row(
                 "
                 SELECT COUNT(DhtOp.hash) FROM DhtOp
@@ -921,6 +1167,7 @@ pub async fn dump_state(
                 },
                 |row| row.get(0),
             )?;
+
             StateQueryResult::Ok(SourceChainJsonDump {
                 elements,
                 published_ops_count,
@@ -930,7 +1177,9 @@ pub async fn dump_state(
 }
 
 #[cfg(test)]
+
 pub mod tests {
+
     use super::*;
     use crate::prelude::*;
     use ::fixt::prelude::*;
@@ -939,28 +1188,44 @@ pub mod tests {
 
     use crate::source_chain::SourceChainResult;
     use holochain_zome_types::Entry;
+
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_get_cap_grant() -> SourceChainResult<()> {
+
         let test_env = test_cell_env();
+
         let env = test_env.env();
+
         let secret = Some(CapSecretFixturator::new(Unpredictable).next().unwrap());
+
         let access = CapAccess::from(secret.unwrap());
 
         // @todo curry
         let _curry = CurryPayloadsFixturator::new(Empty).next().unwrap();
+
         let function: GrantedFunction = ("foo".into(), "bar".into());
+
         let mut functions: GrantedFunctions = BTreeSet::new();
+
         functions.insert(function.clone());
+
         let grant = ZomeCallCapGrant::new("tag".into(), access.clone(), functions.clone());
+
         let mut agents = AgentPubKeyFixturator::new(Predictable);
+
         let alice = agents.next().unwrap();
+
         let bob = agents.next().unwrap();
+
         source_chain::genesis(env.clone(), fake_dna_hash(1), alice.clone(), None)
             .await
             .unwrap();
 
         {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             assert_eq!(
                 chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
@@ -974,13 +1239,17 @@ pub mod tests {
         }
 
         let (original_header_address, original_entry_address) = {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             let (entry, entry_hash) =
                 EntryHashed::from_content_sync(Entry::CapGrant(grant.clone())).into_inner();
+
             let header_builder = builder::Create {
                 entry_type: EntryType::CapGrant,
                 entry_hash: entry_hash.clone(),
             };
+
             let header = chain.put(header_builder, Some(entry)).await?;
 
             chain.flush().await.unwrap();
@@ -989,7 +1258,9 @@ pub mod tests {
         };
 
         {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             // alice should find her own authorship with higher priority than the committed grant
             // even if she passes in the secret
             assert_eq!(
@@ -1007,21 +1278,29 @@ pub mod tests {
 
         // let's roll the secret and assign the grant to bob specifically
         let mut assignees = BTreeSet::new();
+
         assignees.insert(bob.clone());
+
         let updated_secret = Some(CapSecretFixturator::new(Unpredictable).next().unwrap());
+
         let updated_access = CapAccess::from((updated_secret.clone().unwrap(), assignees));
+
         let updated_grant = ZomeCallCapGrant::new("tag".into(), updated_access.clone(), functions);
 
         let (updated_header_hash, updated_entry_hash) = {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             let (entry, entry_hash) =
                 EntryHashed::from_content_sync(Entry::CapGrant(updated_grant.clone())).into_inner();
+
             let header_builder = builder::Update {
                 entry_type: EntryType::CapGrant,
                 entry_hash: entry_hash.clone(),
                 original_header_address,
                 original_entry_address,
             };
+
             let header = chain.put(header_builder, Some(entry)).await?;
 
             chain.flush().await.unwrap();
@@ -1030,13 +1309,16 @@ pub mod tests {
         };
 
         {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             // alice should find her own authorship with higher priority than the committed grant
             // even if she passes in the secret
             assert_eq!(
                 chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
+
             assert_eq!(
                 chain.valid_cap_grant(&function, &alice, updated_secret.as_ref())?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
@@ -1047,6 +1329,7 @@ pub mod tests {
                 chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
                 None
             );
+
             assert_eq!(
                 chain.valid_cap_grant(&function, &bob, updated_secret.as_ref())?,
                 Some(updated_grant.into())
@@ -1054,23 +1337,29 @@ pub mod tests {
         }
 
         {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             let header_builder = builder::Delete {
                 deletes_address: updated_header_hash,
                 deletes_entry_address: updated_entry_hash,
             };
+
             chain.put(header_builder, None).await?;
 
             chain.flush().await.unwrap();
         }
 
         {
+
             let chain = SourceChain::new(env.clone().into(), alice.clone()).await?;
+
             // alice should find her own authorship
             assert_eq!(
                 chain.valid_cap_grant(&function, &alice, secret.as_ref())?,
                 Some(CapGrant::ChainAuthor(alice.clone())),
             );
+
             assert_eq!(
                 chain.valid_cap_grant(&function, &alice, updated_secret.as_ref())?,
                 Some(CapGrant::ChainAuthor(alice)),
@@ -1081,6 +1370,7 @@ pub mod tests {
                 chain.valid_cap_grant(&function, &bob, secret.as_ref())?,
                 None
             );
+
             assert_eq!(
                 chain.valid_cap_grant(&function, &bob, updated_secret.as_ref())?,
                 None
@@ -1134,20 +1424,27 @@ pub mod tests {
     //     Ok(())
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn source_chain_buffer_iter_back() -> SourceChainResult<()> {
+
         observability::test_run().ok();
+
         let test_env = test_cell_env();
+
         let vault = test_env.env();
 
         let author = test_env.cell_id().unwrap().agent_pubkey().clone();
+
         let author = Arc::new(author);
 
         fresh_reader_test!(vault, |txn| {
+
             assert_matches!(
                 chain_head_db(&txn, author.clone()),
                 Err(SourceChainError::ChainEmpty)
             );
         });
+
         genesis(
             vault.clone().into(),
             fixt!(DnaHash),
@@ -1160,33 +1457,46 @@ pub mod tests {
         let source_chain = SourceChain::new(vault.clone().into(), (*author).clone())
             .await
             .unwrap();
+
         let entry = Entry::App(fixt!(AppEntryBytes));
+
         let create = builder::Create {
             entry_type: EntryType::App(fixt!(AppEntryType)),
             entry_hash: EntryHash::with_data_sync(&entry),
         };
+
         let h1 = source_chain.put(create, Some(entry)).await.unwrap();
+
         let entry = Entry::App(fixt!(AppEntryBytes));
+
         let create = builder::Create {
             entry_type: EntryType::App(fixt!(AppEntryType)),
             entry_hash: EntryHash::with_data_sync(&entry),
         };
+
         let h2 = source_chain.put(create, Some(entry)).await.unwrap();
+
         source_chain.flush().await.unwrap();
 
         fresh_reader_test!(vault, |txn| {
+
             assert_eq!(chain_head_db(&txn, author.clone()).unwrap().0, h2);
+
             // get the full element
             let store = Txn::from(&txn);
+
             let h1_element_fetched = store
                 .get_element(&h1.clone().into())
                 .expect("error retrieving")
                 .expect("entry not found");
+
             let h2_element_fetched = store
                 .get_element(&h2.clone().into())
                 .expect("error retrieving")
                 .expect("entry not found");
+
             assert_eq!(h1, *h1_element_fetched.header_address());
+
             assert_eq!(h2, *h2_element_fetched.header_address());
         });
 
@@ -1194,33 +1504,48 @@ pub mod tests {
         let source_chain = SourceChain::new(vault.clone().into(), (*author).clone())
             .await
             .unwrap();
+
         let res = source_chain.query(QueryFilter::new()).await.unwrap();
+
         assert_eq!(res.len(), 5);
+
         assert_eq!(*res[3].header_address(), h1);
+
         assert_eq!(*res[4].header_address(), h2);
 
         Ok(())
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn source_chain_buffer_dump_entries_json() -> SourceChainResult<()> {
+
         let test_env = test_cell_env();
+
         let vault = test_env.env();
+
         let author = test_env.cell_id().unwrap().agent_pubkey().clone();
+
         genesis(vault.clone().into(), fixt!(DnaHash), author.clone(), None)
             .await
             .unwrap();
 
         let json = dump_state(vault.clone().into(), author.clone()).await?;
+
         let json = serde_json::to_string_pretty(&json)?;
+
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(parsed["elements"][0]["header"]["type"], "Dna");
+
         assert_eq!(parsed["elements"][0]["entry"], serde_json::Value::Null);
 
         assert_eq!(parsed["elements"][2]["header"]["type"], "Create");
+
         assert_eq!(parsed["elements"][2]["header"]["entry_type"], "AgentPubKey");
+
         assert_eq!(parsed["elements"][2]["entry"]["entry_type"], "Agent");
+
         assert_ne!(
             parsed["elements"][2]["entry"]["entry"],
             serde_json::Value::Null

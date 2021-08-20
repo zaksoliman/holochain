@@ -16,6 +16,7 @@ use thiserror::Error;
 
 /// Errors occurring during a [CellConductorApi] or [InterfaceApi] call
 #[derive(Error, Debug)]
+
 pub enum ConductorApiError {
     /// The Dna for this Cell is not installed in the conductor.
     #[error("The Dna for this Cell is not installed in the conductor! DnaHash: {0}")]
@@ -114,19 +115,23 @@ pub enum ConductorApiError {
 
 impl ConductorApiError {
     /// promote a custom error type to a KitsuneP2pError
+
     pub fn other(e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+
         Self::Other(e.into())
     }
 }
 
 impl From<ConductorError> for ConductorApiError {
     fn from(conductor_api_error: ConductorError) -> Self {
+
         Self::from(Box::new(conductor_api_error))
     }
 }
 
 /// All the serialization errors that can occur
 #[derive(Error, Debug)]
+
 pub enum SerializationError {
     /// Denotes inability to move into or out of SerializedBytes
     #[error(transparent)]
@@ -138,12 +143,14 @@ pub enum SerializationError {
 }
 
 /// Type alias
+
 pub type ConductorApiResult<T> = Result<T, ConductorApiError>;
 
 pub use holochain_conductor_api::ExternalApiWireError;
 
 impl From<ConductorApiError> for ExternalApiWireError {
     fn from(err: ConductorApiError) -> Self {
+
         match err {
             ConductorApiError::DnaReadError(e) => ExternalApiWireError::DnaReadError(e),
             e => ExternalApiWireError::internal(e),
@@ -153,12 +160,14 @@ impl From<ConductorApiError> for ExternalApiWireError {
 
 impl From<SerializationError> for ExternalApiWireError {
     fn from(e: SerializationError) -> Self {
+
         ExternalApiWireError::Deserialization(format!("{:?}", e))
     }
 }
 
 impl From<RibosomeError> for ExternalApiWireError {
     fn from(e: RibosomeError) -> Self {
+
         ExternalApiWireError::RibosomeError(e.to_string())
     }
 }

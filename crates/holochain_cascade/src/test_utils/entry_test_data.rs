@@ -24,7 +24,9 @@ use holochain_zome_types::ValidationStatus;
 use std::convert::TryInto;
 
 use ::fixt::prelude::*;
+
 #[derive(Debug)]
+
 pub struct EntryTestData {
     pub store_entry_op: DhtOpHashed,
     pub wire_create: Judged<WireNewEntryHeader>,
@@ -52,50 +54,74 @@ pub struct EntryTestData {
 
 impl EntryTestData {
     pub fn create() -> Self {
+
         let mut create = fixt!(Create);
+
         let mut update = fixt!(Update);
+
         let mut delete = fixt!(Delete);
 
         let mut create_link = fixt!(CreateLink);
+
         let mut delete_link = fixt!(DeleteLink);
 
         let entry = fixt!(AppEntryBytes);
+
         let entry = Entry::App(entry);
+
         let entry_hash = EntryHash::with_data_sync(&entry);
+
         let update_entry = fixt!(AppEntryBytes);
+
         let update_entry = Entry::App(update_entry);
+
         let update_entry_hash = EntryHash::with_data_sync(&update_entry);
 
         let mut entry_type_fixt =
             AppEntryTypeFixturator::new(EntryVisibility::Public).map(EntryType::App);
 
         create.entry_hash = entry_hash.clone();
+
         create.entry_type = entry_type_fixt.next().unwrap();
+
         update.entry_hash = update_entry_hash;
+
         update.entry_type = entry_type_fixt.next().unwrap();
 
         let create_header = Header::Create(create.clone());
+
         let create_hash = HeaderHash::with_data_sync(&create_header);
 
         delete.deletes_entry_address = entry_hash.clone();
+
         delete.deletes_address = create_hash.clone();
 
         update.original_entry_address = entry_hash.clone();
+
         update.original_header_address = create_hash.clone();
 
         create_link.base_address = entry_hash.clone();
+
         delete_link.base_address = entry_hash.clone();
+
         let create_link_header = Header::CreateLink(create_link.clone());
+
         let delete_header = Header::Delete(delete.clone());
+
         let update_header = Header::Update(update.clone());
+
         let delete_hash = HeaderHash::with_data_sync(&delete_header);
+
         let update_hash = HeaderHash::with_data_sync(&update_header);
 
         let create_link_hash = HeaderHash::with_data_sync(&create_link_header);
+
         delete_link.link_add_address = create_link_hash.clone();
+
         let delete_link_header = Header::DeleteLink(delete_link.clone());
 
         let signature = fixt!(Signature);
+
         let store_entry_op = DhtOpHashed::from_content_sync(DhtOp::StoreEntry(
             signature.clone(),
             NewEntryHeader::Create(create.clone()),
@@ -105,6 +131,7 @@ impl EntryTestData {
         let wire_create = Judged::valid(SignedHeader(create_header, signature).try_into().unwrap());
 
         let signature = fixt!(Signature);
+
         let delete_entry_header_op = DhtOpHashed::from_content_sync(
             DhtOp::RegisterDeletedEntryHeader(signature.clone(), delete),
         );
@@ -112,23 +139,28 @@ impl EntryTestData {
         let wire_delete = Judged::valid(SignedHeader(delete_header, signature).try_into().unwrap());
 
         let signature = fixt!(Signature);
+
         let update_content_op = DhtOpHashed::from_content_sync(DhtOp::RegisterUpdatedContent(
             signature.clone(),
             update,
             Some(Box::new(update_entry)),
         ));
+
         let wire_update = Judged::valid(SignedHeader(update_header, signature).try_into().unwrap());
 
         let signature = fixt!(Signature);
+
         let create_link_op = DhtOpHashed::from_content_sync(DhtOp::RegisterAddLink(
             signature.clone(),
             create_link.clone(),
         ));
+
         let wire_create_link = WireCreateLink::condense(
             create_link_header.clone().try_into().unwrap(),
             signature.clone(),
             ValidationStatus::Valid,
         );
+
         let wire_create_link_base = WireCreateLink::condense_base_only(
             create_link_header.try_into().unwrap(),
             signature.clone(),
@@ -141,15 +173,18 @@ impl EntryTestData {
         );
 
         let signature = fixt!(Signature);
+
         let delete_link_op = DhtOpHashed::from_content_sync(DhtOp::RegisterRemoveLink(
             signature.clone(),
             delete_link.clone(),
         ));
+
         let wire_delete_link = WireDeleteLink::condense(
             delete_link_header.try_into().unwrap(),
             signature.clone(),
             ValidationStatus::Valid,
         );
+
         let delete_link_header = SignedHeaderHashed::with_presigned(
             HeaderHashed::from_content_sync(Header::DeleteLink(delete_link)),
             signature,
@@ -160,6 +195,7 @@ impl EntryTestData {
             zome_id: create_link.zome_id,
             tag: None,
         };
+
         let link_key_tag = WireLinkKey {
             base: create_link.base_address.clone(),
             zome_id: create_link.zome_id,

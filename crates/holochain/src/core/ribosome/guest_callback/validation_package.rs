@@ -10,6 +10,7 @@ use holochain_state::host_fn_workspace::HostFnWorkspace;
 use holochain_types::prelude::*;
 
 #[derive(Clone)]
+
 pub struct ValidationPackageInvocation {
     zome: Zome,
     app_entry_type: AppEntryType,
@@ -17,6 +18,7 @@ pub struct ValidationPackageInvocation {
 
 impl ValidationPackageInvocation {
     pub fn new(zome: Zome, app_entry_type: AppEntryType) -> Self {
+
         Self {
             zome,
             app_entry_type,
@@ -25,6 +27,7 @@ impl ValidationPackageInvocation {
 }
 
 #[derive(Clone, Constructor)]
+
 pub struct ValidationPackageHostAccess {
     pub workspace: HostFnWorkspace,
     pub network: HolochainP2pCell,
@@ -32,24 +35,32 @@ pub struct ValidationPackageHostAccess {
 
 impl From<ValidationPackageHostAccess> for HostContext {
     fn from(validation_package_host_access: ValidationPackageHostAccess) -> Self {
+
         Self::ValidationPackage(validation_package_host_access)
     }
 }
 
 impl From<&ValidationPackageHostAccess> for HostFnAccess {
     fn from(_: &ValidationPackageHostAccess) -> Self {
+
         let mut access = Self::none();
+
         access.read_workspace_deterministic = Permission::Allow;
+
         access.agent_info = Permission::Allow;
+
         access
     }
 }
 
 impl Invocation for ValidationPackageInvocation {
     fn zomes(&self) -> ZomesToInvoke {
+
         ZomesToInvoke::One(self.zome.to_owned())
     }
+
     fn fn_components(&self) -> FnComponents {
+
         // @todo zome_id is a u8, is this really an ergonomic way for us to interact with
         // entry types at the happ code level?
         vec![
@@ -58,21 +69,26 @@ impl Invocation for ValidationPackageInvocation {
         ]
         .into()
     }
+
     fn host_input(self) -> Result<ExternIO, SerializedBytesError> {
+
         ExternIO::encode(self.app_entry_type)
     }
 }
 
 impl TryFrom<ValidationPackageInvocation> for ExternIO {
     type Error = SerializedBytesError;
+
     fn try_from(
         validation_package_invocation: ValidationPackageInvocation,
     ) -> Result<Self, Self::Error> {
+
         Self::encode(&validation_package_invocation.app_entry_type)
     }
 }
 
 #[derive(Debug, PartialEq)]
+
 pub enum ValidationPackageResult {
     Success(ValidationPackage),
     Fail(String),
@@ -82,20 +98,24 @@ pub enum ValidationPackageResult {
 
 impl From<Vec<(ZomeName, ValidationPackageCallbackResult)>> for ValidationPackageResult {
     fn from(a: Vec<(ZomeName, ValidationPackageCallbackResult)>) -> Self {
+
         a.into_iter().map(|(_, v)| v).collect::<Vec<_>>().into()
     }
 }
 
 impl From<Vec<ValidationPackageCallbackResult>> for ValidationPackageResult {
     fn from(callback_results: Vec<ValidationPackageCallbackResult>) -> Self {
+
         // the default situation is a special case that nothing was implemented
         // upstream will likely want to handle this case explicitly
         callback_results
             .into_iter()
             .fold(Self::NotImplemented, |acc, x| {
+
                 match x {
                     ValidationPackageCallbackResult::Fail(fail_string) => Self::Fail(fail_string),
                     ValidationPackageCallbackResult::UnresolvedDependencies(ud) => {
+
                         match acc {
                             // failure anywhere overrides unresolved deps
                             Self::Fail(_) => acc,
@@ -116,7 +136,9 @@ impl From<Vec<ValidationPackageCallbackResult>> for ValidationPackageResult {
 }
 
 #[cfg(test)]
+
 mod test {
+
     use super::ValidationPackageResult;
     use crate::core::ribosome::Invocation;
     use crate::core::ribosome::ZomesToInvoke;
@@ -129,16 +151,23 @@ mod test {
     use rand::prelude::*;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn validate_package_callback_result_fold() {
+
         let mut rng = ::fixt::rng();
 
         let result_success = || ValidationPackageResult::Success(ValidationPackage(vec![]));
+
         let result_ud = || ValidationPackageResult::UnresolvedDependencies(vec![]);
+
         let result_fail = || ValidationPackageResult::Fail("".into());
+
         let result_not_implemented = || ValidationPackageResult::NotImplemented;
 
         let cb_success = || ValidationPackageCallbackResult::Success(ValidationPackage(vec![]));
+
         let cb_ud = || ValidationPackageCallbackResult::UnresolvedDependencies(vec![]);
+
         let cb_fail = || ValidationPackageCallbackResult::Fail("".into());
 
         for (mut results, expected) in vec![
@@ -151,13 +180,17 @@ mod test {
             (vec![cb_success(), cb_ud()], result_ud()),
             (vec![cb_success(), cb_ud(), cb_fail()], result_fail()),
         ] {
+
             // order of the results should not change the final result
             results.shuffle(&mut rng);
 
             // number of times a callback result appears should not change the final result
             let number_of_extras = rng.gen_range(0, 5);
+
             for _ in 0..number_of_extras {
+
                 let maybe_extra = results.choose(&mut rng).cloned();
+
                 match maybe_extra {
                     Some(extra) => results.push(extra),
                     _ => {}
@@ -169,12 +202,16 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn validation_package_invocation_allow_side_effects() {
+
         use holochain_types::access::Permission::*;
+
         let validation_package_host_access =
             ValidationPackageHostAccessFixturator::new(::fixt::Unpredictable)
                 .next()
                 .unwrap();
+
         assert_eq!(
             HostFnAccess::from(&validation_package_host_access),
             HostFnAccess {
@@ -193,12 +230,16 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn validation_package_invocation_zomes() {
+
         let validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Unpredictable)
                 .next()
                 .unwrap();
+
         let zome = validation_package_invocation.zome.clone();
+
         assert_eq!(
             ZomesToInvoke::One(zome),
             validation_package_invocation.zomes(),
@@ -206,7 +247,9 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn validation_package_invocation_fn_components() {
+
         let validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Unpredictable)
                 .next()
@@ -219,13 +262,17 @@ mod test {
                 validation_package_invocation.app_entry_type.zome_id()
             ),
         ];
+
         for fn_component in validation_package_invocation.fn_components() {
+
             assert_eq!(fn_component, expected.pop().unwrap(),);
         }
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn validation_package_invocation_host_input() {
+
         let validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Unpredictable)
                 .next()
@@ -242,7 +289,9 @@ mod test {
 
 #[cfg(test)]
 #[cfg(feature = "slow_tests")]
+
 mod slow_tests {
+
     use super::ValidationPackageResult;
     use crate::core::ribosome::RibosomeT;
     use crate::fixt::curve::Zomes;
@@ -255,44 +304,57 @@ mod slow_tests {
     use holochain_zome_types::validate::ValidationPackage;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_validation_package_unimplemented() {
+
         let host_access = ValidationPackageHostAccessFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
+
         let ribosome = RealRibosomeFixturator::new(Zomes(vec![TestWasm::Foo]))
             .next()
             .unwrap();
+
         let mut validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Empty)
                 .next()
                 .unwrap();
+
         validation_package_invocation.zome = TestWasm::Foo.into();
 
         let result = ribosome
             .run_validation_package(host_access, validation_package_invocation)
             .unwrap();
+
         assert_eq!(result, ValidationPackageResult::NotImplemented,);
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_validation_package_implemented_success() {
+
         let host_access = ValidationPackageHostAccessFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
+
         let ribosome = RealRibosomeFixturator::new(Zomes(vec![TestWasm::ValidationPackageSuccess]))
             .next()
             .unwrap();
+
         let mut validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Empty)
                 .next()
                 .unwrap();
+
         validation_package_invocation.zome = TestWasm::ValidationPackageSuccess.into();
+
         validation_package_invocation.app_entry_type =
             AppEntryType::new(3.into(), 0.into(), EntryVisibility::Public);
 
         let result = ribosome
             .run_validation_package(host_access, validation_package_invocation)
             .unwrap();
+
         assert_eq!(
             result,
             ValidationPackageResult::Success(ValidationPackage(vec![])),
@@ -300,22 +362,28 @@ mod slow_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_validation_package_implemented_fail() {
+
         let host_access = ValidationPackageHostAccessFixturator::new(::fixt::Unpredictable)
             .next()
             .unwrap();
+
         let ribosome = RealRibosomeFixturator::new(Zomes(vec![TestWasm::ValidationPackageFail]))
             .next()
             .unwrap();
+
         let mut validation_package_invocation =
             ValidationPackageInvocationFixturator::new(::fixt::Empty)
                 .next()
                 .unwrap();
+
         validation_package_invocation.zome = TestWasm::ValidationPackageFail.into();
 
         let result = ribosome
             .run_validation_package(host_access, validation_package_invocation)
             .unwrap();
+
         assert_eq!(result, ValidationPackageResult::Fail("bad package".into()),);
     }
 }

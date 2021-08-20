@@ -27,29 +27,43 @@ use holochain_state::metadata::MetadataBufT;
 use holochain_state::source_chain::SourceChain;
 
 const NUM_COMMITS: usize = 5;
+
 const GET_AGENT_ACTIVITY_TIMEOUT_MS: u64 = 1000;
+
 // Check if the correct number of ops are integrated
 // every 100 ms for a maximum of 10 seconds but early exit
 // if they are there.
 const NUM_ATTEMPTS: usize = 100;
+
 const DELAY_PER_ATTEMPT: std::time::Duration = std::time::Duration::from_millis(100);
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn get_validation_package_test() {
+
     observability::test_run().ok();
 
     let zomes = vec![TestWasm::Create];
+
     let mut conductor_test = ConductorTestData::two_agents(zomes, false).await;
+
     let handle = conductor_test.handle();
+
     let alice_call_data = conductor_test.alice_call_data_mut();
+
     let alice_cell_id = &alice_call_data.cell_id;
+
     let alice_agent_id = alice_cell_id.agent_pubkey();
 
     // Helper to get header hashed
     let get_header = {
+
         let env = alice_call_data.env.clone();
+
         move |header_hash| {
+
             let alice_authored = ElementBuf::authored(env.clone().into(), false).unwrap();
+
             alice_authored
                 .get_header(header_hash)
                 .unwrap()
@@ -63,7 +77,9 @@ async fn get_validation_package_test() {
 
     // Expecting every header from the latest to the beginning
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let alice_authored = alice_source_chain.elements();
+
     let expected_package = alice_source_chain
         .iter_back()
         // Skip the actual entry
@@ -85,6 +101,7 @@ async fn get_validation_package_test() {
 
     // Cascade
     let header_hashed = get_header(&header_hash);
+
     let validation_package = check_cascade(&header_hashed, &alice_call_data).await;
 
     assert_eq!(validation_package, expected_package.0);
@@ -104,13 +121,16 @@ async fn get_validation_package_test() {
 
     // Cascade
     let header_hashed = get_header(&header_hash);
+
     let validation_package = check_cascade(&header_hashed, &alice_call_data).await;
 
     assert_eq!(validation_package, expected_package.0);
 
     // Get the package for the private entry, this is still full chain
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let alice_authored = alice_source_chain.elements();
+
     let expected_package = alice_source_chain
         .iter_back()
         // Skip the actual entry
@@ -132,6 +152,7 @@ async fn get_validation_package_test() {
 
     // Cascade
     let header_hashed = get_header(&header_hash_priv);
+
     let validation_package = check_cascade(&header_hashed, &alice_call_data).await;
 
     assert_eq!(validation_package, expected_package.0);
@@ -154,15 +175,20 @@ async fn get_validation_package_test() {
 
     // Expecting all the elements that match this entry type from the latest to the start
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let alice_authored = alice_source_chain.elements();
+
     let expected_package = alice_source_chain
         .iter_back()
         .filter_map(|shh| alice_authored.get_element(shh.header_address()))
         .filter_map(|el| {
+
             Ok(el.header().entry_type().cloned().and_then(|et| {
                 if et == entry_type {
+
                     Some(el)
                 } else {
+
                     None
                 }
             }))
@@ -185,27 +211,39 @@ async fn get_validation_package_test() {
 
     // Cascade
     let header_hashed = get_header(&header_hash);
+
     let validation_package = check_cascade(&header_hashed, &alice_call_data).await;
 
     assert_eq!(validation_package, expected_package.0);
+
     conductor_test.shutdown_conductor().await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn get_agent_activity_test() {
+
     observability::test_run().ok();
 
     let zomes = vec![TestWasm::Create];
+
     let mut conductor_test = ConductorTestData::two_agents(zomes, false).await;
+
     let handle = conductor_test.handle();
+
     let alice_call_data = conductor_test.alice_call_data_mut();
+
     let alice_cell_id = &alice_call_data.cell_id;
+
     let alice_agent_id = alice_cell_id.agent_pubkey();
+
     let alice_env = alice_call_data.env.clone();
 
     // Helper for getting expected data
     let get_expected_full = || {
+
         let alice_source_chain = SourceChain::public_only(alice_env.clone().into()).unwrap();
+
         let valid_activity = alice_source_chain
             .iter_back()
             .collect::<Vec<_>>()
@@ -213,11 +251,14 @@ async fn get_agent_activity_test() {
             .into_iter()
             .rev()
             .collect::<Vec<_>>();
+
         let last = valid_activity.last().cloned().unwrap();
+
         let status = ChainStatus::Valid(ChainHead {
             header_seq: last.header().header_seq(),
             hash: last.as_hash().clone(),
         });
+
         let highest_observed = Some(HighestObserved {
             header_seq: last.header().header_seq(),
             hash: vec![last.header_address().clone()],
@@ -233,18 +274,23 @@ async fn get_agent_activity_test() {
     };
 
     let get_expected = || {
+
         let mut activity = get_expected_full();
+
         let valid_activity = unwrap_to::unwrap_to!(activity.valid_activity => ChainItems::Full)
             .clone()
             .into_iter()
             .map(|shh| (shh.header().header_seq(), shh.header_address().clone()))
             .collect();
+
         activity.valid_activity = ChainItems::Hashes(valid_activity);
+
         activity
     };
 
     // Helper closure for changing to AgentActivityResponse<Element> type
     let get_expected_cascade = |activity: AgentActivityResponse| {
+
         let valid_activity = match activity.valid_activity {
             ChainItems::Full(headers) => ChainItems::Full(
                 headers
@@ -255,6 +301,7 @@ async fn get_agent_activity_test() {
             ChainItems::Hashes(h) => ChainItems::Hashes(h),
             ChainItems::NotRequested => ChainItems::NotRequested,
         };
+
         let rejected_activity = match activity.rejected_activity {
             ChainItems::Full(headers) => ChainItems::Full(
                 headers
@@ -265,6 +312,7 @@ async fn get_agent_activity_test() {
             ChainItems::Hashes(h) => ChainItems::Hashes(h),
             ChainItems::NotRequested => ChainItems::NotRequested,
         };
+
         let activity: AgentActivityResponse<Element> = AgentActivityResponse {
             agent: activity.agent,
             valid_activity,
@@ -272,6 +320,7 @@ async fn get_agent_activity_test() {
             status: activity.status,
             highest_observed: activity.highest_observed,
         };
+
         activity
     };
 
@@ -302,6 +351,7 @@ async fn get_agent_activity_test() {
         )
         .await
         .unwrap();
+
     assert_eq!(agent_activity.len(), 1);
 
     let mut agent_activity = alice_call_data
@@ -316,17 +366,22 @@ async fn get_agent_activity_test() {
         )
         .await
         .unwrap();
+
     let agent_activity = agent_activity
         .pop()
         .expect("Failed to get any activity from alice");
 
     // Expecting every header from the latest to the beginning
     let expected_activity = get_expected();
+
     assert_eq!(agent_activity, expected_activity);
 
     let mut element_cache = ElementBuf::cache(alice_call_data.env.clone().into()).unwrap();
+
     let mut meta_cache = MetadataBuf::cache(alice_call_data.env.clone().into()).unwrap();
+
     let cache_data = DbPairMut::new(&mut element_cache, &mut meta_cache);
+
     let mut cascade = Cascade::empty()
         .with_cache(cache_data)
         .with_network(alice_call_data.network.clone());
@@ -363,9 +418,11 @@ async fn get_agent_activity_test() {
         )
         .await
         .expect("Failed to get any activity from alice");
+
     let agent_activity = unwrap_to::unwrap_to!(r.valid_activity => ChainItems::Full).clone();
 
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let expected_activity: Vec<_> =
         unwrap_to::unwrap_to!(get_expected_full().valid_activity => ChainItems::Full)
             .into_iter()
@@ -382,6 +439,7 @@ async fn get_agent_activity_test() {
     alice_call_data.triggers.produce_dht_ops.trigger();
 
     expected_count += NUM_COMMITS * 2;
+
     wait_for_integration(
         &alice_call_data.env,
         expected_count,
@@ -402,12 +460,14 @@ async fn get_agent_activity_test() {
         )
         .await
         .unwrap();
+
     let agent_activity = agent_activity
         .pop()
         .expect("Failed to get any activity from alice");
 
     // Expecting every header from the latest to the beginning
     let expected_activity = get_expected();
+
     assert_eq!(agent_activity, expected_activity);
 
     // Commit messages
@@ -415,6 +475,7 @@ async fn get_agent_activity_test() {
 
     // Get the entry type
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let entry_type = alice_source_chain
         .get_element(&header_hash)
         .unwrap()
@@ -427,7 +488,9 @@ async fn get_agent_activity_test() {
 
     // Wait for alice to integrate the chain as an authority
     alice_call_data.triggers.produce_dht_ops.trigger();
+
     expected_count += NUM_COMMITS * 3;
+
     wait_for_integration(
         &alice_call_data.env,
         expected_count,
@@ -453,10 +516,12 @@ async fn get_agent_activity_test() {
 
     // This time we expect only activity that matches the entry type
     let mut expected_activity = get_expected_cascade(get_expected_full());
+
     let activity: Vec<_> =
         unwrap_to::unwrap_to!(expected_activity.valid_activity => ChainItems::Full)
             .into_iter()
             .filter(|a| {
+
                 a.header()
                     .entry_type()
                     .map(|et| *et == entry_type)
@@ -465,6 +530,7 @@ async fn get_agent_activity_test() {
             .cloned()
             // We are expecting the full elements with entries
             .collect();
+
     expected_activity.valid_activity = ChainItems::Full(activity);
 
     assert_eq!(agent_activity, expected_activity);
@@ -473,14 +539,21 @@ async fn get_agent_activity_test() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn get_custom_package_test() {
+
     observability::test_run().ok();
 
     let zomes = vec![TestWasm::ValidationPackageSuccess];
+
     let mut conductor_test = ConductorTestData::two_agents(zomes, true).await;
+
     let handle = conductor_test.handle();
+
     let alice_call_data = conductor_test.alice_call_data();
+
     let bob_call_data = conductor_test.bob_call_data().unwrap();
+
     let alice_cell_id = &alice_call_data.cell_id;
 
     let invocation = new_zome_call(
@@ -490,6 +563,7 @@ async fn get_custom_package_test() {
         TestWasm::ValidationPackageSuccess,
     )
     .unwrap();
+
     let result = handle.call_zome(invocation).await;
 
     assert_matches!(result, Err(_));
@@ -501,6 +575,7 @@ async fn get_custom_package_test() {
         TestWasm::ValidationPackageSuccess,
     )
     .unwrap();
+
     let result = handle.call_zome(invocation).await.unwrap().unwrap();
 
     assert_matches!(result, ZomeCallResponse::Ok(_));
@@ -512,6 +587,7 @@ async fn get_custom_package_test() {
         TestWasm::ValidationPackageSuccess,
     )
     .unwrap();
+
     let result = handle.call_zome(invocation).await.unwrap().unwrap();
 
     assert_matches!(result, ZomeCallResponse::Ok(_));
@@ -531,16 +607,20 @@ async fn get_custom_package_test() {
     .await;
 
     let alice_source_chain = SourceChain::public_only(alice_call_data.env.clone().into()).unwrap();
+
     let shh = alice_source_chain
         .iter_back()
         .find(|shh| {
+
             Ok(shh
                 .header()
                 .entry_type()
                 .map(|et| {
                     if let EntryType::App(aet) = et {
+
                         aet.id().index() == 1
                     } else {
+
                         false
                     }
                 })
@@ -550,11 +630,17 @@ async fn get_custom_package_test() {
         .unwrap();
 
     {
+
         let env: EnvRead = bob_call_data.env.clone().into();
+
         let element_integrated = ElementBuf::vault(env.clone(), false).unwrap();
+
         let meta_integrated = MetadataBuf::vault(env.clone()).unwrap();
+
         let mut element_cache = ElementBuf::cache(env.clone()).unwrap();
+
         let mut meta_cache = MetadataBuf::cache(env.clone()).unwrap();
+
         let cascade = Cascade::empty()
             .with_cache(DbPairMut::new(&mut element_cache, &mut meta_cache))
             .with_integrated(DbPair::new(&element_integrated, &meta_integrated));
@@ -562,6 +648,7 @@ async fn get_custom_package_test() {
         let result = cascade
             .get_validation_package_local(shh.header_address())
             .unwrap();
+
         assert_matches!(result, Some(_));
     }
 
@@ -569,20 +656,30 @@ async fn get_custom_package_test() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn get_agent_activity_host_fn_test() {
+
     observability::test_run().ok();
 
     let zomes = vec![TestWasm::Create];
+
     let mut conductor_test = ConductorTestData::two_agents(zomes, false).await;
+
     let handle = conductor_test.handle();
+
     let alice_call_data = conductor_test.alice_call_data();
+
     let alice_cell_id = &alice_call_data.cell_id;
+
     let alice_agent_id = alice_cell_id.agent_pubkey();
+
     let alice_env = alice_call_data.env.clone();
 
     // Helper for getting expected data
     let get_expected = || {
+
         let alice_source_chain = SourceChain::public_only(alice_env.clone().into()).unwrap();
+
         let valid_activity = alice_source_chain
             .iter_back()
             .collect::<Vec<_>>()
@@ -591,11 +688,14 @@ async fn get_agent_activity_host_fn_test() {
             .rev()
             .map(|shh| (shh.header().header_seq(), shh.header_address().clone()))
             .collect::<Vec<_>>();
+
         let last = valid_activity.last().cloned().unwrap();
+
         let status = ChainStatus::Valid(ChainHead {
             header_seq: last.0,
             hash: last.1.clone(),
         });
+
         let highest_observed = Some(HighestObserved {
             header_seq: last.0,
             hash: vec![last.1.clone()],
@@ -631,7 +731,9 @@ async fn get_agent_activity_host_fn_test() {
             ActivityRequest::Full,
         )
         .await;
+
     let expected_activity = get_expected();
+
     assert_eq!(agent_activity, expected_activity);
 
     let search = AgentActivitySearch {
@@ -639,6 +741,7 @@ async fn get_agent_activity_host_fn_test() {
         query: ChainQueryFilter::new(),
         request: ActivityRequest::Full,
     };
+
     let invocation = new_zome_call(
         &alice_call_data.cell_id,
         "get_activity",
@@ -646,12 +749,16 @@ async fn get_agent_activity_host_fn_test() {
         TestWasm::Create,
     )
     .unwrap();
+
     let result = handle.call_zome(invocation).await.unwrap().unwrap();
+
     let agent_activity: holochain_zome_types::query::AgentActivity =
         unwrap_to::unwrap_to!(result => ZomeCallResponse::Ok)
             .decode()
             .unwrap();
+
     assert_eq!(agent_activity, expected_activity);
+
     conductor_test.shutdown_conductor().await;
 }
 
@@ -660,17 +767,24 @@ async fn commit_some_data(
     alice_call_data: &CellHostFnCaller,
     handle: &ConductorHandle,
 ) -> HeaderHash {
+
     let mut header_hash = None;
+
     // Commit 5 entries
     for _ in 0..NUM_COMMITS {
+
         let invocation =
             new_zome_call(&alice_call_data.cell_id, call, (), TestWasm::Create).unwrap();
+
         let result = handle.call_zome(invocation).await.unwrap().unwrap();
+
         let result: HeaderHash = unwrap_to::unwrap_to!(result => ZomeCallResponse::Ok)
             .decode()
             .unwrap();
+
         header_hash = Some(result);
     }
+
     header_hash.unwrap()
 }
 
@@ -679,9 +793,13 @@ async fn check_cascade(
     header_hashed: &HeaderHashed,
     call_data: &CellHostFnCaller,
 ) -> Option<ValidationPackage> {
+
     let mut element_cache = ElementBuf::cache(call_data.env.clone().into()).unwrap();
+
     let mut meta_cache = MetadataBuf::cache(call_data.env.clone().into()).unwrap();
+
     let cache_data = DbPairMut::new(&mut element_cache, &mut meta_cache);
+
     let mut cascade = Cascade::empty()
         .with_cache(cache_data)
         .with_network(call_data.network.clone());
@@ -691,6 +809,7 @@ async fn check_cascade(
         .get_validation_package(call_data.cell_id.agent_pubkey().clone(), header_hashed)
         .await
         .unwrap();
+
     validation_package
 }
 
@@ -702,19 +821,28 @@ async fn check_cascade(
 ///
 /// This may not turn out to be a real issue, but this illustrates a way to reproduce this behavior,
 /// and may be something we want to investigate more in the future.
+
 async fn slow_db_reads_test() {
+
     let num_commits = std::env::var_os("SLOW_DB_COMMITS")
         .and_then(|s| s.into_string().ok()?.parse::<usize>().ok())
         .unwrap_or(10);
+
     observability::test_run().ok();
+
     let zomes = vec![TestWasm::Create];
+
     let mut conductor_test = ConductorTestData::two_agents(zomes, false).await;
+
     let handle = conductor_test.handle();
+
     let alice_call_data = conductor_test.alice_call_data_mut();
+
     let alice_env = alice_call_data.env.clone();
 
     // Commit some data to put some load on the network
     let mut invocations = vec![];
+
     invocations.push(
         new_zome_call(
             &alice_call_data.cell_id,
@@ -724,8 +852,10 @@ async fn slow_db_reads_test() {
         )
         .unwrap(),
     );
+
     invocations
         .push(new_zome_call(&alice_call_data.cell_id, "create_msg", (), TestWasm::Create).unwrap());
+
     invocations.push(
         new_zome_call(
             &alice_call_data.cell_id,
@@ -735,11 +865,16 @@ async fn slow_db_reads_test() {
         )
         .unwrap(),
     );
+
     for i in 0..num_commits {
+
         for invocation in &invocations {
+
             let r = handle.call_zome(invocation.clone()).await.unwrap().unwrap();
+
             assert_matches!(r, ZomeCallResponse::Ok(_));
         }
+
         let invocation = new_zome_call(
             &alice_call_data.cell_id,
             "create_post",
@@ -747,11 +882,14 @@ async fn slow_db_reads_test() {
             TestWasm::Create,
         )
         .unwrap();
+
         let r = handle.call_zome(invocation.clone()).await.unwrap().unwrap();
+
         assert_matches!(r, ZomeCallResponse::Ok(_));
     }
 
     let expected_count = 9 + 3 * 3 * num_commits + 2 * num_commits;
+
     wait_for_integration(
         &alice_call_data.env,
         expected_count,
@@ -759,17 +897,21 @@ async fn slow_db_reads_test() {
         DELAY_PER_ATTEMPT.clone(),
     )
     .await;
+
     // Get the source chain hashes
     let alice_source_chain = SourceChain::new(alice_env.clone().into()).unwrap();
+
     let hashes: Vec<_> = alice_source_chain
         .iter_back()
         .map(|shh| Ok(shh.header_address().clone()))
         .collect()
         .unwrap();
+
     let num_headers = hashes.len();
 
     // Time how long it takes to get the headers
     let expected_count = 9 + 3 * 2 * num_commits + 2 * num_commits;
+
     wait_for_integration(
         &alice_call_data.env,
         expected_count,
@@ -792,14 +934,23 @@ async fn slow_db_reads_test() {
         .unwrap();
 
     let mut low = u128::MAX;
+
     let mut high = 0;
+
     let mut average = 0;
+
     let runs = 1000;
+
     for _ in 0..runs {
+
         let element_integrated = ElementBuf::vault(alice_env.clone().into(), false).unwrap();
+
         let meta_integrated = MetadataBuf::vault(alice_env.clone().into()).unwrap();
+
         fresh_reader_test!(alice_env, |mut r| {
+
             let now = std::time::Instant::now();
+
             let hashes = meta_integrated
                 .get_activity_sequence(
                     &mut r,
@@ -811,24 +962,38 @@ async fn slow_db_reads_test() {
                 .unwrap()
                 .collect::<Vec<_>>()
                 .unwrap();
+
             for hash in &hashes {
+
                 element_integrated.get_header(&hash.1).unwrap();
             }
+
             let elapsed = now.elapsed().as_micros();
+
             if elapsed < low {
+
                 low = elapsed;
             }
+
             if elapsed > high {
+
                 high = elapsed;
             }
+
             average += elapsed;
         });
     }
+
     average = average / runs;
+
     println!("Average time to get {} headers {}us", num_headers, average);
+
     println!("{} us per header", average / num_headers as u128);
+
     println!("low {}", low / num_headers as u128);
+
     println!("high {}", high / num_headers as u128);
+
     println!("num commits {}", num_commits);
 
     conductor_test.shutdown_conductor().await;

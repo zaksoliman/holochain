@@ -10,23 +10,29 @@ use kitsune_p2p_types::transport::*;
 use structopt::StructOpt;
 
 mod opt;
+
 use opt::*;
 
 #[tokio::main(flavor = "multi_thread")]
+
 async fn main() {
+
     let _ = ghost_actor::dependencies::tracing::subscriber::set_global_default(
         tracing_subscriber::FmtSubscriber::builder()
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
             .finish(),
     );
+
     kitsune_p2p_types::metrics::init_sys_info_poll();
 
     if let Err(e) = inner().await {
+
         eprintln!("{:?}", e);
     }
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
 struct TlsFileCert {
     #[serde(with = "serde_bytes")]
     pub cert: Vec<u8>,
@@ -38,6 +44,7 @@ struct TlsFileCert {
 
 impl From<TlsConfig> for TlsFileCert {
     fn from(f: TlsConfig) -> Self {
+
         Self {
             cert: f.cert.to_vec(),
             priv_key: f.cert_priv_key.to_vec(),
@@ -48,6 +55,7 @@ impl From<TlsConfig> for TlsFileCert {
 
 impl From<TlsFileCert> for TlsConfig {
     fn from(f: TlsFileCert) -> Self {
+
         Self {
             cert: f.cert.into(),
             cert_priv_key: f.priv_key.into(),
@@ -57,36 +65,53 @@ impl From<TlsFileCert> for TlsConfig {
 }
 
 async fn inner() -> TransportResult<()> {
+
     let opt = Opt::from_args();
 
     if let Some(gen_cert) = &opt.danger_gen_unenc_cert {
+
         let tls = TlsConfig::new_ephemeral().await?;
+
         let gen_cert2 = gen_cert.clone();
+
         tokio::task::spawn_blocking(move || {
+
             let tls = TlsFileCert::from(tls);
+
             let mut out = Vec::new();
+
             kitsune_p2p_types::codec::rmp_encode(&mut out, &tls).map_err(TransportError::other)?;
+
             std::fs::write(gen_cert2, &out).map_err(TransportError::other)?;
+
             TransportResult::Ok(())
         })
         .await
         .map_err(TransportError::other)??;
+
         println!("Generated {:?}.", gen_cert);
+
         return Ok(());
     }
 
     let tls_conf = if let Some(use_cert) = &opt.danger_use_unenc_cert {
+
         let use_cert = use_cert.clone();
+
         tokio::task::spawn_blocking(move || {
+
             let tls = std::fs::read(use_cert).map_err(TransportError::other)?;
+
             let tls: TlsFileCert =
                 kitsune_p2p_types::codec::rmp_decode(&mut std::io::Cursor::new(&tls))
                     .map_err(TransportError::other)?;
+
             TransportResult::Ok(TlsConfig::from(tls))
         })
         .await
         .map_err(TransportError::other)??
     } else {
+
         TlsConfig::new_ephemeral().await?
     };
 
@@ -103,8 +128,11 @@ async fn inner() -> TransportResult<()> {
     .await?;
 
     let listener_clone = listener.clone();
+
     metric_task(async move {
+
         loop {
+
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
 
             let debug_dump = listener_clone.debug().await.unwrap();
@@ -120,25 +148,33 @@ async fn inner() -> TransportResult<()> {
     println!("{}", listener.bound_url().await?);
 
     metric_task(async move {
+
         while let Some(evt) = events.next().await {
+
             match evt {
                 TransportEvent::IncomingChannel(url, mut write, _read) => {
+
                     tracing::debug!(
                         "{} is trying to talk directly to us - dump proxy state",
                         url
                     );
+
                     match listener.debug().await {
                         Ok(dump) => {
+
                             let dump = serde_json::to_string_pretty(&dump).unwrap();
+
                             let _ = write.write_and_close(dump.into_bytes()).await;
                         }
                         Err(e) => {
+
                             let _ = write.write_and_close(format!("{:?}", e).into_bytes()).await;
                         }
                     }
                 }
             }
         }
+
         <Result<(), ()>>::Ok(())
     });
 

@@ -2,9 +2,11 @@ use crate::prelude::*;
 use rand::Rng;
 
 const UNPREDICTABLE_MIN_LEN: usize = 0;
+
 const UNPREDICTABLE_MAX_LEN: usize = 32;
 
 pub type Bytes = Vec<u8>;
+
 pub type BytesNotEmpty = Vec<u8>;
 
 // Simply generate "bytes" which is a Vec<u8>
@@ -68,6 +70,7 @@ fixturator!(
 
 /// A type alias for a Vec<u8> whose fixturator is expected to only return
 /// a Vec of length 36
+
 pub type ThirtySixBytes = Vec<u8>;
 
 // Simply generate "bytes" which is a Vec<u8> of 36 bytes
@@ -94,6 +97,7 @@ fixturator!(
 
 /// A type alias for a Vec<u8> whose fixturator is expected to only return
 /// a Vec of length 32
+
 pub type ThirtyTwoBytes = [u8; 32];
 
 // Simply generate "bytes" which is a Vec<u8> of 32 bytes
@@ -117,6 +121,7 @@ fixturator!(
 
 /// A type alias for a Vec<u8> whose fixturator is expected to only return
 /// a Vec of length 64
+
 pub type SixtyFourBytes = [u8; 64];
 
 // Simply generate "bytes" which is a Vec<u8> of 32 bytes

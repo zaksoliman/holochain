@@ -88,19 +88,24 @@ use util::url_to_addr;
 use websocket::Websocket;
 
 mod websocket_config;
+
 pub use websocket_config::*;
 
 #[allow(missing_docs)]
 mod error;
+
 pub use error::*;
 
 mod websocket_listener;
+
 pub use websocket_listener::*;
 
 mod websocket_sender;
+
 pub use websocket_sender::*;
 
 mod websocket_receiver;
+
 pub use websocket_receiver::*;
 
 mod websocket;
@@ -109,12 +114,16 @@ mod util;
 
 #[instrument(skip(config))]
 /// Create a new external websocket connection.
+
 pub async fn connect(
     url: Url2,
     config: Arc<WebsocketConfig>,
 ) -> WebsocketResult<(WebsocketSender, WebsocketReceiver)> {
+
     let addr = url_to_addr(&url, config.scheme).await?;
+
     let socket = tokio::net::TcpStream::connect(addr).await?;
+
     // TODO: find equivalent of this in new tokio
     // socket.set_keepalive(Some(std::time::Duration::from_secs(
     //     config.tcp_keepalive_s as u64,
@@ -126,12 +135,15 @@ pub async fn connect(
     )
     .await
     .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
     tracing::debug!("Client connected");
 
     // Noop valve because we don't have a listener to shutdown the
     // ends when creating a client
     let (exit, valve) = Valve::new();
+
     exit.disable();
+
     Websocket::create_ends(config, socket, valve)
 }
 
@@ -140,6 +152,7 @@ pub async fn connect(
 /// The messages actually sent over the wire by this library.
 /// If you want to impliment your own server or client you
 /// will need this type or be able to serialize / deserialize it.
+
 pub enum WireMessage {
     /// A message without a response.
     Signal {

@@ -1,4 +1,5 @@
 #![allow(irrefutable_let_patterns)]
+
 use criterion::{/*black_box,*/ criterion_group, criterion_main, Criterion};
 
 use futures::stream::StreamExt;
@@ -19,9 +20,11 @@ kitsune_p2p_types::write_codec_enum! {
 }
 
 const REQ: &[u8] = &[0xda; SIZE];
+
 const RES: &[u8] = &[0xdb; SIZE];
 
 #[allow(dead_code)]
+
 struct Test {
     dst_ep: Tx2EpHnd<TestData>,
     dst_url: TxUrl,
@@ -30,7 +33,9 @@ struct Test {
 
 impl Test {
     pub async fn new() -> Self {
+
         let (dst_url, dst_ep) = mk_dst().await;
+
         let src_ep = mk_src().await;
 
         Self {
@@ -41,10 +46,13 @@ impl Test {
     }
 
     pub async fn test(&mut self) {
+
         let t = KitsuneTimeout::from_millis(5000);
 
         let mut data = PoolBuf::new();
+
         data.extend_from_slice(REQ);
+
         let data = TestData::one(data);
 
         let con = self
@@ -59,41 +67,58 @@ impl Test {
             .unwrap();
 
         if let TestData::One(One { data }) = res {
+
             assert_eq!(data.as_ref(), RES);
         } else {
+
             panic!("invalid data");
         }
     }
 }
 
 async fn mk_core() -> (TxUrl, Tx2Ep<TestData>, Tx2EpHnd<TestData>) {
+
     let t = KitsuneTimeout::from_millis(5000);
 
     let f = tx2_mem_adapter(MemConfig::default()).await.unwrap();
+
     let f = tx2_pool_promote(f, Default::default());
+
     let f = tx2_api(f, Default::default());
 
     let ep = f.bind("none:", t).await.unwrap();
+
     let ep_hnd = ep.handle().clone();
+
     let addr = ep_hnd.local_addr().unwrap();
 
     (addr, ep, ep_hnd)
 }
 
 async fn mk_dst() -> (TxUrl, Tx2EpHnd<TestData>) {
+
     let (url, mut ep, ep_hnd) = mk_core().await;
 
     tokio::task::spawn(async move {
+
         while let Some(evt) = ep.next().await {
+
             if let Tx2EpEvent::IncomingRequest(Tx2EpIncomingRequest { data, respond, .. }) = evt {
+
                 if let TestData::One(One { data }) = data {
+
                     assert_eq!(data.as_ref(), REQ);
                 } else {
+
                     panic!("invalid data");
                 }
+
                 let mut data = PoolBuf::new();
+
                 data.extend_from_slice(RES);
+
                 let data = TestData::one(data);
+
                 respond
                     .respond(data, KitsuneTimeout::from_millis(5000))
                     .await
@@ -106,6 +131,7 @@ async fn mk_dst() -> (TxUrl, Tx2EpHnd<TestData>) {
 }
 
 async fn mk_src() -> Tx2EpHnd<TestData> {
+
     let (_url, mut ep, ep_hnd) = mk_core().await;
 
     tokio::task::spawn(async move { while let Some(_evt) = ep.next().await {} });
@@ -114,22 +140,30 @@ async fn mk_src() -> Tx2EpHnd<TestData> {
 }
 
 async fn test(this: &Share<Option<Test>>) {
+
     let mut t = this.share_mut(|i, _| Ok(i.take().unwrap())).unwrap();
+
     t.test().await;
+
     this.share_mut(move |i, _| {
+
         *i = Some(t);
+
         Ok(())
     })
     .unwrap();
 }
 
 fn api_thru(rt: &tokio::runtime::Runtime, t: &Share<Option<Test>>) {
+
     rt.block_on(async {
+
         test(t).await;
     });
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -141,4 +175,5 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 criterion_group!(benches, criterion_benchmark);
+
 criterion_main!(benches);

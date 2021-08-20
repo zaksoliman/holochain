@@ -8,21 +8,29 @@ use tracing::*;
 
 /// Spawn the QueueConsumer for validation receipt workflow
 #[instrument(skip(env, conductor_handle, stop, cell_network))]
+
 pub fn spawn_validation_receipt_consumer(
     env: EnvWrite,
     conductor_handle: ConductorHandle,
     mut stop: sync::broadcast::Receiver<()>,
     mut cell_network: HolochainP2pCell,
 ) -> (TriggerSender, JoinHandle<ManagedTaskResult>) {
+
     let (tx, mut rx) = TriggerSender::new();
+
     let mut trigger_self = tx.clone();
+
     let handle = tokio::spawn(async move {
+
         loop {
+
             // Wait for next job
             if let Job::Shutdown = next_job_or_exit(&mut rx, &mut stop).await {
+
                 tracing::warn!(
                     "Cell is shutting down: stopping validation_receipt_workflow queue consumer."
                 );
+
                 break;
             }
 
@@ -41,7 +49,9 @@ pub fn spawn_validation_receipt_consumer(
                 _ => (),
             };
         }
+
         Ok(())
     });
+
     (tx, handle)
 }

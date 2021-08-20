@@ -17,14 +17,18 @@ mod query_tests;
 mod tests;
 
 #[instrument(skip(vault, trigger_receipt, cell_network))]
+
 pub async fn integrate_dht_ops_workflow(
     vault: EnvWrite,
     mut trigger_receipt: TriggerSender,
     cell_network: HolochainP2pCell,
 ) -> WorkflowResult<WorkComplete> {
+
     let time = holochain_types::timestamp::now();
+
     let changed = vault
         .async_commit(move |txn| {
+
             let changed = txn
                 .prepare_cached(holochain_sqlite::sql::sql_cell::UPDATE_INTEGRATE_OPS)?
                 .execute(named_params! {
@@ -41,15 +45,22 @@ pub async fn integrate_dht_ops_workflow(
                     ":delete_link": DhtOpType::RegisterRemoveLink,
 
                 })?;
+
             WorkflowResult::Ok(changed)
         })
         .await?;
+
     tracing::debug!(?changed);
+
     if changed > 0 {
+
         trigger_receipt.trigger();
+
         cell_network.new_integrated_data().await?;
+
         Ok(WorkComplete::Incomplete)
     } else {
+
         Ok(WorkComplete::Complete)
     }
 }

@@ -20,6 +20,7 @@ pub use self::io_error::{IoError, IoResult};
 use std::path::PathBuf;
 
 fn mapper<P: AsRef<std::path::Path>>(path: P) -> impl FnOnce(std::io::Error) -> IoError {
+
     move |e| IoError::new(e, path.as_ref().to_owned())
 }
 

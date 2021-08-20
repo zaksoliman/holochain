@@ -7,6 +7,7 @@ use holochain_serialized_bytes::prelude::*;
 /// The properties of the current dna/zome being called.
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
+
 pub struct ZomeInfo {
     pub dna_name: String,
     pub dna_hash: DnaHash,
@@ -24,6 +25,7 @@ impl ZomeInfo {
         zome_id: ZomeId,
         properties: SerializedBytes,
     ) -> Self {
+
         Self {
             dna_name,
             dna_hash,
@@ -37,6 +39,7 @@ impl ZomeInfo {
 /// The struct containing all information about the executing agent's identity.
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes, PartialEq)]
+
 pub struct AgentInfo {
     /// The current agent's pubkey at genesis.
     /// Always found at index 2 in the source chain.
@@ -49,6 +52,7 @@ pub struct AgentInfo {
 
 impl AgentInfo {
     pub fn new(agent_initial_pubkey: AgentPubKey, agent_latest_pubkey: AgentPubKey) -> Self {
+
         Self {
             agent_initial_pubkey,
             agent_latest_pubkey,
@@ -57,10 +61,13 @@ impl AgentInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+
 pub struct AppInfo;
 
 #[derive(Debug, Serialize, Deserialize)]
+
 pub struct DnaInfo;
 
 #[derive(Debug, Serialize, Deserialize)]
+
 pub struct CallInfo;

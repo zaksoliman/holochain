@@ -7,6 +7,7 @@ use holochain_types::activity::AgentActivityResponse;
 
 /// Request a validation package.
 #[derive(Clone, Debug)]
+
 pub struct GetValidationPackage {
     /// The dna_hash / space_hash context.
     pub dna_hash: DnaHash,
@@ -23,6 +24,7 @@ pub struct GetValidationPackage {
 /// Fields tagged with `[Network]` are network-level controls.
 /// Fields tagged with `[Remote]` are controls that will be forwarded to the
 /// remote agent processing this `Get` request.
+
 pub struct GetOptions {
     /// [Network]
     /// How many remote nodes should we make requests of / aggregate.
@@ -65,6 +67,7 @@ pub struct GetOptions {
 
 impl Default for GetOptions {
     fn default() -> Self {
+
         Self {
             remote_agent_count: None,
             timeout_ms: None,
@@ -79,6 +82,7 @@ impl Default for GetOptions {
 
 impl From<holochain_zome_types::entry::GetOptions> for GetOptions {
     fn from(_: holochain_zome_types::entry::GetOptions) -> Self {
+
         Self::default()
     }
 }
@@ -88,6 +92,7 @@ impl From<holochain_zome_types::entry::GetOptions> for GetOptions {
 /// Fields tagged with `[Remote]` are controls that will be forwarded to the
 /// remote agent processing this `GetLinks` request.
 #[derive(Clone, Debug)]
+
 pub struct GetMetaOptions {
     /// [Network]
     /// How many remote nodes should we make requests of / aggregate.
@@ -120,6 +125,7 @@ pub struct GetMetaOptions {
 
 impl Default for GetMetaOptions {
     fn default() -> Self {
+
         Self {
             remote_agent_count: None,
             timeout_ms: None,
@@ -135,6 +141,7 @@ impl Default for GetMetaOptions {
 /// Fields tagged with `[Network]` are network-level controls.
 /// Fields tagged with `[Remote]` are controls that will be forwarded to the
 /// remote agent processing this `GetLinks` request.
+
 pub struct GetLinksOptions {
     /// [Network]
     /// Timeout to await responses for aggregation.
@@ -146,6 +153,7 @@ pub struct GetLinksOptions {
 
 impl Default for GetLinksOptions {
     fn default() -> Self {
+
         Self { timeout_ms: None }
     }
 }
@@ -155,6 +163,7 @@ impl Default for GetLinksOptions {
 /// Fields tagged with `[Network]` are network-level controls.
 /// Fields tagged with `[Remote]` are controls that will be forwarded to the
 /// remote agent processing this `GetLinks` request.
+
 pub struct GetActivityOptions {
     /// [Network]
     /// Timeout to await responses for aggregation.
@@ -183,6 +192,7 @@ pub struct GetActivityOptions {
 
 impl Default for GetActivityOptions {
     fn default() -> Self {
+
         Self {
             timeout_ms: None,
             retry_gets: 0,
@@ -282,21 +292,26 @@ ghost_actor::ghost_chan! {
 }
 
 /// Convenience type for referring to the HolochainP2p GhostSender
+
 pub type HolochainP2pRef = ghost_actor::GhostSender<HolochainP2p>;
 
 /// Extension trait for converting GhostSender<HolochainP2p> into HolochainP2pCell
+
 pub trait HolochainP2pRefToCell {
     /// Partially apply dna_hash && agent_pub_key to this sender,
     /// binding it to a specific cell context.
+
     fn into_cell(self, dna_hash: DnaHash, from_agent: AgentPubKey) -> crate::HolochainP2pCell;
 
     /// Clone and partially apply dna_hash && agent_pub_key to this sender,
     /// binding it to a specific cell context.
+
     fn to_cell(&self, dna_hash: DnaHash, from_agent: AgentPubKey) -> crate::HolochainP2pCell;
 }
 
 impl HolochainP2pRefToCell for HolochainP2pRef {
     fn into_cell(self, dna_hash: DnaHash, from_agent: AgentPubKey) -> crate::HolochainP2pCell {
+
         crate::HolochainP2pCell {
             sender: self,
             dna_hash: Arc::new(dna_hash),
@@ -305,6 +320,7 @@ impl HolochainP2pRefToCell for HolochainP2pRef {
     }
 
     fn to_cell(&self, dna_hash: DnaHash, from_agent: AgentPubKey) -> crate::HolochainP2pCell {
+
         self.clone().into_cell(dna_hash, from_agent)
     }
 }

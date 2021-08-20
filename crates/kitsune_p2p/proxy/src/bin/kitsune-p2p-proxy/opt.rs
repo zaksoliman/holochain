@@ -1,6 +1,7 @@
 /// Option Parsing
 #[derive(structopt::StructOpt, Debug)]
 #[structopt(name = "kitsune-p2p-proxy")]
+
 pub struct Opt {
     /// Generate a new self-signed certificate file/priv key and exit.
     /// Danger - this cert is written unencrypted to disk.
@@ -26,19 +27,26 @@ pub struct Opt {
 
 impl From<&Opt> for kitsune_p2p_transport_quic::ConfigListenerQuic {
     fn from(o: &Opt) -> Self {
+
         let mut out = Self::default();
+
         if let Some(b) = &o.bind_to {
+
             out = out.set_bind_to(Some(kitsune_p2p_types::dependencies::url2::url2!("{}", b)));
         }
+
         if let Some(h) = &o.override_host {
+
             out = out.set_override_host(Some(h));
         }
+
         out
     }
 }
 
 impl From<Opt> for kitsune_p2p_transport_quic::ConfigListenerQuic {
     fn from(o: Opt) -> Self {
+
         (&o).into()
     }
 }

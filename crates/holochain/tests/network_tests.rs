@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![allow(deprecated)]
+
 use ::fixt::prelude::*;
 use fallible_iterator::FallibleIterator;
 use futures::future::Either;
@@ -163,8 +164,11 @@ let mut reader = g.reader().unwrap();
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "flaky"]
+
 async fn get_from_another_agent() {
+
     observability::test_run().ok();
+
     let dna_file = DnaFile::new(
         DnaDef {
             name: "dht_get_test".to_string(),
@@ -178,24 +182,31 @@ async fn get_from_another_agent() {
     .unwrap();
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     let bob_agent_id = fake_agent_pubkey_2();
+
     let bob_cell_id = CellId::new(dna_file.dna_hash().to_owned(), bob_agent_id.clone());
+
     let bob_installed_cell = InstalledCell::new(bob_cell_id.clone(), "bob_handle".into());
 
     let mut dna_store = MockDnaStore::new();
 
     dna_store.expect_get().return_const(Some(dna_file.clone()));
+
     dna_store
         .expect_add_dnas::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store
         .expect_add_entry_defs::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store.expect_get_entry_def().return_const(None);
 
     let (_tmpdir, _app_api, handle) = setup_app(
@@ -208,9 +219,13 @@ async fn get_from_another_agent() {
 
     // Bob store element
     let entry = Post("Bananas are good for you".into());
+
     let entry_hash = Entry::try_from(entry.clone()).unwrap().to_hash();
+
     let header_hash = {
+
         let call_data = HostFnCaller::create(&bob_cell_id, &handle, &dna_file).await;
+
         let header_hash = call_data
             .commit_entry(entry.clone().try_into().unwrap(), POST_ID)
             .await;
@@ -218,12 +233,15 @@ async fn get_from_another_agent() {
         // Bob is not an authority yet
         // Make Bob an "authority"
         fake_authority(header_hash.clone().into(), &call_data).await;
+
         header_hash
     };
 
     // Alice get element from bob
     let element = {
+
         let call_data = HostFnCaller::create(&alice_cell_id, &handle, &dna_file).await;
+
         call_data
             .get(entry_hash.clone().into(), options.clone())
             .await
@@ -238,14 +256,19 @@ async fn get_from_another_agent() {
 
     // Check entry is the same
     let ret_entry: Post = ret_entry.into_option().unwrap().try_into().unwrap();
+
     assert_eq!(entry, ret_entry);
 
     let new_entry = Post("Bananas are bendy".into());
+
     let (remove_hash, update_hash) = {
+
         let call_data = HostFnCaller::create(&bob_cell_id, &handle, &dna_file).await;
+
         let remove_hash = call_data.delete_entry(header_hash.clone()).await;
 
         fake_authority(remove_hash.clone().into(), &call_data).await;
+
         let update_hash = call_data
             .update_entry(
                 new_entry.clone().try_into().unwrap(),
@@ -253,62 +276,84 @@ async fn get_from_another_agent() {
                 header_hash.clone(),
             )
             .await;
+
         fake_authority(update_hash.clone().into(), &call_data).await;
+
         (remove_hash, update_hash)
     };
 
     // Alice get element from bob
     let (entry_details, header_details) = {
+
         let call_data = HostFnCaller::create(&alice_cell_id, &handle, &dna_file).await;
+
         debug!(the_entry_hash = ?entry_hash);
+
         let entry_details = call_data
             .get_details(entry_hash.into(), options.clone())
             .await
             .unwrap();
+
         let header_details = call_data
             .get_details(header_hash.clone().into(), options.clone())
             .await
             .unwrap();
+
         (entry_details, header_details)
     };
 
     let entry_details = unwrap_to!(entry_details => Details::Entry).clone();
+
     let header_details = unwrap_to!(header_details => Details::Element).clone();
 
     assert_eq!(Post::try_from(entry_details.entry).unwrap(), entry);
+
     assert_eq!(entry_details.headers.len(), 1);
+
     assert_eq!(entry_details.deletes.len(), 1);
+
     assert_eq!(entry_details.updates.len(), 1);
+
     assert_eq!(entry_details.entry_dht_status, EntryDhtStatus::Dead);
+
     assert_eq!(
         *entry_details.headers.get(0).unwrap().header_address(),
         header_hash
     );
+
     assert_eq!(
         *entry_details.deletes.get(0).unwrap().header_address(),
         remove_hash
     );
+
     assert_eq!(
         *entry_details.updates.get(0).unwrap().header_address(),
         update_hash
     );
 
     assert_eq!(header_details.deletes.len(), 1);
+
     assert_eq!(*header_details.element.header_address(), header_hash);
+
     assert_eq!(
         *entry_details.deletes.get(0).unwrap().header_address(),
         remove_hash
     );
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "flaky for some reason"]
+
 async fn get_links_from_another_agent() {
+
     observability::test_run().ok();
+
     let dna_file = DnaFile::new(
         DnaDef {
             name: "dht_get_test".to_string(),
@@ -322,24 +367,31 @@ async fn get_links_from_another_agent() {
     .unwrap();
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     let bob_agent_id = fake_agent_pubkey_2();
+
     let bob_cell_id = CellId::new(dna_file.dna_hash().to_owned(), bob_agent_id.clone());
+
     let bob_installed_cell = InstalledCell::new(bob_cell_id.clone(), "bob_handle".into());
 
     let mut dna_store = MockDnaStore::new();
 
     dna_store.expect_get().return_const(Some(dna_file.clone()));
+
     dna_store
         .expect_add_dnas::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store
         .expect_add_entry_defs::<Vec<_>>()
         .times(2)
         .return_const(());
+
     dna_store.expect_get_entry_def().return_const(None);
 
     let (_tmpdir, _app_api, handle) = setup_app(
@@ -352,12 +404,19 @@ async fn get_links_from_another_agent() {
 
     // Bob store links
     let base = Post("Bananas are good for you".into());
+
     let target = Post("Potassium is radioactive".into());
+
     let base_entry_hash = Entry::try_from(base.clone()).unwrap().to_hash();
+
     let target_entry_hash = Entry::try_from(target.clone()).unwrap().to_hash();
+
     let link_tag = fixt!(LinkTag);
+
     let link_add_hash = {
+
         let call_data = HostFnCaller::create(&bob_cell_id, &handle, &dna_file).await;
+
         let base_header_hash = call_data
             .commit_entry(base.clone().try_into().unwrap(), POST_ID)
             .await;
@@ -367,6 +426,7 @@ async fn get_links_from_another_agent() {
             .await;
 
         fake_authority(target_header_hash.clone().into(), &call_data).await;
+
         fake_authority(base_header_hash.clone().into(), &call_data).await;
 
         // Link the entries
@@ -385,6 +445,7 @@ async fn get_links_from_another_agent() {
 
     // Alice get links from bob
     let links = {
+
         let call_data = HostFnCaller::create(&alice_cell_id, &handle, &dna_file).await;
 
         call_data
@@ -400,10 +461,12 @@ async fn get_links_from_another_agent() {
         tag: link_tag.clone(),
         create_link_hash: link_add_hash.clone(),
     };
+
     assert_eq!(*links.get(0).unwrap(), expt);
 
     // Remove the link
     {
+
         let call_data = HostFnCaller::create(&bob_cell_id, &handle, &dna_file).await;
 
         // Link the entries
@@ -413,6 +476,7 @@ async fn get_links_from_another_agent() {
     }
 
     let links = {
+
         let call_data = HostFnCaller::create(&alice_cell_id, &handle, &dna_file).await;
 
         call_data
@@ -425,21 +489,32 @@ async fn get_links_from_another_agent() {
     };
 
     assert_eq!(links.len(), 1);
+
     let (link_add, link_removes) = links.get(0).unwrap().clone();
+
     assert_eq!(link_removes.len(), 1);
+
     let link_remove = link_removes.get(0).unwrap().clone();
+
     let link_remove = unwrap_to::unwrap_to!(link_remove.header() => Header::DeleteLink).clone();
+
     let link_add = unwrap_to::unwrap_to!(link_add.header() => Header::CreateLink).clone();
+
     assert_eq!(link_add.tag, link_tag);
+
     assert_eq!(link_add.target_address, target_entry_hash);
+
     assert_eq!(link_add.base_address, base_entry_hash);
+
     assert_eq!(
         link_remove.link_add_address,
         HeaderHash::with_data_sync(&Header::CreateLink(link_add))
     );
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
@@ -451,12 +526,15 @@ struct Shutdown {
 
 impl Shutdown {
     async fn clean(self) {
+
         let Self {
             handle,
             kill,
             network,
         } = self;
+
         kill.send(()).ok();
+
         // Give the network some time to clean up but don't block tests if it doesn't
         tokio::time::timeout(
             std::time::Duration::from_secs(2),
@@ -464,6 +542,7 @@ impl Shutdown {
         )
         .await
         .ok();
+
         tokio::time::timeout(std::time::Duration::from_secs(2), handle)
             .await
             .ok();
@@ -559,20 +638,32 @@ async fn generate_fixt_store() -> (
     BTreeMap<HeaderHash, Element>,
     BTreeMap<AnyDhtHash, TimedHeaderHash>,
 ) {
+
     let mut store = BTreeMap::new();
+
     let mut meta_store = BTreeMap::new();
+
     let entry = EntryFixturator::new(AppEntry).next().unwrap();
+
     let entry_hash = EntryHashed::from_content_sync(entry.clone()).into_hash();
+
     let mut element_create = fixt!(Create);
+
     let entry_type = AppEntryTypeFixturator::new(EntryVisibility::Public)
         .map(EntryType::App)
         .next()
         .unwrap();
+
     element_create.entry_type = entry_type;
+
     element_create.entry_hash = entry_hash.clone();
+
     let header = HeaderHashed::from_content_sync(Header::Create(element_create));
+
     let hash = header.as_hash().clone();
+
     let signed_header = SignedHeaderHashed::with_presigned(header, fixt!(Signature));
+
     meta_store.insert(
         entry_hash.into(),
         TimedHeaderHash {
@@ -580,11 +671,14 @@ async fn generate_fixt_store() -> (
             header_hash: hash.clone(),
         },
     );
+
     store.insert(hash, Element::new(signed_header, Some(entry)));
+
     (store, meta_store)
 }
 
 async fn fake_authority(hash: AnyDhtHash, call_data: &HostFnCaller) {
+
     // Check bob can get the entry
     let element = call_data
         .get(hash.clone().into(), GetOptions::content())
@@ -592,10 +686,12 @@ async fn fake_authority(hash: AnyDhtHash, call_data: &HostFnCaller) {
         .unwrap();
 
     let mut element_vault = ElementBuf::vault(call_data.env.clone().into(), false).unwrap();
+
     let mut meta_vault = MetadataBuf::vault(call_data.env.clone().into()).unwrap();
 
     // Write to the meta vault to fake being an authority
     let (shh, e) = element.clone().into_inner();
+
     element_vault.put(shh, option_entry_hashed(e)).unwrap();
 
     // TODO: figure this out
@@ -608,7 +704,9 @@ async fn fake_authority(hash: AnyDhtHash, call_data: &HostFnCaller) {
         .conn()
         .unwrap()
         .with_commit(|writer| {
+
             element_vault.flush_to_txn(writer)?;
+
             meta_vault.flush_to_txn(writer)
         })
         .unwrap();
@@ -619,10 +717,13 @@ async fn integrate_to_integrated<C: MetadataBufT<IntegratedPrefix>>(
     element_store: &ElementBuf<IntegratedPrefix>,
     meta_store: &mut C,
 ) -> DhtOpConvertResult<()> {
+
     // Produce the light directly
     for op in produce_op_lights_from_elements(vec![element])? {
+
         // we don't integrate element data, because it is already in our vault.
         integrate_single_metadata(op, element_store, meta_store)?
     }
+
     Ok(())
 }

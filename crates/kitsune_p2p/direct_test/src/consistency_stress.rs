@@ -12,6 +12,7 @@ use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 
 /// configuration for consistency_stress test
+
 pub struct Config {
     /// tuning_params
     pub tuning_params: KitsuneP2pTuningParams,
@@ -32,6 +33,7 @@ pub struct Config {
 
 /// progress emitted by this test
 #[derive(Debug)]
+
 pub enum Progress {
     /// System Metrics
     SysMetrics {
@@ -117,12 +119,14 @@ pub enum Progress {
 
 impl std::fmt::Display for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         match self {
             Progress::SysMetrics {
                 used_mem_gb,
                 cpu_usage_pct,
                 net_kb_per_s,
             } => {
+
                 write!(
                     f,
                     "-- CPU {:.0} % -- MEM {:.3} GiB -- NET {:.3} KiB/s --",
@@ -138,6 +142,7 @@ impl std::fmt::Display for Progress {
                 bootstrap_url,
                 proxy_url,
             } => {
+
                 write!(
                     f,
                     r#"{:.4}s: TestStarted
@@ -163,6 +168,7 @@ impl std::fmt::Display for Progress {
                 target_total_op_count,
                 avg_total_op_count,
             } => {
+
                 write!(
                     f,
                     "{:.4}s: InterimState {:.4}s {}/{} agents {}/{} ops",
@@ -178,6 +184,7 @@ impl std::fmt::Display for Progress {
                 run_time_s,
                 agent_count,
             } => {
+
                 write!(
                     f,
                     "--!!--\n{:.4}s: ! AgentConsistent ! {} agents\n--!!--",
@@ -190,6 +197,7 @@ impl std::fmt::Display for Progress {
                 new_ops_added_count,
                 total_op_count,
             } => {
+
                 write!(
                     f,
                     "--!!--\n{:.4}s: ! OpConsistent ! {:.4}s {} new {} total\n--!!--",
@@ -201,13 +209,16 @@ impl std::fmt::Display for Progress {
 }
 
 /// run the consistency_stress test
+
 pub fn run(
     config: Config,
 ) -> (
     impl futures::stream::Stream<Item = Progress>,
     impl FnOnce() -> BoxFuture<'static, ()>,
 ) {
+
     use tracing_subscriber::{filter::EnvFilter, fmt::time::ChronoUtc, FmtSubscriber};
+
     tracing::subscriber::set_global_default(
         FmtSubscriber::builder()
             .with_writer(std::io::stderr)
@@ -220,7 +231,9 @@ pub fn run(
     .unwrap();
 
     let (p_send, p_recv) = futures::channel::mpsc::channel(1024);
+
     let shutdown = || {
+
         async move {
             // TODO - make this actually clean up the test somehow
         }
@@ -278,19 +291,25 @@ impl Test {
         tuning_params: KitsuneP2pTuningParams,
         p_send: futures::channel::mpsc::Sender<Progress>,
     ) -> Self {
+
         let time_test_start = std::time::Instant::now();
 
         let (bootstrap_url, driver, _bootstrap_close) =
             new_quick_bootstrap_v1(tuning_params.clone()).await.unwrap();
+
         tokio::task::spawn(driver);
 
         let (proxy_url, driver, _proxy_close) =
             new_quick_proxy_v1(tuning_params.clone()).await.unwrap();
+
         tokio::task::spawn(driver);
 
         let (root, app_entry) = {
+
             let root_persist = new_persist_mem();
+
             let root = root_persist.generate_signing_keypair().await.unwrap();
+
             let app_entry = KdEntryContent {
                 kind: "s.app".to_string(),
                 parent: root.clone(),
@@ -298,9 +317,11 @@ impl Test {
                 verify: "".to_string(),
                 data: serde_json::json!({}),
             };
+
             let app_entry = KdEntrySigned::from_content(&root_persist, app_entry)
                 .await
                 .unwrap();
+
             (root, app_entry)
         };
 
@@ -329,7 +350,9 @@ impl Test {
     }
 
     async fn add_agent_to_node(&mut self, node_idx: usize) {
+
         let kdirect = self.nodes[node_idx].kdirect.clone();
+
         let kdhnd = self.nodes[node_idx].kdhnd.clone();
 
         let agent = kdirect
@@ -354,7 +377,9 @@ impl Test {
     }
 
     async fn add_node(&mut self) {
+
         let persist = new_persist_mem();
+
         let conf = KitsuneDirectV1Config {
             tuning_params: self.tuning_params.clone(),
             persist,
@@ -364,11 +389,15 @@ impl Test {
         };
 
         let (kdirect, driver) = new_kitsune_direct_v1(conf).await.unwrap();
+
         tokio::task::spawn(driver);
 
         let (kdhnd, mut evt) = kdirect.bind_control_handle().await.unwrap();
+
         tokio::task::spawn(async move {
+
             while let Some(evt) = evt.next().await {
+
                 tracing::trace!(?evt);
             }
         });
@@ -382,12 +411,15 @@ impl Test {
         let node_idx = self.nodes.len() - 1;
 
         for _ in 0..self.agents_per_node {
+
             self.add_agent_to_node(node_idx).await;
         }
     }
 
     async fn inject_bad_agent_info(&mut self) {
+
         for _ in 0..self.bad_agent_count {
+
             self.target_agent_count += 1;
 
             let info = gen_bad_agent_info(
@@ -399,6 +431,7 @@ impl Test {
             .await;
 
             for node in self.nodes.iter() {
+
                 node.kdirect
                     .get_persist()
                     .store_agent_info(info.clone())
@@ -409,29 +442,39 @@ impl Test {
     }
 
     async fn turnover_agents(&mut self) {
+
         use rand::Rng;
 
         for _ in 0..self.agent_turnover_count {
+
             let node_idx = rand::thread_rng().gen_range(0..self.nodes.len());
+
             let agent_idx = rand::thread_rng().gen_range(0..self.nodes[node_idx].agents.len());
+
             let agent = self.nodes[node_idx].agents.remove(agent_idx);
+
             self.nodes[node_idx]
                 .kdhnd
                 .app_leave(self.root.clone(), agent)
                 .await
                 .unwrap();
+
             self.add_agent_to_node(node_idx).await;
+
             // we don't remove the old one, because the agent info is
             // still going to be in the db / gossiped
             self.target_agent_count += 1;
+
             println!("Turned Over Agent in NODE {}", node_idx);
         }
     }
 
     async fn calc_avgs(&mut self) -> (usize, usize) {
+
         let mut avg_agent_count = 0;
 
         for node in self.nodes.iter() {
+
             avg_agent_count += node
                 .kdirect
                 .get_persist()
@@ -440,12 +483,15 @@ impl Test {
                 .unwrap()
                 .len();
         }
+
         avg_agent_count /= self.nodes.len();
 
         let mut avg_total_op_count = 0;
 
         for node in self.nodes.iter() {
+
             for agent in node.agents.iter() {
+
                 avg_total_op_count += node
                     .kdirect
                     .get_persist()
@@ -460,16 +506,19 @@ impl Test {
                     .len();
             }
         }
+
         avg_total_op_count /= self.node_count * self.agents_per_node;
 
         (avg_agent_count, avg_total_op_count)
     }
 
     fn new_round(&mut self) {
+
         self.time_round_start = std::time::Instant::now();
     }
 
     async fn emit_test_started(&mut self) {
+
         self.p_send
             .send(Progress::TestStarted {
                 run_time_s: self.time_test_start.elapsed().as_secs_f64(),
@@ -485,6 +534,7 @@ impl Test {
     }
 
     async fn emit_interim(&mut self, avg_agent_count: usize, avg_total_op_count: usize) {
+
         self.p_send
             .send(Progress::InterimState {
                 run_time_s: self.time_test_start.elapsed().as_secs_f64(),
@@ -499,6 +549,7 @@ impl Test {
     }
 
     async fn emit_agent_consistent(&mut self, agent_count: usize) {
+
         self.p_send
             .send(Progress::AgentConsistent {
                 run_time_s: self.time_test_start.elapsed().as_secs_f64(),
@@ -509,6 +560,7 @@ impl Test {
     }
 
     async fn emit_op_consistent(&mut self, total_op_count: usize) {
+
         self.p_send
             .send(Progress::OpConsistent {
                 run_time_s: self.time_test_start.elapsed().as_secs_f64(),
@@ -529,6 +581,7 @@ async fn test(
     agent_turnover_count: usize,
     mut p_send: futures::channel::mpsc::Sender<Progress>,
 ) {
+
     kitsune_p2p_types::metrics::init_sys_info_poll();
 
     let mut test = Test::new(
@@ -542,13 +595,17 @@ async fn test(
     .await;
 
     tokio::task::spawn(async move {
+
         loop {
+
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
             let sys_info = kitsune_p2p_types::metrics::get_sys_info();
 
             let used_mem_gb = sys_info.used_mem_kb as f64 / 1024.0 / 1024.0;
+
             let cpu_usage_pct = sys_info.proc_cpu_usage_pct_1000 as f64 / 1000.0;
+
             let net_kb_per_s =
                 (sys_info.tx_bytes_per_sec as f64 + sys_info.rx_bytes_per_sec as f64) / 1024.0;
 
@@ -564,6 +621,7 @@ async fn test(
     });
 
     for _ in 0..node_count {
+
         test.add_node().await;
     }
 
@@ -573,12 +631,15 @@ async fn test(
 
     // this loop waits for agent info to be synced
     loop {
+
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let (avg_agent_count, avg_total_op_count) = test.calc_avgs().await;
 
         if avg_agent_count >= test.target_agent_count {
+
             test.emit_agent_consistent(avg_agent_count).await;
+
             break;
         }
 
@@ -587,13 +648,17 @@ async fn test(
 
     // this loop publishes ops, and waits for them to be synced
     loop {
+
         test.new_round();
 
         test.inject_bad_agent_info().await;
+
         test.turnover_agents().await;
 
         for node in test.nodes.iter() {
+
             for agent in node.agents.iter() {
+
                 node.kdhnd
                     .entry_author(
                         test.root.clone(),
@@ -614,18 +679,22 @@ async fn test(
                     )
                     .await
                     .unwrap();
+
                 test.target_total_op_count += 1;
             }
         }
 
         // this loop waits for the target op count to reach consistency
         loop {
+
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
             let (avg_agent_count, avg_total_op_count) = test.calc_avgs().await;
 
             if avg_total_op_count >= test.target_total_op_count {
+
                 test.emit_op_consistent(avg_total_op_count).await;
+
                 break;
             }
 
@@ -640,7 +709,9 @@ async fn gen_bad_agent_info(
     bootstrap: TxUrl,
     proxy: TxUrl,
 ) -> KdAgentInfo {
+
     let persist = new_persist_mem();
+
     let conf = KitsuneDirectV1Config {
         tuning_params,
         persist,
@@ -650,11 +721,15 @@ async fn gen_bad_agent_info(
     };
 
     let (kdirect, driver) = new_kitsune_direct_v1(conf).await.unwrap();
+
     tokio::task::spawn(driver);
 
     let (kdhnd, mut evt) = kdirect.bind_control_handle().await.unwrap();
+
     tokio::task::spawn(async move {
+
         while let Some(evt) = evt.next().await {
+
             tracing::trace!(?evt);
         }
     });
@@ -674,22 +749,31 @@ async fn gen_bad_agent_info(
         .unwrap();
 
     kdhnd.close(0, "").await;
+
     kdirect.close(0, "").await;
 
     println!("BAD_AGENT_INFO: {:?}", agent_info);
+
     agent_info
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn consistency_test() {
+
         let mut tuning_params =
             kitsune_p2p_types::config::tuning_params_struct::KitsuneP2pTuningParams::default();
+
         tuning_params.gossip_peer_on_success_next_gossip_delay_ms = 1000;
+
         let tuning_params = std::sync::Arc::new(tuning_params);
+
         let (mut progress, shutdown) = run(Config {
             tuning_params,
             node_count: 2,
@@ -703,16 +787,22 @@ mod tests {
             .unwrap();
 
         let mut test_started = false;
+
         let mut agent_consistent = false;
+
         let mut op_consistent = false;
 
         while let Ok(Some(progress)) = tokio::time::timeout_at(deadline, progress.next()).await {
+
             println!("{}", progress);
+
             match progress {
                 Progress::TestStarted { .. } => test_started = true,
                 Progress::AgentConsistent { .. } => agent_consistent = true,
                 Progress::OpConsistent { .. } => {
+
                     op_consistent = true;
+
                     break;
                 }
                 _ => (),
@@ -722,7 +812,9 @@ mod tests {
         shutdown().await;
 
         assert!(test_started);
+
         assert!(agent_consistent);
+
         assert!(op_consistent);
     }
 }

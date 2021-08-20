@@ -5,6 +5,7 @@ use holochain_types::prelude::*;
 /// Represents the available Conductor functions to call over an App interface
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum AppRequest {
     /// Get info about the App identified by the given `installed_app_id` argument,
     /// including info about each Cell installed by this App.
@@ -49,6 +50,7 @@ pub enum AppRequest {
 /// Responses to requests received on an App interface
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum AppResponse {
     /// This request/response is unimplemented
     Unimplemented(AppRequest),
@@ -87,6 +89,7 @@ pub enum AppResponse {
 
 /// The data provided across an App interface in order to make a zome call
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct ZomeCall {
     /// The Id of the `Cell` containing the Zome to be called
     pub cell_id: CellId,
@@ -112,6 +115,7 @@ pub struct ZomeCall {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum CryptoRequest {
     Sign(String),
     Decrypt(String),
@@ -120,6 +124,7 @@ pub enum CryptoRequest {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 /// Info about an installed app, returned as part of [`AppResponse::AppInfo`]
+
 pub struct InstalledAppInfo {
     /// The unique identifier for an installed app in this conductor
     pub installed_app_id: InstalledAppId,
@@ -131,12 +136,16 @@ pub struct InstalledAppInfo {
 
 impl InstalledAppInfo {
     pub fn from_installed_app(app: &InstalledApp) -> Self {
+
         let installed_app_id = app.id().clone();
+
         let status = app.status().clone().into();
+
         let cell_data = app
             .provisioned_cells()
             .map(|(nick, id)| InstalledCell::new(id.clone(), nick.clone()))
             .collect();
+
         Self {
             installed_app_id,
             cell_data,
@@ -147,6 +156,7 @@ impl InstalledAppInfo {
 
 impl From<&InstalledApp> for InstalledAppInfo {
     fn from(app: &InstalledApp) -> Self {
+
         Self::from_installed_app(app)
     }
 }
@@ -154,6 +164,7 @@ impl From<&InstalledApp> for InstalledAppInfo {
 /// A flat, slightly more API-friendly representation of [`InstalledAppStatus`]
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case")]
+
 pub enum InstalledAppInfoStatus {
     Paused { reason: PausedAppReason },
     Disabled { reason: DisabledAppReason },
@@ -162,6 +173,7 @@ pub enum InstalledAppInfoStatus {
 
 impl From<AppStatus> for InstalledAppInfoStatus {
     fn from(i: AppStatus) -> Self {
+
         match i {
             AppStatus::Running => InstalledAppInfoStatus::Running,
             AppStatus::Disabled(reason) => InstalledAppInfoStatus::Disabled { reason },
@@ -172,6 +184,7 @@ impl From<AppStatus> for InstalledAppInfoStatus {
 
 impl From<InstalledAppInfoStatus> for AppStatus {
     fn from(i: InstalledAppInfoStatus) -> Self {
+
         match i {
             InstalledAppInfoStatus::Running => AppStatus::Running,
             InstalledAppInfoStatus::Disabled { reason } => AppStatus::Disabled(reason),
@@ -181,7 +194,9 @@ impl From<InstalledAppInfoStatus> for AppStatus {
 }
 
 #[test]
+
 fn status_serialization() {
+
     use kitsune_p2p::dependencies::kitsune_p2p_types::dependencies::serde_json;
 
     let status: InstalledAppInfoStatus =

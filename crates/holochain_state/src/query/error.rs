@@ -3,7 +3,9 @@ use holochain_zome_types::HeaderType;
 use thiserror::Error;
 
 use crate::scratch::SyncScratchError;
+
 #[derive(Error, Debug)]
+
 pub enum StateQueryError {
     #[error(transparent)]
     Sql(#[from] holochain_sqlite::rusqlite::Error),

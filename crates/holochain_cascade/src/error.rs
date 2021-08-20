@@ -5,12 +5,14 @@ use holochain_sqlite::error::DatabaseError;
 use holochain_state::source_chain::SourceChainError;
 use holochain_types::prelude::*;
 use holochain_zome_types::header::conversions::WrongHeaderError;
+
 // use holochain::conductor::CellError;
 // use holochain::core::workflow::produce_dht_ops_workflow::dht_op_light::error::DhtOpConvertError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
 #[derive(Error, Debug)]
+
 pub enum CascadeError {
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
@@ -61,6 +63,7 @@ pub enum CascadeError {
 pub type CascadeResult<T> = Result<T, CascadeError>;
 
 #[derive(Error, Debug)]
+
 pub enum AuthorityDataError {
     // #[error(transparent)]
     // DhtOpConvertError(#[from] DhtOpConvertError),
@@ -76,12 +79,17 @@ pub enum AuthorityDataError {
 
 impl AuthorityDataError {
     pub fn missing_data<T: std::fmt::Debug>(data: T) -> CascadeError {
+
         Self::MissingData(format!("Missing header {:?}", data)).into()
     }
+
     pub fn missing_data_entry<T: std::fmt::Debug>(data: T) -> CascadeError {
+
         Self::MissingData(format!("Missing entry for header {:?}", data)).into()
     }
+
     pub fn missing_metadata<T: std::fmt::Debug>(data: T) -> CascadeError {
+
         Self::MissingMetadata(format!("{:?}", data)).into()
     }
 }

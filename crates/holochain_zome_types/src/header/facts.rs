@@ -18,6 +18,7 @@ use holo_hash::*;
 /// - constrain prev_hashes
 /// ...but, this does it all in one Fact
 #[derive(Default)]
+
 struct ValidChainFact {
     hash: Option<HeaderHash>,
     seq: u32,
@@ -25,12 +26,16 @@ struct ValidChainFact {
 
 impl Fact<Header> for ValidChainFact {
     fn check(&self, header: &Header) -> Check {
+
         let header_hash = HeaderHash::with_data_sync(header);
+
         let result = match (header.prev_header(), self.hash.as_ref()) {
             (Some(prev), Some(stored)) => {
                 if prev == stored {
+
                     Check::pass()
                 } else {
+
                     vec![format!("Hashes don't match: {} != {}", prev, stored)].into()
                 }
             }
@@ -51,19 +56,25 @@ impl Fact<Header> for ValidChainFact {
     }
 
     fn mutate(&self, header: &mut Header, u: &mut Unstructured<'static>) {
+
         if let Some(stored_hash) = self.hash.as_ref() {
+
             // This is not the first header we've seen
             while header.prev_header().is_none() {
+
                 // Generate arbitrary headers until we get one with a prev header
                 *header = Header::arbitrary(u).unwrap();
             }
+
             // Set the header's prev hash to the one we stored from our previous
             // visit
             *header.prev_header_mut().unwrap() = stored_hash.clone();
+
             // Also set the seq to the next value (this should only be None
             // iff prev_header is None)
             *header.header_seq_mut().unwrap() = self.seq;
         } else {
+
             // This is the first header we've seen, so it must be a Dna
             *header = Header::Dna(Dna::arbitrary(u).unwrap());
         }
@@ -76,18 +87,22 @@ impl Fact<Header> for ValidChainFact {
     }
 
     fn advance(&mut self, header: &Header) {
+
         self.hash = Some(HeaderHash::with_data_sync(header));
+
         self.seq += 1;
     }
 }
 
 pub fn is_of_type(header_type: HeaderType) -> Facts<'static, Header> {
+
     facts![brute("header is of type", move |h: &Header| h
         .header_type()
         == header_type)]
 }
 
 pub fn is_new_entry_header() -> Facts<'static, Header> {
+
     facts![or(
         "is NewEntryHeader",
         is_of_type(HeaderType::Create),
@@ -96,51 +111,66 @@ pub fn is_new_entry_header() -> Facts<'static, Header> {
 }
 
 /// WIP: Fact: The headers form a valid SourceChain
+
 pub fn valid_chain() -> Facts<'static, Header> {
+
     facts![ValidChainFact::default(),]
 }
 
 /// Fact: The header must be a NewEntryHeader
+
 pub fn new_entry_header() -> Facts<'static, Header> {
+
     facts![brute("Is a NewEntryHeader", |h: &Header| {
+
         matches!(h.header_type(), HeaderType::Create | HeaderType::Update)
     }),]
 }
 
 #[cfg(test)]
+
 mod tests {
 
     use super::*;
 
     #[test]
+
     fn test_valid_chain_fact() {
+
         let mut u = Unstructured::new(&NOISE);
 
         let chain = build_seq(&mut u, 5, valid_chain());
+
         check_seq(chain.as_slice(), valid_chain()).unwrap();
 
         let hashes: Vec<_> = chain
             .iter()
             .map(|h| HeaderHash::with_data_sync(h))
             .collect();
+
         let backlinks: Vec<_> = chain
             .iter()
             .filter_map(|h| h.prev_header())
             .cloned()
             .collect();
+
         let header_seqs: Vec<_> = chain.iter().map(|h| h.header_seq()).collect();
 
         // Ensure that the backlinks line up with the actual hashes
         assert_eq!(hashes[0..chain.len() - 1], backlinks[..]);
+
         // Ensure that the header seqs form a sequence
         assert_eq!(header_seqs, vec![0, 1, 2, 3, 4]);
     }
 }
 
 /// Some necessary extra mutators for lenses/prisms over Headers
+
 impl Header {
     /// returns a mutable reference to the author
+
     pub fn author_mut(&mut self) -> &mut AgentPubKey {
+
         match *self {
             Self::Dna(Dna { ref mut author, .. })
             | Self::AgentValidationPkg(AgentValidationPkg { ref mut author, .. })
@@ -154,8 +184,11 @@ impl Header {
             | Self::Update(Update { ref mut author, .. }) => author,
         }
     }
+
     /// returns a mutable reference to the sequence ordinal of this header
+
     pub fn header_seq_mut(&mut self) -> Option<&mut u32> {
+
         match *self {
             // Dna is always 0
             Self::Dna(Dna { .. }) => None,
@@ -190,7 +223,9 @@ impl Header {
     }
 
     /// returns the previous header except for the DNA header which doesn't have a previous
+
     pub fn prev_header_mut(&mut self) -> Option<&mut HeaderHash> {
+
         match self {
             Self::Dna(Dna { .. }) => None,
             Self::AgentValidationPkg(AgentValidationPkg {
@@ -233,6 +268,7 @@ impl Header {
     }
 
     pub fn entry_data_mut(&mut self) -> Option<(&mut EntryHash, &mut EntryType)> {
+
         match self {
             Self::Create(Create {
                 ref mut entry_hash,

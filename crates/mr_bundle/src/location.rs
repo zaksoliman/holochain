@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[allow(missing_docs)]
+
 pub enum Location {
     /// Expect file to be part of this bundle
     Bundled(PathBuf),
@@ -27,28 +28,38 @@ pub enum Location {
 
 impl Location {
     /// Make a relative Path absolute if possible, given the `root_dir`
+
     pub fn normalize(&self, root_dir: Option<&PathBuf>) -> MrBundleResult<Location> {
+
         if let Location::Path(path) = self {
+
             if path.is_relative() {
+
                 if let Some(dir) = root_dir {
+
                     Ok(Location::Path(ffs::sync::canonicalize(dir.join(&path))?))
                 } else {
+
                     Err(BundleError::RelativeLocalPath(path.to_owned()).into())
                 }
             } else {
+
                 Ok(self.clone())
             }
         } else {
+
             Ok(self.clone())
         }
     }
 }
 
 pub(crate) async fn resolve_local(path: &Path) -> MrBundleResult<ResourceBytes> {
+
     Ok(ffs::read(path).await?)
 }
 
 pub(crate) async fn resolve_remote(url: &str) -> MrBundleResult<ResourceBytes> {
+
     Ok(reqwest::get(url)
         .await?
         .bytes()
@@ -58,12 +69,14 @@ pub(crate) async fn resolve_remote(url: &str) -> MrBundleResult<ResourceBytes> {
 }
 
 #[cfg(test)]
+
 mod tests {
 
     use super::*;
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize)]
+
     struct TunaSalad {
         celery: Vec<Location>,
 
@@ -81,18 +94,24 @@ mod tests {
     ///   - path: p
     /// url: "http://r.co"
     #[test]
+
     fn location_flattening() {
+
         use serde_yaml::Value;
 
         let tuna = TunaSalad {
             celery: vec![Location::Bundled("b".into()), Location::Path("p".into())],
             mayo: Location::Url("http://r.co".into()),
         };
+
         let val = serde_yaml::to_value(&tuna).unwrap();
+
         println!("yaml produced:\n{}", serde_yaml::to_string(&tuna).unwrap());
 
         assert_eq!(val["celery"][0]["bundled"], Value::from("b"));
+
         assert_eq!(val["celery"][1]["path"], Value::from("p"));
+
         assert_eq!(val["url"], Value::from("http://r.co"));
     }
 }

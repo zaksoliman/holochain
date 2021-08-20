@@ -77,9 +77,11 @@ use crate_selection::{aliases::CargoDepKind, CrateState, CrateStateFlags};
 use release::ReleaseSteps;
 
 type Fallible<T> = anyhow::Result<T>;
+
 type CommandResult = Fallible<()>;
 
 pub(crate) mod cli {
+
     use crate::crate_::CrateArgs;
 
     use super::*;
@@ -90,6 +92,7 @@ pub(crate) mod cli {
 
     #[derive(Debug, StructOpt)]
     #[structopt(name = "release-automation")]
+
     pub(crate) struct Args {
         #[structopt(long)]
         pub(crate) workspace_path: PathBuf,
@@ -103,6 +106,7 @@ pub(crate) mod cli {
 
     #[derive(Debug, StructOpt)]
     #[structopt(name = "ra")]
+
     pub(crate) enum Commands {
         Changelog(ChangelogArgs),
         Release(ReleaseArgs),
@@ -111,6 +115,7 @@ pub(crate) mod cli {
     }
 
     #[derive(Debug, StructOpt)]
+
     pub(crate) struct ChangelogAggregateArgs {
         /// Allows a specified subset of crates that will haveh their changelog aggregated in the workspace changelog.
         /// This string will be used as a regex to filter the package names.
@@ -124,11 +129,13 @@ pub(crate) mod cli {
     }
 
     #[derive(Debug, StructOpt)]
+
     pub(crate) enum ChangelogCommands {
         Aggregate(ChangelogAggregateArgs),
     }
 
     #[derive(StructOpt, Debug)]
+
     pub(crate) struct ChangelogArgs {
         #[structopt(subcommand)]
         pub(crate) command: ChangelogCommands,
@@ -136,6 +143,7 @@ pub(crate) mod cli {
 
     /// Determine whether there are any release blockers by analyzing the state of the workspace.
     #[derive(StructOpt, Debug)]
+
     pub(crate) struct CheckArgs {
         /// All existing versions must match these requirements.
         /// Can be passed more than once to specify multiple.
@@ -173,9 +181,11 @@ pub(crate) mod cli {
     }
 
     fn parse_depkind(input: &str) -> Fallible<HashSet<CargoDepKind>> {
+
         let mut set = HashSet::new();
 
         for word in input.split(',') {
+
             set.insert(match word.to_lowercase().as_str() {
                 "" => continue,
                 "normal" => CargoDepKind::Normal,
@@ -190,19 +200,23 @@ pub(crate) mod cli {
     }
 
     fn parse_cratestateflags(input: &str) -> Fallible<BitFlags<CrateStateFlags>> {
+
         use std::str::FromStr;
 
         input
             .split(',')
             .filter(|s| !s.is_empty())
             .map(|csf| {
+
                 CrateStateFlags::from_str(csf)
                     .map_err(|_| anyhow::anyhow!("could not parse '{}' as CrateStateFlags", input))
             })
             .try_fold(
                 Default::default(),
                 |mut acc, elem| -> Fallible<BitFlags<_>> {
+
                     acc.insert(elem?);
+
                     Ok(acc)
                 },
             )
@@ -210,7 +224,9 @@ pub(crate) mod cli {
 
     impl CheckArgs {
         /// Boilerplate to instantiate `SelectionCriteria` from `CheckArgs`
+
         pub(crate) fn to_selection_criteria(&self) -> SelectionCriteria {
+
             SelectionCriteria {
                 match_filter: self.match_filter.clone(),
                 disallowed_version_reqs: self.disallowed_version_reqs.clone(),
@@ -226,6 +242,7 @@ pub(crate) mod cli {
     ///
     /// See https://docs.rs/semver/0.11.0/semver/?search=#requirements for details on the requirements arguments.
     #[derive(StructOpt, Debug)]
+
     pub(crate) struct ReleaseArgs {
         #[structopt(flatten)]
         pub(crate) check_args: CheckArgs,
@@ -258,33 +275,42 @@ pub(crate) mod cli {
     }
 
     /// Parses a commad separated input string to a set of strings.
+
     pub(crate) fn parse_string_set(input: &str) -> HashSet<String> {
+
         use std::str::FromStr;
 
         input.split(',').filter(|s| !s.is_empty()).fold(
             Default::default(),
             |mut acc, elem| -> HashSet<_> {
+
                 acc.insert(elem.to_string());
+
                 acc
             },
         )
     }
 
     /// Parses an input string to an ordered set of release steps.
+
     pub(crate) fn parse_releasesteps(input: &str) -> Fallible<BTreeSet<ReleaseSteps>> {
+
         use std::str::FromStr;
 
         input
             .split(',')
             .filter(|s| !s.is_empty())
             .map(|csf| {
+
                 ReleaseSteps::from_str(csf)
                     .map_err(|_| anyhow::anyhow!("could not parse '{}' as ReleaseSteps", input))
             })
             .try_fold(
                 Default::default(),
                 |mut acc, elem| -> Fallible<BTreeSet<_>> {
+
                     acc.insert(elem?);
+
                     Ok(acc)
                 },
             )
@@ -292,6 +318,7 @@ pub(crate) mod cli {
 }
 
 fn main() -> CommandResult {
+
     let args = cli::Args::from_args();
 
     env_logger::builder()

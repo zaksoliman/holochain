@@ -11,15 +11,18 @@ mod dpki_config;
 mod error;
 mod passphrase_service_config;
 pub mod paths;
+
 //mod logger_config;
 //mod signal_config;
 pub use paths::EnvironmentRootPath;
 
 pub use super::*;
 pub use dpki_config::DpkiConfig;
+
 //pub use logger_config::LoggerConfig;
 pub use error::*;
 pub use passphrase_service_config::PassphraseServiceConfig;
+
 //pub use signal_config::SignalConfig;
 use std::path::Path;
 use std::path::PathBuf;
@@ -27,6 +30,7 @@ use std::path::PathBuf;
 // TODO change types from "stringly typed" to Url2
 /// All the config information for the conductor
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
+
 pub struct ConductorConfig {
     /// The path to the database for this conductor.
     /// If omitted, chooses a default path.
@@ -65,37 +69,48 @@ pub struct ConductorConfig {
 }
 
 /// helper fnction function to load a `Config` from a yaml string.
+
 fn config_from_yaml<T>(yaml: &str) -> ConductorConfigResult<T>
 where
     T: DeserializeOwned,
 {
+
     serde_yaml::from_str(yaml).map_err(ConductorConfigError::SerializationError)
 }
 
 impl ConductorConfig {
     /// create a ConductorConfig struct from a yaml file path
+
     pub fn load_yaml(path: &Path) -> ConductorConfigResult<ConductorConfig> {
+
         let config_yaml = std::fs::read_to_string(path).map_err(|err| match err {
             e @ std::io::Error { .. } if e.kind() == std::io::ErrorKind::NotFound => {
                 ConductorConfigError::ConfigMissing(path.into())
             }
             _ => err.into(),
         })?;
+
         config_from_yaml(&config_yaml)
     }
 }
 
 #[cfg(test)]
+
 pub mod tests {
+
     use super::*;
     use matches::assert_matches;
     use std::path::Path;
     use std::path::PathBuf;
 
     #[test]
+
     fn test_config_load_yaml() {
+
         let bad_path = Path::new("fake");
+
         let result = ConductorConfig::load_yaml(bad_path);
+
         assert_eq!(
             "Err(ConfigMissing(\"fake\"))".to_string(),
             format!("{:?}", result)
@@ -105,13 +120,18 @@ pub mod tests {
     }
 
     #[test]
+
     fn test_config_bad_yaml() {
+
         let result: ConductorConfigResult<ConductorConfig> = config_from_yaml("this isn't yaml");
+
         assert_matches!(result, Err(ConductorConfigError::SerializationError(_)));
     }
 
     #[test]
+
     fn test_config_complete_minimal_config() {
+
         let yaml = r#"---
     environment_path: /path/to/env
 
@@ -119,7 +139,9 @@ pub mod tests {
       type: danger_insecure_from_config
       passphrase: "test-passphrase"
     "#;
+
         let result: ConductorConfig = config_from_yaml(yaml).unwrap();
+
         assert_eq!(
             result,
             ConductorConfig {
@@ -137,7 +159,9 @@ pub mod tests {
     }
 
     #[test]
+
     fn test_config_complete_config() {
+
         observability::test_run().ok();
 
         let yaml = r#"---
@@ -181,10 +205,15 @@ pub mod tests {
         proxy_to_expire_ms: 42
       network_type: quic_bootstrap
     "#;
+
         let result: ConductorConfigResult<ConductorConfig> = config_from_yaml(yaml);
+
         use holochain_p2p::kitsune_p2p::*;
+
         let mut network_config = KitsuneP2pConfig::default();
+
         network_config.bootstrap_service = Some(url2::url2!("https://bootstrap-staging.holo.host"));
+
         network_config.transport_pool.push(TransportConfig::Proxy {
             sub_transport: Box::new(TransportConfig::Quic {
                 bind_to: Some(url2::url2!("kitsune-quic://0.0.0.0:0")),
@@ -195,17 +224,28 @@ pub mod tests {
                 proxy_accept_config: Some(ProxyAcceptConfig::RejectAll),
             },
         });
+
         let mut tuning_params =
             kitsune_p2p::dependencies::kitsune_p2p_types::config::tuning_params_struct::KitsuneP2pTuningParams::default();
+
         tuning_params.gossip_loop_iteration_delay_ms = 42;
+
         tuning_params.default_rpc_single_timeout_ms = 42;
+
         tuning_params.default_rpc_multi_remote_agent_count = 42;
+
         tuning_params.default_rpc_multi_remote_request_grace_ms = 42;
+
         tuning_params.agent_info_expires_after_ms = 42;
+
         tuning_params.tls_in_mem_session_storage = 42;
+
         tuning_params.proxy_keepalive_ms = 42;
+
         tuning_params.proxy_to_expire_ms = 42;
+
         network_config.tuning_params = std::sync::Arc::new(tuning_params);
+
         assert_eq!(
             result.unwrap(),
             ConductorConfig {
@@ -228,7 +268,9 @@ pub mod tests {
     }
 
     #[test]
+
     fn test_config_keystore() {
+
         let yaml = r#"---
     environment_path: /path/to/env
     use_dangerous_test_keystore: true
@@ -238,7 +280,9 @@ pub mod tests {
       type: danger_insecure_from_config
       passphrase: "foobar"
     "#;
+
         let result: ConductorConfigResult<ConductorConfig> = config_from_yaml(yaml);
+
         assert_eq!(
             result.unwrap(),
             ConductorConfig {

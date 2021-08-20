@@ -4,6 +4,7 @@ use holochain_types::signal::Signal;
 
 /// Interface Error Type
 #[derive(Debug, thiserror::Error)]
+
 pub enum InterfaceError {
     #[error(transparent)]
     SerializedBytes(#[from] SerializedBytesError),
@@ -31,15 +32,18 @@ pub enum InterfaceError {
 
 impl From<String> for InterfaceError {
     fn from(o: String) -> Self {
+
         InterfaceError::Other(o)
     }
 }
 
 impl From<futures::channel::mpsc::SendError> for InterfaceError {
     fn from(_: futures::channel::mpsc::SendError) -> Self {
+
         InterfaceError::SendError
     }
 }
 
 /// Interface Result Type
+
 pub type InterfaceResult<T> = Result<T, InterfaceError>;

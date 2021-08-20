@@ -2,6 +2,7 @@
 
 /// Access a call has to host functions
 #[derive(Debug, Copy, Clone, PartialEq)]
+
 pub struct HostFnAccess {
     /// Can access agent information
     pub agent_info: Permission,
@@ -27,6 +28,7 @@ pub struct HostFnAccess {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 /// Permission granted to a call
+
 pub enum Permission {
     /// Host functions with this access will be included
     Allow,
@@ -37,6 +39,7 @@ pub enum Permission {
 impl HostFnAccess {
     #[allow(clippy::too_many_arguments)]
     /// Constructor.
+
     pub fn new(
         agent_info: Permission,
         read_workspace: Permission,
@@ -49,6 +52,7 @@ impl HostFnAccess {
         keystore: Permission,
         keystore_deterministic: Permission,
     ) -> Self {
+
         Self {
             agent_info,
             read_workspace,
@@ -62,8 +66,11 @@ impl HostFnAccess {
             keystore_deterministic,
         }
     }
+
     /// Allow all access
+
     pub fn all() -> Self {
+
         HostFnAccess {
             read_workspace: Permission::Allow,
             read_workspace_deterministic: Permission::Allow,
@@ -79,7 +86,9 @@ impl HostFnAccess {
     }
 
     /// Deny all access
+
     pub fn none() -> Self {
+
         HostFnAccess {
             read_workspace: Permission::Deny,
             read_workspace_deterministic: Permission::Deny,

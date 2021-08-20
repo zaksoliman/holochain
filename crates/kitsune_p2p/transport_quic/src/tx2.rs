@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 /// Configuration for QuicBackendAdapt
 #[non_exhaustive]
+
 pub struct QuicConfig {
     /// Tls config
     /// Default: None = ephemeral.
@@ -26,6 +27,7 @@ pub struct QuicConfig {
 
 impl Default for QuicConfig {
     fn default() -> Self {
+
         Self {
             tls: None,
             tuning_params: None,
@@ -35,7 +37,9 @@ impl Default for QuicConfig {
 
 impl QuicConfig {
     /// into inner contents with default application
+
     pub async fn split(self) -> KitsuneResult<(TlsConfig, KitsuneP2pTuningParams)> {
+
         let QuicConfig { tls, tuning_params } = self;
 
         let tls = match tls {
@@ -50,28 +54,36 @@ impl QuicConfig {
 }
 
 /// Quic endpoint bind adapter for kitsune tx2
+
 pub async fn tx2_quic_adapter(config: QuicConfig) -> KitsuneResult<AdapterFactory> {
+
     QuicBackendAdapt::new(config).await
 }
 
 // -- private -- //
 
 /// Tls ALPN identifier for kitsune quic handshaking
+
 const ALPN_KITSUNE_QUIC_0: &[u8] = b"kitsune-quic/0";
 
 struct QuicInChanRecvAdapt(BoxStream<'static, InChanFut>);
 
 impl QuicInChanRecvAdapt {
     pub fn new(recv: quinn::IncomingUniStreams) -> Self {
+
         Self(
             futures::stream::unfold(recv, move |mut recv| async move {
+
                 #[allow(clippy::style)]
                 match recv.next().await {
                     None => None,
                     Some(in_) => Some((
                         async move {
+
                             let in_ = in_.map_err(KitsuneError::other)?;
+
                             let in_: InChan = Box::new(FramedReader::new(Box::new(in_)));
+
                             Ok(in_)
                         }
                         .boxed(),
@@ -91,8 +103,11 @@ impl futures::stream::Stream for QuicInChanRecvAdapt {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
+
         let inner = &mut self.0;
+
         tokio::pin!(inner);
+
         futures::stream::Stream::poll_next(inner, cx)
     }
 }
@@ -107,6 +122,7 @@ struct QuicConAdaptInner {
 struct QuicConAdapt(Share<QuicConAdaptInner>, Uniq, Tx2Cert, Tx2ConDir);
 
 pub(crate) fn blake2b_32(data: &[u8]) -> Vec<u8> {
+
     blake2b_simd::Params::new()
         .hash_length(32)
         .to_state()
@@ -118,6 +134,7 @@ pub(crate) fn blake2b_32(data: &[u8]) -> Vec<u8> {
 
 impl QuicConAdapt {
     pub fn new(con: quinn::Connection, dir: Tx2ConDir) -> KitsuneResult<Self> {
+
         let peer_cert: Tx2Cert = match con.peer_identity() {
             None => return Err("invalid peer certificate".into()),
             Some(chain) => match chain.iter().next() {
@@ -125,6 +142,7 @@ impl QuicConAdapt {
                 Some(cert) => blake2b_32(cert.as_ref()).into(),
             },
         };
+
         Ok(Self(
             Share::new(QuicConAdaptInner {
                 peer_cert: peer_cert.clone(),
@@ -139,58 +157,76 @@ impl QuicConAdapt {
 
 impl ConAdapt for QuicConAdapt {
     fn uniq(&self) -> Uniq {
+
         self.1
     }
 
     fn dir(&self) -> Tx2ConDir {
+
         self.3
     }
 
     fn peer_addr(&self) -> KitsuneResult<TxUrl> {
+
         let addr = self.0.share_mut(|i, _| Ok(i.con.remote_address()))?;
 
         use kitsune_p2p_types::dependencies::url2;
+
         let url = url2::url2!("{}://{}", crate::SCHEME, addr);
 
         Ok(url.into())
     }
 
     fn peer_cert(&self) -> Tx2Cert {
+
         self.2.clone()
     }
 
     fn out_chan(&self, timeout: KitsuneTimeout) -> OutChanFut {
+
         let maybe_out_fut = self.0.share_mut(|i, _| Ok(i.con.open_uni()));
+
         timeout
             .mix(async move {
+
                 let out = maybe_out_fut?.await.map_err(KitsuneError::other)?;
+
                 let out: OutChan = Box::new(FramedWriter::new(Box::new(out)));
+
                 Ok(out)
             })
             .boxed()
     }
 
     fn is_closed(&self) -> bool {
+
         self.0.is_closed()
     }
 
     fn close(&self, code: u32, reason: &str) -> BoxFuture<'static, ()> {
+
         let _ = self.0.share_mut(|i, c| {
+
             tracing::info!(
                 peer_cert=?i.peer_cert,
                 %code,
                 %reason,
                 "close connection (quic)",
             );
+
             *c = true;
+
             i.con.close(code.into(), reason.as_bytes());
+
             Ok(())
         });
+
         async move {}.boxed()
     }
 }
 
 fn connecting(con_fut: quinn::Connecting, local_cert: Tx2Cert, dir: Tx2ConDir) -> ConFut {
+
     async move {
         let quinn::NewConnection {
             connection,
@@ -221,11 +257,14 @@ struct QuicConRecvAdapt(BoxStream<'static, ConFut>);
 
 impl QuicConRecvAdapt {
     pub fn new(recv: quinn::Incoming, local_cert: Tx2Cert) -> Self {
+
         Self(
             futures::stream::unfold(
                 (recv, local_cert),
                 move |(mut recv, local_cert)| async move {
+
                     recv.next().await.map(|con| {
+
                         (
                             connecting(con, local_cert.clone(), Tx2ConDir::Incoming),
                             (recv, local_cert),
@@ -245,8 +284,11 @@ impl futures::stream::Stream for QuicConRecvAdapt {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
+
         let inner = &mut self.0;
+
         tokio::pin!(inner);
+
         futures::stream::Stream::poll_next(inner, cx)
     }
 }
@@ -262,6 +304,7 @@ struct QuicEndpointAdapt(Share<QuicEndpointAdaptInner>, Uniq, Tx2Cert);
 
 impl QuicEndpointAdapt {
     pub fn new(ep: quinn::Endpoint, local_cert: Tx2Cert) -> Self {
+
         Self(
             Share::new(QuicEndpointAdaptInner {
                 ep,
@@ -275,6 +318,7 @@ impl QuicEndpointAdapt {
 
 impl EndpointAdapt for QuicEndpointAdapt {
     fn debug(&self) -> serde_json::Value {
+
         match self.local_addr() {
             Ok(addr) => serde_json::json!({
                 "type": "tx2_quic",
@@ -289,28 +333,38 @@ impl EndpointAdapt for QuicEndpointAdapt {
     }
 
     fn uniq(&self) -> Uniq {
+
         self.1
     }
 
     fn local_addr(&self) -> KitsuneResult<TxUrl> {
+
         let addr = self
             .0
             .share_mut(|i, _| i.ep.local_addr().map_err(KitsuneError::other))?;
 
         use kitsune_p2p_types::dependencies::url2;
+
         let mut url = url2::url2!("{}://{}", crate::SCHEME, addr);
 
         // TODO - FIXME - not sure how slow `get_if_addrs` is
         //                might be better to do this once on bind
         //                and just cache the bound address
         if let Some(host) = url.host_str() {
+
             if host == "0.0.0.0" {
+
                 for iface in if_addrs::get_if_addrs().map_err(KitsuneError::other)? {
+
                     // super naive - just picking the first v4 that is not 127.0.0.1
                     let addr = iface.addr.ip();
+
                     if let std::net::IpAddr::V4(addr) = addr {
+
                         if addr != std::net::Ipv4Addr::from([127, 0, 0, 1]) {
+
                             url.set_host(Some(&iface.addr.ip().to_string())).unwrap();
+
                             break;
                         }
                     }
@@ -322,24 +376,33 @@ impl EndpointAdapt for QuicEndpointAdapt {
     }
 
     fn local_cert(&self) -> Tx2Cert {
+
         self.2.clone()
     }
 
     fn connect(&self, url: TxUrl, timeout: KitsuneTimeout) -> ConFut {
+
         let maybe_ep = self
             .0
             .share_mut(|i, _| Ok((i.ep.clone(), i.local_cert.clone())));
+
         timeout
             .mix(async move {
+
                 let (ep, local_cert) = maybe_ep?;
+
                 let addr = crate::url_to_addr(url.as_url2(), crate::SCHEME)
                     .await
                     .map_err(KitsuneError::other)?;
+
                 let con = ep.connect(&addr, "stub.stub").map_err(KitsuneError::other);
+
                 match connecting(con?, local_cert, Tx2ConDir::Outgoing).await {
                     Ok(con) => Ok(con),
                     Err(err) => {
+
                         tracing::warn!(?err, "failed to establish outgoing connection (quic)");
+
                         Err(err)
                     }
                 }
@@ -348,24 +411,32 @@ impl EndpointAdapt for QuicEndpointAdapt {
     }
 
     fn is_closed(&self) -> bool {
+
         self.0.is_closed()
     }
 
     fn close(&self, code: u32, reason: &str) -> BoxFuture<'static, ()> {
+
         let _ = self.0.share_mut(|i, c| {
+
             tracing::warn!(
                 local_cert=?i.local_cert,
                 "CLOSING ENDPOINT"
             );
+
             *c = true;
+
             i.ep.close(code.into(), reason.as_bytes());
+
             Ok(())
         });
+
         async move {}.boxed()
     }
 }
 
 /// Quic endpoint backend bind adapter for kitsune tx2
+
 pub struct QuicBackendAdapt {
     local_cert: Tx2Cert,
     quic_srv: quinn::ServerConfig,
@@ -374,7 +445,9 @@ pub struct QuicBackendAdapt {
 
 impl QuicBackendAdapt {
     /// Construct a new quic tx2 backend bind adapter
+
     pub async fn new(config: QuicConfig) -> KitsuneResult<AdapterFactory> {
+
         let (tls, tuning_params) = config.split().await?;
 
         let local_cert = tls.cert_digest.clone().into();
@@ -407,7 +480,9 @@ impl QuicBackendAdapt {
         let transport = Arc::new(transport);
 
         let mut quic_srv = quinn::ServerConfig::default();
+
         quic_srv.transport = transport.clone();
+
         quic_srv.crypto = tls_srv;
 
         let quic_cli = quinn::ClientConfig {
@@ -429,13 +504,20 @@ impl QuicBackendAdapt {
 
 impl BindAdapt for QuicBackendAdapt {
     fn bind(&self, url: TxUrl, timeout: KitsuneTimeout) -> EndpointFut {
+
         let local_cert = self.local_cert.clone();
+
         let quic_srv = self.quic_srv.clone();
+
         let quic_cli = self.quic_cli.clone();
+
         timeout
             .mix(async move {
+
                 let mut builder = quinn::Endpoint::builder();
+
                 builder.listen(quic_srv);
+
                 builder.default_client_config(quic_cli);
 
                 let addr = crate::url_to_addr(url.as_url2(), crate::SCHEME)
@@ -446,6 +528,7 @@ impl BindAdapt for QuicBackendAdapt {
 
                 let ep: Arc<dyn EndpointAdapt> =
                     Arc::new(QuicEndpointAdapt::new(ep, local_cert.clone()));
+
                 let con_recv: Box<dyn ConRecvAdapt> =
                     Box::new(QuicConRecvAdapt::new(inc, local_cert.clone()));
 
@@ -460,11 +543,15 @@ impl BindAdapt for QuicBackendAdapt {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_quic_tx2() {
+
         kitsune_p2p_types::dependencies::observability::test_run().ok();
 
         let t = KitsuneTimeout::from_millis(5000);
@@ -472,49 +559,68 @@ mod tests {
         let (s_done, r_done) = tokio::sync::oneshot::channel();
 
         let config = QuicConfig::default();
+
         let factory = QuicBackendAdapt::new(config).await.unwrap();
+
         let (ep1, _con_recv1) = factory
             .bind("kitsune-quic://0.0.0.0:0".into(), t)
             .await
             .unwrap();
 
         let config = QuicConfig::default();
+
         let factory = QuicBackendAdapt::new(config).await.unwrap();
+
         let (ep2, mut con_recv2) = factory
             .bind("kitsune-quic://0.0.0.0:0".into(), t)
             .await
             .unwrap();
 
         let addr2 = ep2.local_addr().unwrap();
+
         println!("addr2: {}", addr2);
 
         let rt = kitsune_p2p_types::metrics::metric_task(async move {
+
             if let Some(mc) = con_recv2.next().await {
+
                 let (_con, mut recv) = mc.await.unwrap();
+
                 if let Some(mc) = recv.next().await {
+
                     let mut c = mc.await.unwrap();
+
                     let t = KitsuneTimeout::from_millis(5000);
+
                     let (_, data) = c.read(t).await.unwrap();
+
                     println!("GOT: {:?}", data.as_ref());
+
                     s_done.send(()).unwrap();
                 }
             }
+
             KitsuneResult::Ok(())
         });
 
         let (c, _recv) = ep1.connect(addr2, t).await.unwrap();
+
         let mut c = c.out_chan(t).await.unwrap();
 
         let mut data = PoolBuf::new();
+
         data.extend_from_slice(b"hello");
+
         c.write(0.into(), data, t).await.unwrap();
 
         let debug = ep1.debug();
+
         println!("{}", serde_json::to_string_pretty(&debug).unwrap());
 
         r_done.await.unwrap();
 
         ep1.close(0, "").await;
+
         ep2.close(0, "").await;
 
         rt.await.unwrap().unwrap();

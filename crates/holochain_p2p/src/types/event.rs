@@ -12,6 +12,7 @@ use kitsune_p2p::{
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 /// The data required for a get request.
+
 pub enum GetRequest {
     /// Get all the integrated data.
     All,
@@ -26,6 +27,7 @@ pub enum GetRequest {
 
 /// Get options help control how the get is processed at various levels.
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+
 pub struct GetOptions {
     /// Whether the remote-end should follow redirects or just return the
     /// requested entry.
@@ -39,6 +41,7 @@ pub struct GetOptions {
 
 impl From<&actor::GetOptions> for GetOptions {
     fn from(a: &actor::GetOptions) -> Self {
+
         Self {
             follow_redirects: a.follow_redirects,
             all_live_headers_with_metadata: a.all_live_headers_with_metadata,
@@ -49,32 +52,38 @@ impl From<&actor::GetOptions> for GetOptions {
 
 impl Default for GetRequest {
     fn default() -> Self {
+
         GetRequest::All
     }
 }
 
 /// GetMeta options help control how the get is processed at various levels.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct GetMetaOptions {}
 
 impl From<&actor::GetMetaOptions> for GetMetaOptions {
     fn from(_a: &actor::GetMetaOptions) -> Self {
+
         Self {}
     }
 }
 
 /// GetLinks options help control how the get is processed at various levels.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+
 pub struct GetLinksOptions {}
 
 impl From<&actor::GetLinksOptions> for GetLinksOptions {
     fn from(_a: &actor::GetLinksOptions) -> Self {
+
         Self {}
     }
 }
 
 /// Get agent activity options help control how the get is processed at various levels.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+
 pub struct GetActivityOptions {
     /// Include the activity headers in the response
     pub include_valid_activity: bool,
@@ -87,6 +96,7 @@ pub struct GetActivityOptions {
 
 impl Default for GetActivityOptions {
     fn default() -> Self {
+
         Self {
             include_valid_activity: true,
             include_rejected_activity: false,
@@ -97,6 +107,7 @@ impl Default for GetActivityOptions {
 
 impl From<&actor::GetActivityOptions> for GetActivityOptions {
     fn from(a: &actor::GetActivityOptions) -> Self {
+
         Self {
             include_valid_activity: a.include_valid_activity,
             include_rejected_activity: a.include_rejected_activity,
@@ -249,6 +260,7 @@ ghost_actor::ghost_chan! {
 }
 
 /// utility macro to make it more ergonomic to access the enum variants
+
 macro_rules! match_p2p_evt {
     ($h:ident => |$i:ident| { $($t:tt)* }, { $($t2:tt)* }) => {
         match $h {
@@ -273,7 +285,9 @@ macro_rules! match_p2p_evt {
 
 impl HolochainP2pEvent {
     /// The dna_hash associated with this network p2p event.
+
     pub fn dna_hash(&self) -> &DnaHash {
+
         match_p2p_evt!(self => |dna_hash| { dna_hash }, {
             HolochainP2pEvent::QueryOpHashes { dna_hash, .. } => { dna_hash }
             HolochainP2pEvent::QueryAgentInfoSigned { dna_hash, .. } => { dna_hash }
@@ -285,7 +299,9 @@ impl HolochainP2pEvent {
     }
 
     /// The agent_pub_key associated with this network p2p event.
+
     pub fn target_agents(&self) -> &AgentPubKey {
+
         match_p2p_evt!(self => |to_agent| { to_agent }, {
             HolochainP2pEvent::QueryOpHashes { .. } => { unimplemented!("There is no single agent target for QueryOpHashes") }
             HolochainP2pEvent::QueryAgentInfoSigned { .. } => { unimplemented!("There is no single agent target for QueryAgentInfoSigned") },
@@ -298,4 +314,5 @@ impl HolochainP2pEvent {
 }
 
 /// Receiver type for incoming holochain p2p events.
+
 pub type HolochainP2pEventReceiver = futures::channel::mpsc::Receiver<HolochainP2pEvent>;

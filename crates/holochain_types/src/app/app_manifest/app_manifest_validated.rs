@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 /// Normalized, validated representation of the App Manifest.
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub struct AppManifestValidated {
     /// Name of the App. This may be used as the installed_app_id.
     pub(in crate::app) name: String,
@@ -25,17 +26,23 @@ impl AppManifestValidated {
     ///
     /// NB: never make this struct's fields public. This constructor should be
     /// the only way to instantiate this type.
+
     pub(in crate::app) fn new(
         name: String,
         slots: HashMap<CellNick, AppSlotManifestValidated>,
     ) -> AppManifestResult<Self> {
+
         for (nick, cell) in slots.iter() {
+
             if let AppSlotManifestValidated::Disabled { clone_limit, .. } = cell {
+
                 if *clone_limit == 0 {
+
                     return Err(AppManifestError::InvalidStrategyDisabled(nick.to_owned()));
                 }
             }
         }
+
         Ok(AppManifestValidated { name, slots })
     }
 }
@@ -43,6 +50,7 @@ impl AppManifestValidated {
 /// Rules to determine if and how a Cell will be created for this Dna
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub enum AppSlotManifestValidated {
     /// Always create a new Cell when installing this App
     Create {

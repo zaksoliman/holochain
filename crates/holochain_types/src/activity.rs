@@ -7,6 +7,7 @@ use holochain_zome_types::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 /// An agents chain elements returned from a agent_activity_query
+
 pub struct AgentActivityResponse<T = SignedHeaderHashed> {
     /// The agent this activity is for
     pub agent: AgentPubKey,
@@ -26,12 +27,15 @@ holochain_serial!(AgentActivityResponse<HeaderHash>);
 
 impl<A> AgentActivityResponse<A> {
     /// Convert an empty response to a different type.
+
     pub fn from_empty<B>(other: AgentActivityResponse<B>) -> Self {
+
         let convert_activity = |items: &ChainItems<B>| match items {
             ChainItems::Full(_) => ChainItems::Full(Vec::with_capacity(0)),
             ChainItems::Hashes(_) => ChainItems::Hashes(Vec::with_capacity(0)),
             ChainItems::NotRequested => ChainItems::NotRequested,
         };
+
         AgentActivityResponse {
             agent: other.agent,
             valid_activity: convert_activity(&other.valid_activity),
@@ -42,7 +46,9 @@ impl<A> AgentActivityResponse<A> {
     }
 
     /// Convert an status only response to a different type.
+
     pub fn status_only<B>(other: AgentActivityResponse<B>) -> Self {
+
         AgentActivityResponse {
             agent: other.agent,
             valid_activity: ChainItems::NotRequested,
@@ -53,12 +59,15 @@ impl<A> AgentActivityResponse<A> {
     }
 
     /// Convert an hashes only response to a different type.
+
     pub fn hashes_only<B>(other: AgentActivityResponse<B>) -> Self {
+
         let convert_activity = |items: ChainItems<B>| match items {
             ChainItems::Full(_) => ChainItems::Full(Vec::with_capacity(0)),
             ChainItems::Hashes(h) => ChainItems::Hashes(h),
             ChainItems::NotRequested => ChainItems::NotRequested,
         };
+
         AgentActivityResponse {
             agent: other.agent,
             valid_activity: convert_activity(other.valid_activity),
@@ -71,6 +80,7 @@ impl<A> AgentActivityResponse<A> {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, SerializedBytes)]
 /// The type of agent activity returned in this request
+
 pub enum ChainItems<T = SignedHeaderHashed> {
     /// The full headers
     Full(Vec<T>),
@@ -82,6 +92,7 @@ pub enum ChainItems<T = SignedHeaderHashed> {
 
 impl From<AgentActivityResponse<Element>> for holochain_zome_types::query::AgentActivity {
     fn from(a: AgentActivityResponse<Element>) -> Self {
+
         let valid_activity = match a.valid_activity {
             ChainItems::Full(elements) => elements
                 .into_iter()
@@ -90,6 +101,7 @@ impl From<AgentActivityResponse<Element>> for holochain_zome_types::query::Agent
             ChainItems::Hashes(h) => h,
             ChainItems::NotRequested => Vec::new(),
         };
+
         let rejected_activity = match a.rejected_activity {
             ChainItems::Full(elements) => elements
                 .into_iter()
@@ -98,6 +110,7 @@ impl From<AgentActivityResponse<Element>> for holochain_zome_types::query::Agent
             ChainItems::Hashes(h) => h,
             ChainItems::NotRequested => Vec::new(),
         };
+
         Self {
             valid_activity,
             rejected_activity,

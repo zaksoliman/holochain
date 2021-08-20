@@ -1,4 +1,5 @@
 #![allow(clippy::field_reassign_with_default)]
+
 use futures::future::FutureExt;
 use kitsune_p2p_direct::dependencies::kitsune_p2p::event::full_time_window;
 use kitsune_p2p_direct::dependencies::kitsune_p2p_types::dht_arc::ArcInterval;
@@ -7,15 +8,23 @@ use kitsune_p2p_direct::prelude::*;
 use kitsune_p2p_direct_test::direct_test_local_periodic::*;
 
 #[tokio::main(flavor = "multi_thread")]
+
 async fn main() {
+
     init_tracing();
 
     let mut config = KdTestConfig::default();
+
     config.node_count = 10;
+
     config.agents_per_node = 10;
+
     config.periodic_agent_hook_interval_ms = Some(1000);
+
     config.periodic_agent_hook = Box::new(|input| {
+
         async move {
+
             let AgentHookInput {
                 root,
                 app_entry_hash,
@@ -36,6 +45,7 @@ async fn main() {
                         .as_secs_f64(),
                 }),
             };
+
             let new_entry = kdhnd
                 .entry_author(
                     root.clone(),
@@ -44,6 +54,7 @@ async fn main() {
                     vec![].into_boxed_slice().into(),
                 )
                 .await?;
+
             tracing::debug!(?new_entry);
 
             Ok(())
@@ -54,11 +65,15 @@ async fn main() {
     let test = KdTestHarness::start_test(config).await.unwrap();
 
     loop {
+
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
         let mut entry_counts = Vec::new();
+
         for node in test.nodes.iter() {
+
             for agent in node.local_agents.iter() {
+
                 let entry_count = node
                     .kdirect
                     .get_persist()
@@ -71,9 +86,11 @@ async fn main() {
                     .await
                     .unwrap()
                     .len();
+
                 entry_counts.push(entry_count);
             }
         }
+
         println!("## ENTRY COUNTS: {:?}", entry_counts);
     }
 }

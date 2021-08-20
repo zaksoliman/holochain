@@ -16,6 +16,7 @@ use crate::dht_op::RenderedOps;
 
 /// Links interrelate entries in a source chain.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, SerializedBytes)]
+
 pub struct Link {
     base: EntryHash,
     target: EntryHash,
@@ -25,6 +26,7 @@ pub struct Link {
 /// Owned link key for sending across networks
 #[deprecated = "This is being replaced by WireLinkKey"]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
+
 pub enum WireLinkMetaKey {
     /// Search for all links on a base
     Base(EntryHash),
@@ -38,6 +40,7 @@ pub enum WireLinkMetaKey {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
 /// Link key for sending across the wire for get links requests.
+
 pub struct WireLinkKey {
     /// Base the links are on.
     pub base: EntryHash,
@@ -49,6 +52,7 @@ pub struct WireLinkKey {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes, Default)]
 /// Condensed link ops for sending across the wire in response to get links.
+
 pub struct WireLinkOps {
     /// create links that match this query.
     pub creates: Vec<WireCreateLink>,
@@ -58,16 +62,25 @@ pub struct WireLinkOps {
 
 impl WireLinkOps {
     /// Create an empty wire response.
+
     pub fn new() -> Self {
+
         Default::default()
     }
+
     /// Render these ops to their full types.
+
     pub fn render(self, key: &WireLinkKey) -> DhtOpResult<RenderedOps> {
+
         let Self { creates, deletes } = self;
+
         let mut ops = Vec::with_capacity(creates.len() + deletes.len());
+
         // We silently ignore ops that fail to render as they come from the network.
         ops.extend(creates.into_iter().filter_map(|op| op.render(key).ok()));
+
         ops.extend(deletes.into_iter().filter_map(|op| op.render(key).ok()));
+
         Ok(RenderedOps {
             ops,
             ..Default::default()
@@ -78,6 +91,7 @@ impl WireLinkOps {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
 /// Condensed version of a [`CreateLink`]
+
 pub struct WireCreateLink {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -93,6 +107,7 @@ pub struct WireCreateLink {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
 /// Condensed version of a [`DeleteLink`]
+
 pub struct WireDeleteLink {
     pub author: AgentPubKey,
     pub timestamp: Timestamp,
@@ -111,6 +126,7 @@ impl WireCreateLink {
         validation_status: ValidationStatus,
         tag: bool,
     ) -> Self {
+
         Self {
             author: h.author,
             timestamp: h.timestamp,
@@ -122,28 +138,38 @@ impl WireCreateLink {
             validation_status,
         }
     }
+
     /// Condense down a create link op for the wire without a tag.
+
     pub fn condense_base_only(
         h: CreateLink,
         signature: Signature,
         validation_status: ValidationStatus,
     ) -> Self {
+
         Self::new(h, signature, validation_status, false)
     }
+
     /// Condense down a create link op for the wire with a tag.
+
     pub fn condense(
         h: CreateLink,
         signature: Signature,
         validation_status: ValidationStatus,
     ) -> Self {
+
         Self::new(h, signature, validation_status, true)
     }
+
     /// Render these ops to their full types.
+
     pub fn render(self, key: &WireLinkKey) -> DhtOpResult<RenderedOp> {
+
         let tag = self
             .tag
             .or_else(|| key.tag.clone())
             .ok_or(DhtOpError::LinkKeyTagMissing)?;
+
         let header = Header::CreateLink(CreateLink {
             author: self.author,
             timestamp: self.timestamp,
@@ -154,8 +180,11 @@ impl WireCreateLink {
             zome_id: key.zome_id,
             tag,
         });
+
         let signature = self.signature;
+
         let validation_status = Some(self.validation_status);
+
         RenderedOp::new(
             header,
             signature,
@@ -167,11 +196,13 @@ impl WireCreateLink {
 
 impl WireDeleteLink {
     /// Condense down a delete link op for the wire.
+
     pub fn condense(
         h: DeleteLink,
         signature: Signature,
         validation_status: ValidationStatus,
     ) -> Self {
+
         Self {
             author: h.author,
             timestamp: h.timestamp,
@@ -182,8 +213,11 @@ impl WireDeleteLink {
             link_add_address: h.link_add_address,
         }
     }
+
     /// Render these ops to their full types.
+
     pub fn render(self, key: &WireLinkKey) -> DhtOpResult<RenderedOp> {
+
         let header = Header::DeleteLink(DeleteLink {
             author: self.author,
             timestamp: self.timestamp,
@@ -192,8 +226,11 @@ impl WireDeleteLink {
             base_address: key.base.clone(),
             link_add_address: self.link_add_address,
         });
+
         let signature = self.signature;
+
         let validation_status = Some(self.validation_status);
+
         RenderedOp::new(
             header,
             signature,
@@ -202,11 +239,13 @@ impl WireDeleteLink {
         )
     }
 }
+
 // TODO: Probably don't want to send the whole headers.
 // We could probably come up with a more compact
 // network Wire type in the future
 /// Link response to get links
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerializedBytes)]
+
 pub struct GetLinksResponse {
     /// All the link adds on the key you searched for
     pub link_adds: Vec<(CreateLink, Signature)>,
@@ -216,8 +255,11 @@ pub struct GetLinksResponse {
 
 impl WireLinkMetaKey {
     /// Get the basis of this key
+
     pub fn basis(&self) -> AnyDhtHash {
+
         use WireLinkMetaKey::*;
+
         match self {
             Base(b) | BaseZome(b, _) | BaseZomeTag(b, _, _) | Full(b, _, _, _) => b.clone().into(),
         }
@@ -226,7 +268,9 @@ impl WireLinkMetaKey {
 
 impl Link {
     /// Construct a new link.
+
     pub fn new(base: &EntryHash, target: &EntryHash, tag: &LinkTag) -> Self {
+
         Link {
             base: base.to_owned(),
             target: target.to_owned(),
@@ -235,22 +279,29 @@ impl Link {
     }
 
     /// Get the base address of this link.
+
     pub fn base(&self) -> &EntryHash {
+
         &self.base
     }
 
     /// Get the target address of this link.
+
     pub fn target(&self) -> &EntryHash {
+
         &self.target
     }
 
     /// Get the tag of this link.
+
     pub fn tag(&self) -> &LinkTag {
+
         &self.tag
     }
 }
 
 /// How do we match this link in queries?
+
 pub enum LinkMatch<S: Into<String>> {
     /// Match all/any links.
     Any,
@@ -265,12 +316,15 @@ pub enum LinkMatch<S: Into<String>> {
 impl<S: Into<String>> LinkMatch<S> {
     /// Build a regular expression string for this link match.
     #[allow(clippy::wrong_self_convention)]
+
     pub fn to_regex_string(self) -> Result<String, String> {
+
         let re_string: String = match self {
             LinkMatch::Any => ".*".into(),
             LinkMatch::Exactly(s) => "^".to_owned() + &regex::escape(&s.into()) + "$",
             LinkMatch::Regex(s) => s.into(),
         };
+
         // check that it is a valid regex
         match Regex::new(&re_string) {
             Ok(_) => Ok(re_string),

@@ -38,6 +38,7 @@ pub use error::{TimestampError, TimestampResult};
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, SerializedBytes,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Timestamp(
     pub i64, // seconds from UNIX Epoch, positive or negative
     pub u32, // nanoseconds, always a positive offset
@@ -45,11 +46,16 @@ pub struct Timestamp(
 
 /// Display as RFC3339 Date+Time for sane value ranges (0000-9999AD).  Beyond that, format
 /// as (seconds, nanoseconds) tuple (output and parsing of large +/- years is unreliable).
+
 impl fmt::Display for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
         let ce = -62167219200_i64..=253402214400_i64;
+
         if ce.contains(&self.0) {
+
             if let Ok(ts) = chrono::DateTime::<chrono::Utc>::try_from(self) {
+
                 return write!(
                     f,
                     "{}",
@@ -57,6 +63,7 @@ impl fmt::Display for Timestamp {
                 );
             }
         }
+
         // Outside 0000-01-01 to 9999-12-31; Display raw value tuple, or not a valid DateTime<Utc>;
         // Display raw value tuple
         write!(f, "({},{})", self.0, self.1)
@@ -65,6 +72,7 @@ impl fmt::Display for Timestamp {
 
 impl fmt::Debug for Timestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
         write!(f, "Timestamp({})", self)
     }
 }
@@ -72,33 +80,40 @@ impl fmt::Debug for Timestamp {
 /// Infallible conversions into a Timestamp.  The only infallible ways to create a Timestamp are
 /// `from` a Unix timestamp, or `normalize` with a timestamp and nanoseconds, or converting from
 /// a DateTime<Utc>.
+
 impl From<i64> for Timestamp {
     fn from(secs: i64) -> Self {
+
         Self(secs, 0)
     }
 }
 
 impl From<i32> for Timestamp {
     fn from(secs: i32) -> Self {
+
         Self(secs.into(), 0)
     }
 }
 
 impl From<u32> for Timestamp {
     fn from(secs: u32) -> Self {
+
         Self(secs.into(), 0)
     }
 }
 
 impl From<chrono::DateTime<chrono::Utc>> for Timestamp {
     fn from(t: chrono::DateTime<chrono::Utc>) -> Self {
+
         std::convert::From::from(&t)
     }
 }
 
 impl From<&chrono::DateTime<chrono::Utc>> for Timestamp {
     fn from(t: &chrono::DateTime<chrono::Utc>) -> Self {
+
         let t = t.naive_utc();
+
         Timestamp(t.timestamp(), t.timestamp_subsec_nanos())
     }
 }
@@ -111,6 +126,7 @@ impl TryFrom<Timestamp> for chrono::DateTime<chrono::Utc> {
     type Error = TimestampError;
 
     fn try_from(t: Timestamp) -> Result<Self, Self::Error> {
+
         std::convert::TryFrom::try_from(&t)
     }
 }
@@ -119,8 +135,10 @@ impl TryFrom<&Timestamp> for chrono::DateTime<chrono::Utc> {
     type Error = TimestampError;
 
     fn try_from(t: &Timestamp) -> Result<Self, Self::Error> {
+
         let t = chrono::naive::NaiveDateTime::from_timestamp_opt(t.0, t.1)
             .ok_or(TimestampError::Overflow)?;
+
         Ok(chrono::DateTime::from_utc(t, chrono::Utc))
     }
 }
@@ -129,8 +147,11 @@ impl FromStr for Timestamp {
     type Err = TimestampError;
 
     fn from_str(t: &str) -> Result<Self, Self::Err> {
+
         let t = chrono::DateTime::parse_from_rfc3339(t)?;
+
         let t = chrono::DateTime::from_utc(t.naive_utc(), chrono::Utc);
+
         Ok(t.into())
     }
 }
@@ -139,6 +160,7 @@ impl TryFrom<String> for Timestamp {
     type Error = TimestampError;
 
     fn try_from(t: String) -> Result<Self, Self::Error> {
+
         Timestamp::from_str(t.as_ref())
     }
 }
@@ -147,6 +169,7 @@ impl TryFrom<&String> for Timestamp {
     type Error = TimestampError;
 
     fn try_from(t: &String) -> Result<Self, Self::Error> {
+
         Timestamp::from_str(t.as_ref())
     }
 }
@@ -155,6 +178,7 @@ impl TryFrom<&str> for Timestamp {
     type Error = TimestampError;
 
     fn try_from(t: &str) -> Result<Self, Self::Error> {
+
         Timestamp::from_str(t)
     }
 }
@@ -162,10 +186,12 @@ impl TryFrom<&str> for Timestamp {
 /// Timestamp +/- Into<core::time::Duration>: Anything that can be converted into a
 /// core::time::Duration can be used as an overflow-checked offset (unsigned) for a Timestamp.  A
 /// core::time::Duration allows only +'ve offsets
+
 impl<D: Into<core::time::Duration>> Add<D> for Timestamp {
     type Output = TimestampResult<Timestamp>;
 
     fn add(self, rhs: D) -> Self::Output {
+
         self.checked_add(&rhs.into())
             .ok_or(TimestampError::Overflow)
     }
@@ -175,15 +201,18 @@ impl<D: Into<core::time::Duration>> Add<D> for &Timestamp {
     type Output = TimestampResult<Timestamp>;
 
     fn add(self, rhs: D) -> Self::Output {
+
         self.to_owned() + rhs
     }
 }
 
 /// Timestamp - core::time::Duration.
+
 impl<D: Into<core::time::Duration>> Sub<D> for Timestamp {
     type Output = TimestampResult<Timestamp>;
 
     fn sub(self, rhs: D) -> Self::Output {
+
         self.checked_sub(&rhs.into())
             .ok_or(TimestampError::Overflow)
     }
@@ -193,6 +222,7 @@ impl<D: Into<core::time::Duration>> Sub<D> for &Timestamp {
     type Output = TimestampResult<Timestamp>;
 
     fn sub(self, rhs: D) -> Self::Output {
+
         self.to_owned() - rhs
     }
 }
@@ -200,6 +230,7 @@ impl<D: Into<core::time::Duration>> Sub<D> for &Timestamp {
 // TODO: This is not needed, `?` can be used with Option.
 macro_rules! try_opt {
     ($e:expr) => {
+
         match $e {
             Some(v) => v,
             None => return None,
@@ -217,20 +248,29 @@ impl Timestamp {
     /// use holochain_zome_types::prelude::*;
     /// assert_eq!( Timestamp::normalize( 0, -1 ).unwrap(), Timestamp( -1, 999_999_999 ))
     /// ```
+
     pub fn normalize(secs: i64, nanos: i64) -> Option<Timestamp> {
+
         // eg. -1_234_567_890 / 1_000_000_000 == -1
         let seconds = try_opt!(secs.checked_add(nanos / 1_000_000_000));
+
         // eg. -1_234_567_890 % 1_000_000_000 == -235_567_890
         let nanos = nanos % 1_000_000_000; // in range (-999_999_999,999_999_999)
         let ts = if nanos < 0 {
+
             let seconds = try_opt!(secs.checked_sub(1));
+
             let nanos = try_opt!(nanos.checked_add(1_000_000_000));
+
             let nanos = try_opt!(u32::try_from(nanos).ok()); // now in range: (0,999_999_999)
             Timestamp(seconds, nanos)
         } else {
+
             let nanos = try_opt!(u32::try_from(nanos).ok());
+
             Timestamp(seconds, nanos)
         };
+
         Some(ts)
     }
 
@@ -241,13 +281,20 @@ impl Timestamp {
     /// the possibility of panic!  One of the few paths is Duration::milliseconds() and smaller (all
     /// larger use Duration::seconds, which may directly panic!), followed by a
     /// Duration::checked_add for the nanoseconds.
+
     pub fn checked_difference_signed(&self, rhs: &Timestamp) -> Option<chrono::Duration> {
+
         let dif_secs = try_opt!(self.0.checked_sub(rhs.0));
+
         let dif_nano = try_opt!(i64::from(self.1).checked_sub(i64::from(rhs.1)));
+
         let dif = try_opt!(Timestamp::normalize(dif_secs, dif_nano));
+
         let dur_milli = chrono::Duration::milliseconds(try_opt!(dif.0.checked_mul(1_000)));
+
         let dur_nanos = chrono::Duration::nanoseconds(dif.1.into()); // u32 -> i64, no overflow possible
         let dur = try_opt!(dur_milli.checked_add(&dur_nanos));
+
         Some(dur)
     }
 
@@ -266,19 +313,29 @@ impl Timestamp {
     /// //            - chrono::Duration::nanoseconds(2)),
     /// //            Some(Timestamp( -1, 999_999_999 )));
     /// ```
+
     pub fn checked_add_signed(&self, rhs: &chrono::Duration) -> Option<Timestamp> {
+
         let dur_millis: i64 = rhs.num_milliseconds();
+
         let rhs_remains = try_opt!(rhs.checked_sub(&chrono::Duration::milliseconds(dur_millis)));
+
         let dur_nanos: i64 =
             try_opt!(rhs_remains.num_nanoseconds()) + (dur_millis % 1_000) * 1_000_000;
+
         let dur_seconds: i64 = dur_millis / 1_000;
+
         let seconds: i64 = try_opt!(self.0.checked_add(dur_seconds));
+
         let nanos: i64 = try_opt!(i64::from(self.1).checked_add(dur_nanos));
+
         Some(try_opt!(Timestamp::normalize(seconds, nanos)))
     }
 
     /// Subtracts a chrono::Duration from a Timestamp
+
     pub fn checked_sub_signed(&self, rhs: &chrono::Duration) -> Option<Timestamp> {
+
         self.checked_add_signed(&-*rhs)
     }
 
@@ -300,11 +357,17 @@ impl Timestamp {
     ///                 .checked_add(&core::time::Duration::from_secs(2_u64.pow(63))),
     ///             None);
     /// ```
+
     pub fn checked_add(&self, rhs: &core::time::Duration) -> Option<Timestamp> {
+
         let dur_seconds: i64 = try_opt!(i64::try_from(rhs.as_secs()).ok());
+
         let dur_nanos: i64 = i64::from(rhs.subsec_nanos());
+
         let seconds: i64 = try_opt!(self.0.checked_add(dur_seconds));
+
         let nanos: i64 = try_opt!(i64::from(self.1).checked_add(dur_nanos));
+
         Some(try_opt!(Timestamp::normalize(seconds, nanos)))
     }
 
@@ -322,27 +385,41 @@ impl Timestamp {
     ///                 .checked_sub(&core::time::Duration::from_nanos(2)),
     ///             Some(Timestamp( 555, 499_999_998 )));
     /// ```
+
     pub fn checked_sub(&self, rhs: &core::time::Duration) -> Option<Timestamp> {
+
         let dur_seconds: i64 = try_opt!(i64::try_from(rhs.as_secs()).ok());
+
         let dur_nanos: i64 = i64::from(rhs.subsec_nanos());
+
         let seconds: i64 = try_opt!(self.0.checked_sub(dur_seconds));
+
         let nanos: i64 = try_opt!(i64::from(self.1).checked_sub(dur_nanos));
+
         Some(try_opt!(Timestamp::normalize(seconds, nanos)))
     }
 
     /// Convert this timestamp to fit into a sqlite integer which is
     /// an i64. The value will be clamped between 0 and i64::MAX.
+
     pub fn to_sql_ms_lossy(self) -> i64 {
+
         use std::time::Duration;
+
         let s = Duration::from_secs(self.0.max(0) as u64);
+
         let ns = Duration::from_nanos(self.1 as u64);
+
         let ts = s.checked_add(ns).unwrap_or(s);
+
         ts.as_millis().clamp(0, i64::MAX as u128) as i64
     }
 
     /// Construct a Timestsamp from countersigning session data.
     /// Ostensibly used for the Header because the session itself covers a time range.
+
     pub fn from_countersigning_data(session_data: &CounterSigningSessionData) -> Self {
+
         Self(
             session_data
                 .preflight_request()
@@ -359,38 +436,47 @@ impl Timestamp {
 /// Distance between two Timestamps as a chrono::Duration (subject to overflow).  A Timestamp
 /// represents a *signed* distance from the UNIX Epoch (1970-01-01T00:00:00Z).  A chrono::Duration
 /// is limited to +/- i64::MIN/MAX milliseconds.
+
 impl Sub<Timestamp> for Timestamp {
     type Output = TimestampResult<chrono::Duration>;
 
     fn sub(self, rhs: Timestamp) -> Self::Output {
+
         self.checked_difference_signed(&rhs)
             .ok_or(TimestampError::Overflow)
     }
 }
 
 #[cfg(feature = "full")]
+
 impl rusqlite::ToSql for Timestamp {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput> {
+
         Ok(rusqlite::types::ToSqlOutput::Owned(self.0.into()))
     }
 }
 
 #[cfg(test)]
+
 pub mod tests {
 
     use super::*;
 
     #[test]
+
     fn timestamp_distance() {
+
         // Obtaining an ordering of timestamps and their difference / distance is subtle and error
         // prone.  It is easy to get panics when converting Timestamp to chrono::Datetime<Utc> and
         // chrono::Duration, both of which have strict range limits.  Since we cannot generally
         // trust code that produces Timestamps, it has no intrinsic range limits.
         let t1 = Timestamp((2_i64.pow(31) + 1) * 86_400, 1_000_000_000); // invalid secs for DateTime
         let d1: TimestampResult<chrono::DateTime<chrono::Utc>> = t1.try_into();
+
         assert_eq!(d1, Err(TimestampError::Overflow));
 
         let t2 = Timestamp(0, 0) + core::time::Duration::new(0, 1);
+
         assert_eq!(t2, Ok(Timestamp(0, 1)));
     }
 }

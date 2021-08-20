@@ -10,11 +10,13 @@ pub mod db;
 pub mod error;
 pub mod exports;
 pub mod fatal;
+
 // pub mod key;
 pub mod prelude;
 pub mod schema;
 pub mod sql;
 pub mod swansong;
+
 // pub mod transaction;
 
 mod table;
@@ -27,9 +29,12 @@ pub use ::rusqlite;
 
 #[macro_export]
 /// Macro to generate a fresh reader from an DbRead with less boilerplate
+
 macro_rules! fresh_reader {
     ($env: expr, $f: expr) => {{
+
         let mut conn = $env.conn()?;
+
         $crate::db::ReadManager::with_reader(&mut conn, $f)
     }};
 }

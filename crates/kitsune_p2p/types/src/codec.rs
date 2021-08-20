@@ -2,51 +2,66 @@
 
 /// Encode a serde::Serialize item as message-pack data to given writer.
 /// You may wish to first wrap your writer in a BufWriter.
+
 pub fn rmp_encode<W, S>(write: &mut W, item: S) -> Result<(), std::io::Error>
 where
     W: std::io::Write,
     S: serde::Serialize,
 {
+
     let mut se = rmp_serde::encode::Serializer::new(write)
         .with_struct_map()
         .with_string_variants();
+
     item.serialize(&mut se)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
     Ok(())
 }
 
 /// Decode message-pack data from given reader into an owned item.
 /// You may wish to first wrap your reader in a BufReader.
+
 pub fn rmp_decode<R, D>(r: &mut R) -> Result<D, std::io::Error>
 where
     R: std::io::Read,
     for<'de> D: Sized + serde::Deserialize<'de>,
 {
+
     let mut de = rmp_serde::decode::Deserializer::new(r);
+
     D::deserialize(&mut de).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
 }
 
 /// Apply to a data item to indicate it can be encoded / decoded.
+
 pub trait Codec: Clone + Sized {
     /// Variant identifier (for debugging or as a cheap discriminant).
+
     fn variant_type(&self) -> &'static str;
 
     /// Encode this item to given writer.
     /// You may wish to first wrap your writer in a BufWriter.
+
     fn encode<W>(&self, w: &mut W) -> Result<(), std::io::Error>
     where
         W: std::io::Write;
 
     /// Encode this item to an owned vector of bytes.
     /// Uses `encode()` internally.
+
     fn encode_vec(&self) -> Result<Vec<u8>, std::io::Error> {
+
         let mut data = Vec::new();
+
         self.encode(&mut data)?;
+
         Ok(data)
     }
 
     /// Decode a reader into this item.
     /// You may wish to first wrap your reader in a BufReader.
+
     fn decode<R>(r: &mut R) -> Result<Self, std::io::Error>
     where
         R: std::io::Read;
@@ -54,9 +69,13 @@ pub trait Codec: Clone + Sized {
     /// Decode a range of bytes into this item.
     /// Will also return the byte count read.
     /// Uses `decode()` internally.
+
     fn decode_ref(r: &[u8]) -> Result<(u64, Self), std::io::Error> {
+
         let mut r = std::io::Cursor::new(r);
+
         let item = Self::decode(&mut r)?;
+
         Ok((r.position(), item))
     }
 }
@@ -96,6 +115,7 @@ pub trait Codec: Clone + Sized {
 /// }
 /// ```
 #[macro_export]
+
 macro_rules! write_codec_enum {
     ($(#[doc = $codec_doc:expr])* codec $codec_name:ident {$(
         $(#[doc = $var_doc:expr])* $var_name:ident($var_id:literal) {$(
@@ -230,13 +250,16 @@ macro_rules! write_codec_enum {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     #![allow(dead_code)]
 
     use super::*;
     use std::sync::Arc;
 
     #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+
     pub struct Sub(pub Vec<u8>);
 
     write_codec_enum! {
@@ -260,10 +283,15 @@ mod tests {
     }
 
     #[test]
+
     fn test_encode_decode() {
+
         let bob = Bob::bob_one(true, 42, Arc::new(Sub(b"test".to_vec())));
+
         let data = bob.encode_vec().unwrap();
+
         let res = Bob::decode_ref(&data).unwrap().1;
+
         assert_eq!(bob, res);
     }
 }

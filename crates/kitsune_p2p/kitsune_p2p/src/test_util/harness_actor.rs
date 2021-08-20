@@ -44,6 +44,7 @@ ghost_actor::ghost_chan! {
 }
 
 /// construct a test suite around a mem transport
+
 pub async fn spawn_test_harness_mem() -> Result<
     (
         ghost_actor::GhostSender<HarnessControlApi>,
@@ -51,10 +52,12 @@ pub async fn spawn_test_harness_mem() -> Result<
     ),
     KitsuneP2pError,
 > {
+
     spawn_test_harness(TransportConfig::Mem {}).await
 }
 
 /// construct a test suite around a quic transport
+
 pub async fn spawn_test_harness_quic() -> Result<
     (
         ghost_actor::GhostSender<HarnessControlApi>,
@@ -62,6 +65,7 @@ pub async fn spawn_test_harness_quic() -> Result<
     ),
     KitsuneP2pError,
 > {
+
     spawn_test_harness(TransportConfig::Quic {
         bind_to: Some(url2::url2!("kitsune-quic://0.0.0.0:0")),
         override_host: None,
@@ -71,6 +75,7 @@ pub async fn spawn_test_harness_quic() -> Result<
 }
 
 /// construct a test suite around a sub transport config concept
+
 pub async fn spawn_test_harness(
     sub_config: TransportConfig,
 ) -> Result<
@@ -80,6 +85,7 @@ pub async fn spawn_test_harness(
     ),
     KitsuneP2pError,
 > {
+
     let harness_chan = HarnessEventChannel::new("");
 
     let builder = ghost_actor::actor_builder::GhostActorBuilder::new();
@@ -100,6 +106,7 @@ pub async fn spawn_test_harness(
 }
 
 type KP2p = ghost_actor::GhostSender<KitsuneP2p>;
+
 type KCtl = ghost_actor::GhostSender<HarnessAgentControl>;
 
 ghost_actor::ghost_chan! {
@@ -133,6 +140,7 @@ impl HarnessActor {
         harness_chan: HarnessEventChannel,
         sub_config: TransportConfig,
     ) -> Self {
+
         Self {
             i_s,
             harness_chan,
@@ -147,11 +155,17 @@ impl ghost_actor::GhostControlHandler for HarnessActor {
     fn handle_ghost_actor_shutdown(
         self,
     ) -> ghost_actor::dependencies::must_future::MustBoxFuture<'static, ()> {
+
         use ghost_actor::GhostControlSender;
+
         async move {
+
             self.harness_chan.close();
+
             for (_, (p2p, ctrl)) in self.agents.iter() {
+
                 let _ = p2p.ghost_actor_shutdown().await;
+
                 let _ = ctrl.ghost_actor_shutdown().await;
             }
         }
@@ -169,12 +183,17 @@ impl HarnessInnerHandler for HarnessActor {
         p2p: ghost_actor::GhostSender<KitsuneP2p>,
         ctrl: ghost_actor::GhostSender<HarnessAgentControl>,
     ) -> HarnessInnerHandlerResult<()> {
+
         self.agents.insert(agent.clone(), (p2p.clone(), ctrl));
 
         let harness_chan = self.harness_chan.clone();
+
         let space_list = self.space_list.clone();
+
         Ok(async move {
+
             for space in space_list {
+
                 p2p.join(space.clone(), agent.clone()).await?;
 
                 harness_chan.publish(HarnessEventType::Join {
@@ -182,6 +201,7 @@ impl HarnessInnerHandler for HarnessActor {
                     space: space.into(),
                 });
             }
+
             Ok(())
         }
         .boxed()
@@ -193,14 +213,22 @@ impl ghost_actor::GhostHandler<HarnessControlApi> for HarnessActor {}
 
 impl HarnessControlApiHandler for HarnessActor {
     fn handle_add_space(&mut self) -> HarnessControlApiHandlerResult<Arc<KitsuneSpace>> {
+
         let space: Arc<KitsuneSpace> = TestVal::test_val();
+
         self.space_list.push(space.clone());
+
         let mut all = Vec::new();
+
         for (agent, (p2p, _)) in self.agents.iter() {
+
             all.push(p2p.join(space.clone(), agent.clone()));
         }
+
         Ok(async move {
+
             futures::future::try_join_all(all).await?;
+
             Ok(space)
         }
         .boxed()
@@ -212,7 +240,9 @@ impl HarnessControlApiHandler for HarnessActor {
         nick: String,
     ) -> HarnessControlApiHandlerResult<(Arc<KitsuneAgent>, ghost_actor::GhostSender<KitsuneP2p>)>
     {
+
         let mut proxy_agent_config = KitsuneP2pConfig::default();
+
         proxy_agent_config
             .transport_pool
             .push(TransportConfig::Proxy {
@@ -223,8 +253,11 @@ impl HarnessControlApiHandler for HarnessActor {
             });
 
         let sub_harness = self.harness_chan.sub_clone(nick);
+
         let i_s = self.i_s.clone();
+
         Ok(async move {
+
             let (agent, p2p, ctrl) = spawn_test_agent(sub_harness, proxy_agent_config).await?;
 
             i_s.finish_agent(agent.clone(), p2p.clone(), ctrl).await?;
@@ -240,7 +273,9 @@ impl HarnessControlApiHandler for HarnessActor {
         nick: String,
     ) -> HarnessControlApiHandlerResult<(Arc<KitsuneAgent>, ghost_actor::GhostSender<KitsuneP2p>)>
     {
+
         let mut direct_agent_config = KitsuneP2pConfig::default();
+
         direct_agent_config
             .transport_pool
             .push(TransportConfig::Proxy {
@@ -251,8 +286,11 @@ impl HarnessControlApiHandler for HarnessActor {
             });
 
         let sub_harness = self.harness_chan.sub_clone(nick);
+
         let i_s = self.i_s.clone();
+
         Ok(async move {
+
             let (agent, p2p, ctrl) = spawn_test_agent(sub_harness, direct_agent_config).await?;
 
             i_s.finish_agent(agent.clone(), p2p.clone(), ctrl).await?;
@@ -269,7 +307,9 @@ impl HarnessControlApiHandler for HarnessActor {
         proxy_url: url2::Url2,
     ) -> HarnessControlApiHandlerResult<(Arc<KitsuneAgent>, ghost_actor::GhostSender<KitsuneP2p>)>
     {
+
         let mut nat_agent_config = KitsuneP2pConfig::default();
+
         nat_agent_config
             .transport_pool
             .push(TransportConfig::Proxy {
@@ -278,8 +318,11 @@ impl HarnessControlApiHandler for HarnessActor {
             });
 
         let sub_harness = self.harness_chan.sub_clone(nick);
+
         let i_s = self.i_s.clone();
+
         Ok(async move {
+
             let (agent, p2p, ctrl) = spawn_test_agent(sub_harness, nat_agent_config).await?;
 
             i_s.finish_agent(agent.clone(), p2p.clone(), ctrl).await?;
@@ -291,6 +334,7 @@ impl HarnessControlApiHandler for HarnessActor {
     }
 
     fn handle_magic_peer_info_exchange(&mut self) -> HarnessControlApiHandlerResult<()> {
+
         let ctrls = self
             .agents
             .values()
@@ -298,16 +342,25 @@ impl HarnessControlApiHandler for HarnessActor {
             .collect::<Vec<_>>();
 
         Ok(async move {
+
             let infos = ctrls.iter().map(|c| c.dump_agent_info());
+
             let infos = futures::future::try_join_all(infos).await?;
+
             let infos = infos.into_iter().fold(HashMap::new(), |acc, x| {
+
                 x.into_iter().fold(acc, |mut acc, x| {
+
                     acc.insert(x.agent.clone(), x);
+
                     acc
                 })
             });
+
             let infos = ctrls.iter().map(|c| c.inject_agent_info(infos.clone()));
+
             futures::future::try_join_all(infos).await?;
+
             Ok(())
         }
         .boxed()
@@ -319,11 +372,14 @@ impl HarnessControlApiHandler for HarnessActor {
         agent: Arc<KitsuneAgent>,
         data: String,
     ) -> HarnessControlApiHandlerResult<Arc<KitsuneOpHash>> {
+
         let (_, ctrl) = self
             .agents
             .get(&agent)
             .ok_or_else(|| KitsuneP2pError::from("invalid agent"))?;
+
         let fut = ctrl.inject_gossip_data(data);
+
         Ok(async move { fut.await }.boxed().into())
     }
 
@@ -331,11 +387,14 @@ impl HarnessControlApiHandler for HarnessActor {
         &mut self,
         agent: Arc<KitsuneAgent>,
     ) -> HarnessControlApiHandlerResult<HashMap<Arc<KitsuneOpHash>, String>> {
+
         let (_, ctrl) = self
             .agents
             .get(&agent)
             .ok_or_else(|| KitsuneP2pError::from("invalid agent"))?;
+
         let fut = ctrl.dump_local_gossip_data();
+
         Ok(async move { fut.await }.boxed().into())
     }
 
@@ -343,11 +402,14 @@ impl HarnessControlApiHandler for HarnessActor {
         &mut self,
         agent: Arc<KitsuneAgent>,
     ) -> HarnessControlApiHandlerResult<HashMap<Arc<KitsuneAgent>, Arc<AgentInfoSigned>>> {
+
         let (_, ctrl) = self
             .agents
             .get(&agent)
             .ok_or_else(|| KitsuneP2pError::from("invalid agent"))?;
+
         let fut = ctrl.dump_local_peer_data();
+
         Ok(async move { fut.await }.boxed().into())
     }
 }

@@ -2,6 +2,7 @@ use crate::ZomeName;
 
 /// Anything that can go wrong while calling a HostFnApi method
 #[derive(thiserror::Error, Debug)]
+
 pub enum ZomeError {
     /// ZomeNotFound
     #[error("Zome not found: {0}")]

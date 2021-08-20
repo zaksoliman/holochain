@@ -9,6 +9,7 @@ mod rng;
 pub mod serialized_bytes;
 pub mod string;
 pub mod unit;
+
 pub use paste;
 
 pub use rng::rng;
@@ -51,6 +52,7 @@ pub use rng::rng;
 /// the start of the sequence once the index exceeds the sequence's bounds or reset the index to 0
 /// after seq.len() iterations.
 /// essentially, the iteration of a fixturator should work like some_iter.cycle()
+
 pub struct Fixturator<Item, Curve> {
     item: std::marker::PhantomData<Item>,
     pub curve: Curve,
@@ -63,7 +65,9 @@ impl<Curve, Item> Fixturator<Item, Curve> {
     /// the starting index is exposed to facilitate wrapper structs to delegate their indexes to
     /// internal Fixturators
     /// See [ `newtype_fixturator!` ] macro below for an example of this
+
     pub fn new(curve: Curve, start: usize) -> Self {
+
         Fixturator::<Item, Curve> {
             curve,
             index: start,
@@ -80,6 +84,7 @@ impl<Curve, Item> Fixturator<Item, Curve> {
 // /// - test_unpredictable (optional): whether to try and test the unpredictable case
 // /// See the tests in modules in this crate
 #[macro_export]
+
 macro_rules! basic_test {
     ( $type:ty, $empty_expected:expr, $predictable_expected:expr ) => {
         basic_test!($type, $empty_expected, $predictable_expected, true);
@@ -152,6 +157,7 @@ macro_rules! basic_test {
 /// the expressions passed into the macro are the body of the next calls for Empty, Unpredictable
 /// and Predictable, in order
 #[macro_export]
+
 macro_rules! fixturator {
     (
         with_vec $min:literal $max:literal;
@@ -492,26 +498,36 @@ macro_rules! fixturator {
 }
 
 #[macro_export]
+
 macro_rules! get_fixt_index {
     () => {{
+
         let mut index = 0;
+
         FIXT_INDEX.with(|f| index = *f.borrow());
+
         index
     }};
 }
 
 #[macro_export]
+
 macro_rules! set_fixt_index {
     ($index:expr) => {{
+
         FIXT_INDEX.with(|f| *f.borrow_mut() = $index);
     }};
 }
 
 #[macro_export]
+
 macro_rules! get_fixt_curve {
     () => {{
+
         let mut curve = None;
+
         FIXT_CURVE.with(|f| curve = f.borrow().clone());
+
         curve.unwrap()
     }};
 }
@@ -526,6 +542,7 @@ macro_rules! get_fixt_curve {
 /// ability to return an Option - i.e. return a value of type Foo _not_ Option<Foo>
 /// if the body of the expression changes the index it will be respected, if not then it will be
 /// incremented by 1 automatically by the macro
+
 macro_rules! curve {
     ( $type:ident, $curve:ident, $e:expr ) => {
         $crate::prelude::paste! {
@@ -555,6 +572,7 @@ macro_rules! curve {
 /// tiny convenience macro to make it easy to get the first Foo from its fixturator without using
 /// the iterator interface to save a little typing
 /// c.f. fixt!(Foo) vs. FooFixturator::new(Unpredictable).next().unwrap();
+
 macro_rules! fixt {
     ( $name:tt ) => {
         $crate::fixt!($name, $crate::prelude::Unpredictable)
@@ -587,6 +605,7 @@ macro_rules! fixt {
 /// unpredictable curves are a great way to knock off some low hanging fruit, especially around
 /// numeric calculations and utf-8 handling, but are no replacement for stringent approaches.
 #[derive(Clone, Copy)]
+
 pub struct Unpredictable;
 
 /// represents a predictable curve
@@ -606,6 +625,7 @@ pub struct Unpredictable;
 /// this curve is provided as a standard option because there is a real, common tradeoff between
 /// test fragility (accuracy) and specificity (precision).
 #[derive(Clone, Copy)]
+
 pub struct Predictable;
 
 /// represents a curve over the empty value(s)
@@ -616,10 +636,12 @@ pub struct Predictable;
 /// regardless, collections with no items, numbers with no magnitude, strings with no chars are all
 /// common sources of bugs, so feel free to manifest as much emptiness as you like from this curve.
 #[derive(Clone, Copy)]
+
 pub struct Empty;
 
 #[macro_export]
 /// a direct delegation of fixtures to the inner type for new types
+
 macro_rules! newtype_fixturator {
     ( $outer:ident<Vec<$inner:ty>> ) => {
         fixturator!(
@@ -685,6 +707,7 @@ macro_rules! newtype_fixturator {
 #[macro_export]
 /// a direct delegation of fixtures to the inner type for wasm io types
 /// See zome types crate
+
 macro_rules! wasm_io_fixturator {
     ( $outer:ident<$inner:ty> ) => {
         fixturator!(
@@ -716,17 +739,25 @@ macro_rules! wasm_io_fixturator {
 /// https://docs.rs/strum/0.18.0/strum/
 /// iterates over all the variants (Predictable) or selects random variants (Unpredictable)
 /// You do still need to BYO "empty" variant as the macro doesn't know what to use there
+
 macro_rules! enum_fixturator {
     ( $enum:ident, $empty:expr ) => {
         use rand::seq::IteratorRandom;
         use $crate::prelude::strum::IntoEnumIterator;
+
         fixturator!(
             $enum,
             $empty,
-            { $enum::iter().choose(&mut crate::rng()).unwrap() },
             {
+
+                $enum::iter().choose(&mut crate::rng()).unwrap()
+            },
+            {
+
                 let ret = $enum::iter().cycle().nth(self.0.index).unwrap();
+
                 set_fixt_index!(get_fixt_index!() + 1);
+
                 ret
             }
         );
@@ -734,12 +765,15 @@ macro_rules! enum_fixturator {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use crate::prelude::*;
     use crate::string::PREDICTABLE_STRS;
 
     // in general enums can have a mix of whatever in their variants
     #[derive(PartialEq, Debug)]
+
     pub enum Foo {
         A,
         B(String),
@@ -760,7 +794,9 @@ mod tests {
     );
 
     #[test]
+
     fn enum_test() {
+
         assert_eq!(FooFixturator::new(Predictable).next().unwrap(), Foo::A,);
 
         FooFixturator::new(Unpredictable).next().unwrap();
@@ -768,14 +804,18 @@ mod tests {
         assert_eq!(FooFixturator::new(Empty).next().unwrap(), Foo::A,);
 
         let mut fixt_iter = FooFixturator::new(Predictable);
+
         assert_eq!(fixt_iter.next().unwrap(), Foo::A);
+
         let string = StringFixturator::new_indexed(Predictable, 1)
             .next()
             .unwrap();
+
         assert_eq!(fixt_iter.next().unwrap(), Foo::B(string));
     }
 
     #[derive(PartialEq, Debug)]
+
     pub enum UnitFoo {
         A,
         B,
@@ -788,7 +828,9 @@ mod tests {
     );
 
     #[test]
+
     fn unit_variants_test() {
+
         assert_eq!(
             UnitFooFixturator::new(Predictable).next().unwrap(),
             UnitFoo::A,
@@ -801,6 +843,7 @@ mod tests {
     }
 
     #[derive(PartialEq, Debug, Clone)]
+
     pub enum VariantFoo {
         A(String),
         B(usize),
@@ -813,8 +856,11 @@ mod tests {
     );
 
     #[test]
+
     fn variant_variants_test() {
+
         let mut predictable_fixturator = VariantFooFixturator::new(Predictable);
+
         for expected in [
             VariantFoo::A("💯".into()),
             VariantFoo::B(1),
@@ -825,17 +871,22 @@ mod tests {
         ]
         .iter()
         {
+
             assert_eq!(expected.to_owned(), predictable_fixturator.next().unwrap(),);
         }
 
         let mut unpredictable_fixturator = VariantFooFixturator::new(Unpredictable);
+
         for _ in 0..10 {
+
             // smoke test
             unpredictable_fixturator.next().unwrap();
         }
 
         let mut empty_fixturator = VariantFooFixturator::new(Empty);
+
         for _ in 0..10 {
+
             match empty_fixturator.next().unwrap() {
                 VariantFoo::A(s) => assert_eq!(s, ""),
                 VariantFoo::B(n) => assert_eq!(n, 0),
@@ -845,10 +896,12 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq)]
+
     pub struct StringFoo(String);
 
     impl From<String> for StringFoo {
         fn from(s: String) -> Self {
+
             Self(s)
         }
     }
@@ -856,9 +909,13 @@ mod tests {
     fixturator!(StringFoo; from String;);
 
     #[test]
+
     fn from_test() {
+
         let mut predictable_fixturator = StringFooFixturator::new(Predictable);
+
         for expected in PREDICTABLE_STRS.iter() {
+
             assert_eq!(
                 StringFoo::from(expected.to_string()),
                 predictable_fixturator.next().unwrap()
@@ -866,13 +923,17 @@ mod tests {
         }
 
         let mut unpredictable_fixturator = StringFooFixturator::new(Unpredictable);
+
         for _ in 0..10 {
+
             // smoke test
             unpredictable_fixturator.next().unwrap();
         }
 
         let mut empty_fixturator = StringFooFixturator::new(Empty);
+
         for _ in 0..10 {
+
             assert_eq!(
                 StringFoo::from("".to_string()),
                 empty_fixturator.next().unwrap(),
@@ -881,12 +942,14 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq)]
+
     pub struct ConstructedFoo {
         bar: bool,
     }
 
     impl ConstructedFoo {
         fn from_bar(bar: bool) -> Self {
+
             Self { bar }
         }
     }
@@ -897,9 +960,13 @@ mod tests {
     );
 
     #[test]
+
     fn constructor_test() {
+
         let mut predictable_fixturator = ConstructedFooFixturator::new(Predictable);
+
         for expected in [true, false].iter().cycle().take(5) {
+
             assert_eq!(
                 ConstructedFoo::from_bar(*expected),
                 predictable_fixturator.next().unwrap(),
@@ -907,13 +974,17 @@ mod tests {
         }
 
         let mut unpredictable_fixturator = ConstructedFooFixturator::new(Unpredictable);
+
         for _ in 0..10 {
+
             // smoke test
             unpredictable_fixturator.next().unwrap();
         }
 
         let mut empty_fixturator = ConstructedFooFixturator::new(Empty);
+
         for _ in 0..10 {
+
             assert_eq!(
                 ConstructedFoo::from_bar(false),
                 empty_fixturator.next().unwrap(),

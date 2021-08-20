@@ -19,9 +19,11 @@ use std::sync::Arc;
 /// max send buffer size (keep it under 16384 with a little room for overhead)
 /// (this is not a tuning_param because it must be coordinated
 /// with the constant in PoolBuf which cannot be set at runtime)
+
 const MAX_SEND_BUF_BYTES: usize = 16000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+
 pub enum MetaOpKey {
     /// data key type
     Op(Arc<KitsuneOpHash>),
@@ -31,6 +33,7 @@ pub enum MetaOpKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+
 pub enum MetaOpData {
     /// data chunk type
     Op(Arc<KitsuneOpHash>, Vec<u8>),
@@ -41,38 +44,55 @@ pub enum MetaOpData {
 
 impl MetaOpData {
     fn byte_count(&self) -> usize {
+
         match self {
             MetaOpData::Op(h, d) => (**h).len() + d.len(),
             MetaOpData::Agent(a) => {
+
                 let h = (**a.agent).len();
+
                 let s = (**a.signature).len();
+
                 let d = a.encoded_bytes.len();
+
                 h + s + d
             }
         }
     }
 
     fn key(&self) -> Arc<MetaOpKey> {
+
         let key = match self {
             MetaOpData::Op(key, _) => MetaOpKey::Op(key.clone()),
             MetaOpData::Agent(s) => MetaOpKey::Agent(s.agent.clone(), s.signed_at_ms),
         };
+
         Arc::new(key)
     }
 }
 
 type KeySet = HashSet<Arc<MetaOpKey>>;
+
 type DataMap = HashMap<Arc<MetaOpKey>, Arc<MetaOpData>>;
+
 type BloomFilter = bloomfilter::Bloom<Arc<MetaOpKey>>;
 
 pub(crate) fn encode_bloom_filter(bloom: &BloomFilter) -> PoolBuf {
+
     let bitmap: Vec<u8> = bloom.bitmap();
+
     let bitmap_bits: u64 = bloom.number_of_bits();
+
     let k_num: u32 = bloom.number_of_hash_functions();
+
     let sip_keys = bloom.sip_keys();
+
     let k1: u64 = sip_keys[0].0;
+
     let k2: u64 = sip_keys[0].1;
+
     let k3: u64 = sip_keys[1].0;
+
     let k4: u64 = sip_keys[1].1;
 
     let size = bitmap.len()
@@ -82,27 +102,42 @@ pub(crate) fn encode_bloom_filter(bloom: &BloomFilter) -> PoolBuf {
         ;
 
     let mut buf = PoolBuf::new();
+
     buf.reserve(size);
 
     buf.extend_from_slice(&bitmap_bits.to_le_bytes());
+
     buf.extend_from_slice(&k_num.to_le_bytes());
+
     buf.extend_from_slice(&k1.to_le_bytes());
+
     buf.extend_from_slice(&k2.to_le_bytes());
+
     buf.extend_from_slice(&k3.to_le_bytes());
+
     buf.extend_from_slice(&k4.to_le_bytes());
+
     buf.extend_from_slice(&bitmap);
 
     buf
 }
 
 pub(crate) fn decode_bloom_filter(bloom: &[u8]) -> BloomFilter {
+
     let bitmap_bits = u64::from_le_bytes(*arrayref::array_ref![bloom, 0, 8]);
+
     let k_num = u32::from_le_bytes(*arrayref::array_ref![bloom, 8, 4]);
+
     let k1 = u64::from_le_bytes(*arrayref::array_ref![bloom, 12, 8]);
+
     let k2 = u64::from_le_bytes(*arrayref::array_ref![bloom, 20, 8]);
+
     let k3 = u64::from_le_bytes(*arrayref::array_ref![bloom, 28, 8]);
+
     let k4 = u64::from_le_bytes(*arrayref::array_ref![bloom, 36, 8]);
+
     let sip_keys = [(k1, k2), (k3, k4)];
+
     bloomfilter::Bloom::from_existing(&bloom[44..], bitmap_bits, k_num, sip_keys)
 }
 
@@ -166,8 +201,10 @@ pub(crate) struct SimpleBloomModInner {
 
 impl SimpleBloomModInner {
     pub fn new() -> Self {
+
         // pick an old instant for initialization
         const ONE_DAY_MICROS: i64 = 1000 * 1000 * 60 * 60 * 24;
+
         let old_us = proc_count_now_us() - ONE_DAY_MICROS;
 
         Self {
@@ -189,12 +226,15 @@ impl SimpleBloomModInner {
     }
 
     /// Record a metric to be recorded at the end of this gossip round
+
     // TODO: remove NodeInfo
     fn record_pending_metric(&mut self, agents: Vec<Arc<KitsuneAgent>>, was_err: bool) {
+
         let info = NodeInfo {
             last_touch: std::time::SystemTime::now(),
             was_err,
         };
+
         self.pending_metrics.push((agents, info))
     }
 }
@@ -228,6 +268,7 @@ impl SimpleBloomMod {
         ep_hnd: Tx2EpHnd<wire::Wire>,
         evt_sender: futures::channel::mpsc::Sender<event::KitsuneP2pEvent>,
     ) -> Arc<Self> {
+
         let inner = SimpleBloomModInner::new();
 
         let send_interval_ms: u64 = (
@@ -256,9 +297,13 @@ impl SimpleBloomMod {
         let loop_check_interval_ms = std::cmp::max(send_interval_ms / 3, 100);
 
         let gossip = this.clone();
+
         metric_task(async move {
+
             loop {
+
                 if !cont.load(atomic::Ordering::Relaxed) {
+
                     break;
                 }
 
@@ -268,9 +313,11 @@ impl SimpleBloomMod {
                 .await;
 
                 if let GossipIterationResult::Close = gossip.run_one_iteration().await {
+
                     break;
                 }
             }
+
             tracing::warn!("gossip loop ending");
 
             KitsuneResult::Ok(())
@@ -280,11 +327,13 @@ impl SimpleBloomMod {
     }
 
     /// Get metrics data via event channel in the form of NodeInfo
+
     // TODO: remove NodeInfo
     async fn get_metric_info(
         &self,
         agents: Vec<Arc<KitsuneAgent>>,
     ) -> KitsuneP2pResult<Option<NodeInfo>> {
+
         // We pick an arbitrary agent for now, since in a full-sync situation,
         // any agent should have the same data as any other agent.
         // TODO: this will naturally change after sharding.
@@ -292,6 +341,7 @@ impl SimpleBloomMod {
             .first()
             .expect("Gossip must have a least one from_agent")
             .clone();
+
         let last_touch = match self
             .evt_sender
             .query_metrics(MetricQuery::LastSync {
@@ -302,6 +352,7 @@ impl SimpleBloomMod {
             MetricQueryAnswer::LastSync(time) => time,
             _ => unreachable!(),
         };
+
         Ok(last_touch.map(|last_touch| NodeInfo {
             last_touch,
             was_err: false,
@@ -309,14 +360,18 @@ impl SimpleBloomMod {
     }
 
     /// Record a metric via event channel
+
     // TODO: remove NodeInfo
     async fn record_metric(
         &self,
         agents: Vec<Arc<KitsuneAgent>>,
         info: NodeInfo,
     ) -> KitsuneP2pResult<()> {
+
         if info.was_err {
+
             for agent in agents {
+
                 self.evt_sender
                     .put_metric_datum(MetricDatum {
                         agent,
@@ -326,7 +381,9 @@ impl SimpleBloomMod {
                     .await?;
             }
         } else {
+
             for agent in agents {
+
                 self.evt_sender
                     .put_metric_datum(MetricDatum {
                         agent,
@@ -336,10 +393,12 @@ impl SimpleBloomMod {
                     .await?;
             }
         }
+
         Ok(())
     }
 
     async fn run_one_iteration(&self) -> GossipIterationResult {
+
         // # Step 1 - check state
         //   - if closed, send GossipIterationResult::Close
         //   - if not ready, exit early
@@ -351,6 +410,7 @@ impl SimpleBloomMod {
         };
 
         if sync_and_initiate {
+
             // # Step 2 - run a local sync, updating bloom / data_map / key_set
             match self.step_2_local_sync().await {
                 Err(_) => return GossipIterationResult::Close,
@@ -395,6 +455,7 @@ impl SimpleBloomMod {
     }
 
     async fn step_1_check(&self) -> CheckResult {
+
         match self.step_1_check_inner().await {
             Err(_) => CheckResult::Close,
             Ok(r) => r,
@@ -402,20 +463,27 @@ impl SimpleBloomMod {
     }
 
     async fn step_2_local_sync(&self) -> KitsuneResult<bool> {
+
         let local_agents = self.inner.share_mut(|i, _| Ok(i.local_agents.clone()))?;
 
         let (data_map, key_set, bloom) = match self.step_2_local_sync_inner(local_agents).await {
             Err(e) => {
+
                 tracing::warn!("gossip error: {:?}", e);
+
                 return Ok(false);
             }
             Ok(r) => r,
         };
 
         self.inner.share_mut(move |i, _| {
+
             i.local_data_map = data_map;
+
             i.local_key_set = key_set;
+
             i.local_bloom = bloom;
+
             Ok(())
         })?;
 
@@ -423,28 +491,37 @@ impl SimpleBloomMod {
     }
 
     async fn step_3_initiate(&self) -> KitsuneP2pResult<bool> {
+
         self.step_3_initiate_inner().await?;
+
         Ok(true)
     }
 
     async fn step_4_com_loop(&self) -> KitsuneResult<bool> {
+
         self.step_4_com_loop_inner().await?;
+
         Ok(true)
     }
 
     async fn step_5_flush_metrics(&self) -> KitsuneP2pResult<bool> {
+
         let metrics: Vec<_> = self
             .inner
             .share_mut(|i, _| Ok(i.pending_metrics.drain(..).collect()))?;
+
         for (agents, info) in metrics {
+
             self.record_metric(agents, info).await?;
         }
+
         Ok(true)
     }
 }
 
 impl AsGossipModule for SimpleBloomMod {
     fn close(&self) {
+
         self.cont.store(false, atomic::Ordering::Relaxed);
     }
 
@@ -453,30 +530,43 @@ impl AsGossipModule for SimpleBloomMod {
         con: Tx2ConHnd<wire::Wire>,
         gossip_data: Box<[u8]>,
     ) -> KitsuneResult<()> {
+
         use kitsune_p2p_types::codec::*;
+
         let (_, gossip) = GossipWire::decode_ref(&gossip_data).map_err(KitsuneError::other)?;
+
         self.inner.share_mut(move |i, _| {
+
             i.incoming.push((con, gossip));
+
             if i.incoming.len() > 20 {
+
                 tracing::warn!(
                     "Overloaded with incoming gossip.. {} messages",
                     i.incoming.len()
                 );
             }
+
             Ok(())
         })
     }
 
     fn local_agent_join(&self, a: Arc<KitsuneAgent>) {
+
         let _ = self.inner.share_mut(move |i, _| {
+
             i.local_agents.insert(a);
+
             Ok(())
         });
     }
 
     fn local_agent_leave(&self, a: Arc<KitsuneAgent>) {
+
         let _ = self.inner.share_mut(move |i, _| {
+
             i.local_agents.remove(&a);
+
             Ok(())
         });
     }
@@ -492,6 +582,7 @@ impl AsGossipModuleFactory for SimpleBloomModFactory {
         ep_hnd: Tx2EpHnd<wire::Wire>,
         evt_sender: futures::channel::mpsc::Sender<event::KitsuneP2pEvent>,
     ) -> GossipModule {
+
         GossipModule(SimpleBloomMod::new(
             tuning_params,
             space,
@@ -502,5 +593,6 @@ impl AsGossipModuleFactory for SimpleBloomModFactory {
 }
 
 pub fn factory() -> GossipModuleFactory {
+
     GossipModuleFactory(Arc::new(SimpleBloomModFactory))
 }

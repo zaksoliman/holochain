@@ -22,6 +22,7 @@ use ::fixt::prelude::*;
 use std::convert::TryFrom;
 
 pub type HashTypeEntry = hash_type::Entry;
+
 pub type HashTypeAnyDht = hash_type::AnyDht;
 
 // TODO: use strum to do this:
@@ -40,6 +41,7 @@ fixturator!(
 
 /// A type alias for a Vec<u8> whose fixturator is expected to only return
 /// a Vec of length 36
+
 pub type ThirtySixHashBytes = Vec<u8>;
 
 // Simply generate "bytes" which is a Vec<u8> of 36 bytes
@@ -47,29 +49,45 @@ fixturator!(
     ThirtySixHashBytes,
     append_location([0; 32].to_vec()),
     {
+
         let mut u8_fixturator = U8Fixturator::new(Unpredictable);
+
         let mut bytes = vec![];
+
         for _ in 0..32 {
+
             bytes.push(u8_fixturator.next().unwrap());
         }
+
         append_location(bytes)
     },
     {
+
         let mut index = get_fixt_index!();
+
         let mut u8_fixturator = U8Fixturator::new_indexed(Predictable, index);
+
         let mut bytes = vec![];
+
         for _ in 0..32 {
+
             bytes.push(u8_fixturator.next().unwrap());
         }
+
         index += 1;
+
         set_fixt_index!(index);
+
         append_location(bytes)
     }
 );
 
 fn append_location(mut base: Vec<u8>) -> Vec<u8> {
+
     let mut loc_bytes = holo_dht_location_bytes(&base);
+
     base.append(&mut loc_bytes);
+
     base
 }
 
@@ -100,6 +118,7 @@ fixturator!(
     EntryHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     EntryHashB64;
     constructor fn new(EntryHash);
@@ -109,6 +128,7 @@ fixturator!(
     DnaHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     DnaHashB64;
     constructor fn new(DnaHash);
@@ -118,6 +138,7 @@ fixturator!(
     DhtOpHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     DhtOpHashB64;
     constructor fn new(DhtOpHash);
@@ -127,6 +148,7 @@ fixturator!(
     HeaderHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     HeaderHashB64;
     constructor fn new(HeaderHash);
@@ -136,6 +158,7 @@ fixturator!(
     NetIdHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     NetIdHashB64;
     constructor fn new(NetIdHash);
@@ -145,6 +168,7 @@ fixturator!(
     WasmHash;
     constructor fn from_raw_36(ThirtySixHashBytes);
 );
+
 fixturator!(
     WasmHashB64;
     constructor fn new(WasmHash);
@@ -154,6 +178,7 @@ fixturator!(
     AnyDhtHash;
     constructor fn from_raw_36_and_type(ThirtySixHashBytes, HashTypeAnyDht);
 );
+
 fixturator!(
     AnyDhtHashB64;
     constructor fn new(AnyDhtHash);

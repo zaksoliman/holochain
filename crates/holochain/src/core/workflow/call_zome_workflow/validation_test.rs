@@ -12,7 +12,9 @@ use holochain_zome_types::cell::CellId;
 use std::convert::TryFrom;
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn direct_validation_test() {
+
     observability::test_run().ok();
 
     let dna_file = DnaFile::new(
@@ -28,7 +30,9 @@ async fn direct_validation_test() {
     .unwrap();
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     let (_tmpdir, _app_api, handle) = setup_app(
@@ -40,21 +44,28 @@ async fn direct_validation_test() {
     run_test(alice_cell_id, handle.clone()).await;
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
 /// - Commit a valid update should pass
 /// - Commit an invalid update should fail the zome call
+
 async fn run_test(alice_cell_id: CellId, handle: ConductorHandle) {
+
     // Valid update should work
     let invocation = new_zome_call(&alice_cell_id, "update_entry", (), TestWasm::Update).unwrap();
+
     handle.call_zome(invocation).await.unwrap().unwrap();
 
     // Invalid update should fail work
     let invocation =
         new_zome_call(&alice_cell_id, "invalid_update_entry", (), TestWasm::Update).unwrap();
+
     let result = handle.call_zome(invocation).await;
+
     match &result {
         Err(ConductorApiError::CellError(CellError::WorkflowError(wfe))) => match **wfe {
             WorkflowError::SourceChainError(SourceChainError::InvalidCommit(_)) => {}
@@ -63,4 +74,5 @@ async fn run_test(alice_cell_id: CellId, handle: ConductorHandle) {
         _ => panic!("Expected InvalidCommit got {:?}", result),
     }
 }
+
 // ,

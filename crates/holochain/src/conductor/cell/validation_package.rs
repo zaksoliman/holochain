@@ -11,6 +11,7 @@ use holochain_types::dna::DnaFile;
 use holochain_zome_types::HeaderHashed;
 
 #[instrument(skip(header_hashed, env, cache, ribosome, conductor_api, network))]
+
 pub(super) async fn get_as_author(
     header_hashed: HeaderHashed,
     env: EnvRead,
@@ -19,12 +20,14 @@ pub(super) async fn get_as_author(
     conductor_api: &impl CellConductorApiT,
     network: &HolochainP2pCell,
 ) -> CellResult<ValidationPackageResponse> {
+
     let header = header_hashed.as_content();
 
     // Get the source chain with public data only
     // TODO: evaluate if we even need to use a source chain here
     // vs directly querying the database.
     let mut source_chain = SourceChain::new(env.clone().into(), header.author().clone()).await?;
+
     source_chain.public_only();
 
     // Get the header data
@@ -55,6 +58,7 @@ pub(super) async fn get_as_author(
     // Gather the package
     match required_validation_type {
         RequiredValidationType::Element => {
+
             // TODO: I'm not sure if we should handle this case, it seems like they should already have the element
             Ok(None.into())
         }
@@ -66,11 +70,13 @@ pub(super) async fn get_as_author(
             Ok(Some(get_as_author_full(header_seq, &source_chain).await?).into())
         }
         RequiredValidationType::Custom => {
+
             let cascade = Cascade::empty().with_vault(env.clone());
 
             if let Some(elements) =
                 cascade.get_validation_package_local(&header_hashed.as_hash())?
             {
+
                 return Ok(Some(ValidationPackage::new(elements)).into());
             }
 
@@ -80,38 +86,47 @@ pub(super) async fn get_as_author(
                 conductor_api.cell_id().agent_pubkey().clone(),
             )
             .await?;
+
             let result =
                 match get_as_author_custom(&header_hashed, ribosome, network, workspace_lock)? {
                     Some(result) => result,
                     None => return Ok(None.into()),
                 };
+
             match result {
                 ValidationPackageResult::Success(validation_package) => {
+
                     // TODO: Cache the package for future calls
 
                     Ok(Some(validation_package).into())
                 }
                 ValidationPackageResult::Fail(reason) => {
+
                     warn!(
                         msg = "Getting custom validation package fail",
                         error = %reason,
                         ?header
                     );
+
                     Ok(None.into())
                 }
                 ValidationPackageResult::UnresolvedDependencies(deps) => {
+
                     info!(
                         msg = "Unresolved dependencies for custom validation package",
                         missing_dependencies = ?deps,
                         ?header
                     );
+
                     Ok(None.into())
                 }
                 ValidationPackageResult::NotImplemented => {
+
                     error!(
                         msg = "Entry definition specifies a custom validation package but the callback isn't defined",
                         ?header
                     );
+
                     Ok(None.into())
                 }
             }
@@ -125,6 +140,7 @@ pub(super) async fn get_as_authority(
     dna_file: &DnaFile,
     conductor_api: &impl CellConductorApiT,
 ) -> CellResult<ValidationPackageResponse> {
+
     // Get author and hash
     let (header, header_hash) = header.into_inner();
 
@@ -158,10 +174,12 @@ pub(super) async fn get_as_authority(
     // Gather the package
     match required_validation_type {
         RequiredValidationType::Element => {
+
             // TODO: I'm not sure if we should handle this case, it seems like they should already have the element
             Ok(None.into())
         }
         RequiredValidationType::SubChain => {
+
             let query = ChainQueryFilter::default()
                 .include_entries(true)
                 .entry_type(EntryType::App(app_entry_type))
@@ -181,6 +199,7 @@ pub(super) async fn get_as_authority(
             Ok(Some(ValidationPackage::new(elements)).into())
         }
         RequiredValidationType::Full => {
+
             let query = &ChainQueryFilter::default()
                 .include_entries(true)
                 .sequence_range(0..header_seq);
@@ -199,6 +218,7 @@ pub(super) async fn get_as_authority(
             Ok(Some(ValidationPackage::new(elements)).into())
         }
         RequiredValidationType::Custom => {
+
             let elements = match cascade.get_validation_package_local(&header_hash)? {
                 Some(elements) => elements,
                 None => return Ok(None.into()),

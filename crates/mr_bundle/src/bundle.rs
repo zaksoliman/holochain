@@ -21,6 +21,7 @@ pub type ResourceMap = HashMap<PathBuf, ResourceBytes>;
 /// The manifest may describe locations of resources not included in the Bundle.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+
 pub struct Bundle<M>
 where
     M: Manifest,
@@ -61,19 +62,23 @@ where
     ///
     /// A base directory must also be supplied so that relative paths can be
     /// resolved into absolute ones.
+
     pub fn new<R: IntoIterator<Item = (PathBuf, ResourceBytes)>>(
         manifest: M,
         resources: R,
         root_dir: PathBuf,
     ) -> MrBundleResult<Self> {
+
         Self::from_parts(manifest, resources, Some(root_dir))
     }
 
     /// Create a bundle, asserting that all paths in the Manifest are absolute.
+
     pub fn new_unchecked<R: IntoIterator<Item = (PathBuf, ResourceBytes)>>(
         manifest: M,
         resources: R,
     ) -> MrBundleResult<Self> {
+
         Self::from_parts(manifest, resources, None)
     }
 
@@ -82,7 +87,9 @@ where
         resources: R,
         root_dir: Option<PathBuf>,
     ) -> MrBundleResult<Self> {
+
         let resources: ResourceMap = resources.into_iter().collect();
+
         let manifest_paths: HashSet<_> = manifest
             .locations()
             .into_iter()
@@ -94,12 +101,15 @@ where
 
         // Validate that each resource path is contained in the manifest
         for (resource_path, _) in resources.iter() {
+
             if !manifest_paths.contains(resource_path) {
+
                 return Err(BundleError::BundledPathNotInManifest(resource_path.clone()).into());
             }
         }
 
         let resources = resources.into_iter().collect();
+
         Ok(Self {
             manifest,
             resources,
@@ -108,29 +118,39 @@ where
     }
 
     /// Accessor for the Manifest
+
     pub fn manifest(&self) -> &M {
+
         &self.manifest
     }
 
     /// Return a new Bundle with an updated manifest, subject to the same
     /// validation constraints as creating a new Bundle from scratch.
+
     pub fn update_manifest(self, manifest: M) -> MrBundleResult<Self> {
+
         Self::from_parts(manifest, self.resources, self.root_dir)
     }
 
     /// Load a Bundle into memory from a file
+
     pub async fn read_from_file(path: &Path) -> MrBundleResult<Self> {
+
         Ok(Self::decode(&ffs::read(path).await?)?)
     }
 
     /// Write a Bundle to a file
+
     pub async fn write_to_file(&self, path: &Path) -> MrBundleResult<()> {
+
         Ok(ffs::write(path, &self.encode()?).await?)
     }
 
     /// Retrieve the bytes for a resource at a Location, downloading it if
     /// necessary
+
     pub async fn resolve(&self, location: &Location) -> MrBundleResult<Cow<'_, ResourceBytes>> {
+
         let bytes = match &location.normalize(self.root_dir.as_ref())? {
             Location::Bundled(path) => Cow::Borrowed(
                 self.resources
@@ -140,15 +160,19 @@ where
             Location::Path(path) => Cow::Owned(crate::location::resolve_local(path).await?),
             Location::Url(url) => Cow::Owned(crate::location::resolve_remote(url).await?),
         };
+
         Ok(bytes)
     }
 
     /// Return the full set of resources specified by this bundle's manifest.
     /// References to bundled resources can be returned directly, while all
     /// others will be fetched from the filesystem or the network.
+
     pub async fn resolve_all(&self) -> MrBundleResult<HashMap<Location, Cow<'_, ResourceBytes>>> {
+
         futures::future::join_all(
             self.manifest.locations().into_iter().map(|loc| async move {
+
                 MrBundleResult::Ok((loc.clone(), self.resolve(&loc).await?))
             }),
         )
@@ -158,7 +182,9 @@ where
     }
 
     /// Resolve all resources, but with fully owned references
+
     pub async fn resolve_all_cloned(&self) -> MrBundleResult<HashMap<Location, ResourceBytes>> {
+
         Ok(self
             .resolve_all()
             .await?
@@ -170,17 +196,23 @@ where
     /// Access the map of resources included in this bundle
     /// Bundled resources are also accessible via `resolve` or `resolve_all`,
     /// but using this method prevents a Clone
+
     pub fn bundled_resources(&self) -> &ResourceMap {
+
         &self.resources
     }
 
     /// An arbitrary and opaque encoding of the bundle data into a byte array
+
     pub fn encode(&self) -> MrBundleResult<Vec<u8>> {
+
         crate::encode(self)
     }
 
     /// Decode bytes produced by [`encode`](Bundle::encode)
+
     pub fn decode(bytes: &[u8]) -> MrBundleResult<Self> {
+
         crate::decode(bytes)
     }
 
@@ -197,45 +229,59 @@ where
     /// misplaced within the unpacked directory, or an incorrect path was
     /// supplied.
     #[cfg(feature = "packing")]
+
     pub fn find_root_dir(&self, path: &Path) -> MrBundleResult<PathBuf> {
+
         crate::util::prune_path(path.into(), M::path()).map_err(Into::into)
     }
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use crate::error::MrBundleError;
 
     use super::*;
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+
     struct TestManifest(Vec<Location>);
 
     impl Manifest for TestManifest {
         fn locations(&self) -> Vec<Location> {
+
             self.0.clone()
         }
 
         #[cfg(feature = "packing")]
+
         fn path() -> PathBuf {
+
             unimplemented!()
         }
 
         #[cfg(feature = "packing")]
+
         fn bundle_extension() -> &'static str {
+
             unimplemented!()
         }
     }
 
     #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+
     struct Thing(u32);
 
     #[tokio::test]
+
     async fn bundle_validation() {
+
         let manifest = TestManifest(vec![
             Location::Bundled("1.thing".into()),
             Location::Bundled("2.thing".into()),
         ]);
+
         assert!(Bundle::new_unchecked(manifest.clone(), vec![("1.thing".into(), vec![1])]).is_ok());
 
         matches::assert_matches!(

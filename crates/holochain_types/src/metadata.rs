@@ -10,6 +10,7 @@ use std::collections::BTreeSet;
 
 /// Timestamp of when the header was created with the headers hash.
 #[derive(Debug, Hash, PartialOrd, Ord, PartialEq, Eq, Clone, Serialize, Deserialize)]
+
 pub struct TimedHeaderHash {
     /// Time when this header was created
     pub timestamp: Timestamp,
@@ -20,6 +21,7 @@ pub struct TimedHeaderHash {
 /// Metadata returned from a GetMeta request.
 /// The Ord derive on TimedHeaderHash means each set is ordered by time.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerializedBytes)]
+
 pub struct MetadataSet {
     /// Headers that created or updated an entry.
     /// These are the headers that show the entry exists.
@@ -39,7 +41,9 @@ pub struct MetadataSet {
 
 impl From<HeaderHashed> for TimedHeaderHash {
     fn from(h: HeaderHashed) -> Self {
+
         let (header, hash) = h.into_inner();
+
         TimedHeaderHash {
             timestamp: header.timestamp(),
             header_hash: hash,
@@ -49,6 +53,7 @@ impl From<HeaderHashed> for TimedHeaderHash {
 
 impl From<HeaderHash> for TimedHeaderHash {
     fn from(h: HeaderHash) -> Self {
+
         TimedHeaderHash {
             timestamp: timestamp::now(),
             header_hash: h,

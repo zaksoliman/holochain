@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 #[derive(Educe)]
 #[educe(Default)]
+
 pub(crate) enum MockProjectType {
     #[educe(Default)]
     Lib,
@@ -18,6 +19,7 @@ pub(crate) enum MockProjectType {
 
 #[derive(Educe)]
 #[educe(Default)]
+
 pub(crate) struct MockProject {
     pub(crate) name: String,
     pub(crate) version: String,
@@ -51,17 +53,23 @@ impl WorkspaceMocker {
         toplevel_changelog: Option<&str>,
         projects: Vec<MockProject>,
     ) -> Fallible<Self> {
+
         let (path, dir) = {
+
             let dir = tempfile::tempdir()?;
+
             if std::option_env!("KEEP_MOCK_WORKSPACE")
                 .map(str::parse::<bool>)
                 .map(Result::ok)
                 .flatten()
                 .unwrap_or_default()
             {
+
                 debug!("keeping {:?}", dir.path());
+
                 (dir.into_path(), None)
             } else {
+
                 (dir.path().to_path_buf(), Some(dir))
             }
         };
@@ -73,6 +81,7 @@ impl WorkspaceMocker {
 
         let excluded = projects.iter().fold(String::new(), |acc, (name, project)| {
             if project.excluded {
+
                 acc + indoc::formatdoc!(
                     r#"
                         "crates/{}",
@@ -81,6 +90,7 @@ impl WorkspaceMocker {
                 )
                 .as_str()
             } else {
+
                 acc
             }
         });
@@ -100,8 +110,10 @@ impl WorkspaceMocker {
         );
 
         let project_builder = if let Some(toplevel_changelog) = toplevel_changelog {
+
             project_builder.file("CHANGELOG.md", toplevel_changelog)
         } else {
+
             project_builder
         };
 
@@ -109,18 +121,18 @@ impl WorkspaceMocker {
             projects
                 .iter()
                 .fold(project_builder, |project_builder, (name, project)| {
+
                     use MockProjectType::{Bin, Lib};
 
-                    let dependencies = project
-                        .dependencies
-                        .iter()
-                        .fold(String::new(), |dependencies, dependency| {
-                            format!("{}{}\n", dependencies, dependency)
-                        });
+                    let dependencies = project.dependencies.iter().fold(
+                        String::new(),
+                        |dependencies, dependency| format!("{}{}\n", dependencies, dependency),
+                    );
 
                     let dev_dependencies = project.dev_dependencies.iter().fold(
                         String::new(),
                         |dev_dependencies, dependency| {
+
                             format!("{}{}\n", dev_dependencies, dependency)
                         },
                     );
@@ -177,14 +189,18 @@ impl WorkspaceMocker {
                         );
 
                     let project_builder = if let Some(changelog) = &project.changelog {
+
                         project_builder.file(format!("crates/{}/CHANGELOG.md", &name), changelog)
                     } else {
+
                         project_builder
                     };
 
                     if let Some(readme) = &project.readme {
+
                         project_builder.file(format!("crates/{}/README.md", &name), readme)
                     } else {
+
                         project_builder
                     }
                 });
@@ -204,18 +220,23 @@ impl WorkspaceMocker {
     }
 
     pub(crate) fn root(&self) -> std::path::PathBuf {
+
         self.workspace_project.root()
     }
 
     pub(crate) fn add_or_replace_file(&self, path: &str, content: &str) {
+
         self.workspace_project.change_file(path, content);
     }
 
     pub(crate) fn commit(&self, tag: Option<&str>) -> String {
+
         git::add(&self.workspace_repo);
+
         let commit = git::commit(&self.workspace_repo).to_string();
 
         if let Some(tag) = tag {
+
             let _ = self.tag(tag);
         }
 
@@ -223,10 +244,12 @@ impl WorkspaceMocker {
     }
 
     pub(crate) fn tag(&self, tag: &str) {
+
         git::tag(&self.workspace_repo, tag)
     }
 
     pub(crate) fn head(&self) -> Fallible<String> {
+
         self.workspace_repo
             .revparse_single("HEAD")
             .context("revparse HEAD")
@@ -236,7 +259,9 @@ impl WorkspaceMocker {
 }
 
 /// Expected changelog after aggregation.
+
 pub(crate) fn example_workspace_1_aggregated_changelog() -> String {
+
     crate::changelog::sanitize(indoc::formatdoc!(
         r#"
         # Changelog
@@ -286,7 +311,9 @@ pub(crate) fn example_workspace_1_aggregated_changelog() -> String {
 }
 
 /// A workspace with four crates to test changelogs and change detection.
+
 pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
+
     use crate::tests::workspace_mocker::{self, MockProject, WorkspaceMocker};
 
     let members = vec![
@@ -469,6 +496,7 @@ pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
 
     // todo: derive the tag from a function
     workspace_mocker.tag("crate_a-0.0.1");
+
     workspace_mocker.add_or_replace_file(
         "crates/crate_a/README.md",
         indoc::indoc! {r#"
@@ -478,10 +506,12 @@ pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
             "#,
         },
     );
+
     workspace_mocker.commit(None);
 
     // todo: derive the tag from a function
     workspace_mocker.tag("crate_b-0.0.1-alpha.1");
+
     workspace_mocker.add_or_replace_file(
         "crates/crate_b/README.md",
         indoc::indoc! {r#"
@@ -491,6 +521,7 @@ pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
             "#,
         },
     );
+
     workspace_mocker.commit(None);
 
     workspace_mocker.add_or_replace_file(
@@ -502,6 +533,7 @@ pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
             "##,
         },
     );
+
     workspace_mocker.commit(None);
 
     workspace_mocker.add_or_replace_file(
@@ -513,13 +545,16 @@ pub(crate) fn example_workspace_1<'a>() -> Fallible<WorkspaceMocker> {
             "#,
         },
     );
+
     workspace_mocker.commit(None);
 
     Ok(workspace_mocker)
 }
 
 /// A workspace to test dependencies and crate sorting.
+
 pub(crate) fn example_workspace_2<'a>() -> Fallible<WorkspaceMocker> {
+
     use crate::tests::workspace_mocker::{self, MockProject, WorkspaceMocker};
 
     let members = vec![
@@ -569,7 +604,9 @@ pub(crate) fn example_workspace_2<'a>() -> Fallible<WorkspaceMocker> {
 }
 
 /// A workspace that is blocked by an unreleasable dependency.
+
 pub(crate) fn example_workspace_3<'a>() -> Fallible<WorkspaceMocker> {
+
     use crate::tests::workspace_mocker::{self, MockProject, WorkspaceMocker};
 
     let members = vec![
@@ -632,7 +669,9 @@ pub(crate) fn example_workspace_3<'a>() -> Fallible<WorkspaceMocker> {
 }
 
 /// A workspace to test some release blockers
+
 pub(crate) fn example_workspace_4<'a>() -> Fallible<WorkspaceMocker> {
+
     use crate::tests::workspace_mocker::{self, MockProject, WorkspaceMocker};
 
     let members = vec![
@@ -691,12 +730,17 @@ pub(crate) fn example_workspace_4<'a>() -> Fallible<WorkspaceMocker> {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
 
     #[test]
+
     fn example() {
+
         let workspace_mocker = example_workspace_1().unwrap();
+
         workspace_mocker.add_or_replace_file(
             "README.md",
             indoc::indoc! {r#"
@@ -706,10 +750,13 @@ mod tests {
             "#,
             },
         );
+
         let before = workspace_mocker.head().unwrap();
+
         let after = workspace_mocker.commit(None);
 
         assert_ne!(before, after);
+
         assert_eq!(after, workspace_mocker.head().unwrap());
     }
 }

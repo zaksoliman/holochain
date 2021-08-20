@@ -7,6 +7,7 @@ use warp::Filter;
 pub(crate) fn put(
     store: Store,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+
     warp::post()
         .and(warp::header::exact("content-type", "application/octet"))
         .and(warp::header::exact("X-Op", "put"))
@@ -17,19 +18,27 @@ pub(crate) fn put(
 }
 
 async fn put_info(peer: Bytes, store: Store) -> Result<impl warp::Reply, warp::Rejection> {
+
     let peer: AgentInfoSigned =
         rmp_decode(&mut AsRef::<[u8]>::as_ref(&peer)).map_err(|_| warp::reject())?;
+
     // TODO: Return rejection if agent info was invalid?
     if valid(&peer) {
+
         store.put(peer);
     }
+
     PUT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
     let mut buf = Vec::with_capacity(1);
+
     rmp_encode(&mut buf, ()).map_err(|_| warp::reject())?;
+
     Ok(buf)
 }
 
 fn valid(peer: &AgentInfoSigned) -> bool {
+
     // TODO: verify signature
     // Verify time
     peer.expires_at_ms as u128
@@ -40,7 +49,9 @@ fn valid(peer: &AgentInfoSigned) -> bool {
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use std::sync::Arc;
 
     use super::*;
@@ -48,8 +59,11 @@ mod tests {
     use kitsune_p2p::fixt::*;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn test_put() {
+
         let store = Store::new();
+
         let filter = put(store.clone());
 
         let info = AgentInfoSigned::sign(
@@ -63,7 +77,9 @@ mod tests {
         )
         .await
         .unwrap();
+
         let mut buf = Vec::new();
+
         rmp_encode(&mut buf, info.clone()).unwrap();
 
         let res = warp::test::request()
@@ -73,7 +89,9 @@ mod tests {
             .body(buf)
             .reply(&filter)
             .await;
+
         assert_eq!(res.status(), 200);
+
         assert_eq!(
             *store
                 .all()

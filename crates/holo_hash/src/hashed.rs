@@ -11,6 +11,7 @@ use crate::PrimitiveHashType;
 /// Provides an easy constructor which consumes the content.
 // TODO: consider making lazy with OnceCell
 #[derive(Debug, Serialize, Deserialize)]
+
 pub struct HoloHashed<C: HashableContent> {
     /// Whatever type C is as data.
     pub(crate) content: C,
@@ -20,39 +21,50 @@ pub struct HoloHashed<C: HashableContent> {
 
 impl<C: HashableContent> HasHash<C::HashType> for HoloHashed<C> {
     fn as_hash(&self) -> &HoloHashOf<C> {
+
         &self.hash
     }
 
     fn into_hash(self) -> HoloHashOf<C> {
+
         self.hash
     }
 }
 
 #[cfg(feature = "arbitrary")]
+
 impl<'a, C> arbitrary::Arbitrary<'a> for HoloHashed<C>
 where
     C: HashableContent + arbitrary::Arbitrary<'a>,
     C::HashType: PrimitiveHashType,
 {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+
         let hash = HoloHashOf::<C>::arbitrary(u)?;
+
         let content = C::arbitrary(u)?;
+
         Ok(Self { content, hash })
     }
 }
+
 impl<C> HoloHashed<C>
 where
     C: HashableContent,
 {
     /// Combine content with its precalculated hash
+
     pub fn with_pre_hashed(content: C, hash: HoloHashOf<C>) -> Self {
+
         Self { content, hash }
     }
 
     // NB: as_hash and into_hash are provided by the HasHash impl
 
     /// Accessor for content
+
     pub fn as_content(&self) -> &C {
+
         &self.content
     }
 
@@ -60,17 +72,23 @@ where
     /// Only useful for heavily mocked/fixturated data in testing.
     /// Guaranteed the hash will no longer match the content if mutated.
     #[cfg(feature = "test_utils")]
+
     pub fn as_content_mut(&mut self) -> &mut C {
+
         &mut self.content
     }
 
     /// Convert to content
+
     pub fn into_content(self) -> C {
+
         self.content
     }
 
     /// Deconstruct as a tuple
+
     pub fn into_inner(self) -> (C, HoloHashOf<C>) {
+
         (self.content, self.hash)
     }
 }
@@ -80,6 +98,7 @@ where
     C: HashableContent + Clone,
 {
     fn clone(&self) -> Self {
+
         Self {
             content: self.content.clone(),
             hash: self.hash.clone(),
@@ -92,6 +111,7 @@ where
     C: HashableContent,
 {
     fn from(g: HoloHashed<C>) -> (C, HoloHashOf<C>) {
+
         g.into_inner()
     }
 }
@@ -103,6 +123,7 @@ where
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
+
         self.as_content()
     }
 }
@@ -112,6 +133,7 @@ where
     C: HashableContent,
 {
     fn as_ref(&self) -> &C {
+
         self.as_content()
     }
 }
@@ -121,6 +143,7 @@ where
     C: HashableContent,
 {
     fn borrow(&self) -> &C {
+
         self.as_content()
     }
 }
@@ -130,6 +153,7 @@ where
     C: HashableContent,
 {
     fn eq(&self, other: &Self) -> bool {
+
         self.hash == other.hash
     }
 }
@@ -141,6 +165,7 @@ where
     C: HashableContent,
 {
     fn hash<StdH: std::hash::Hasher>(&self, state: &mut StdH) {
+
         std::hash::Hash::hash(&self.hash, state)
     }
 }

@@ -1,4 +1,6 @@
 reorder_imports = true
 
 # unstable but desirable:
+# -----------------------
+# blank_lines_lower_bound = 1
 # merge_imports = true

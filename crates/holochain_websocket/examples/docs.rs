@@ -4,10 +4,13 @@ use std::time::Duration;
 use url2::url2;
 
 #[derive(serde::Serialize, serde::Deserialize, SerializedBytes, Debug)]
+
 struct TestMessage(pub String);
 
 #[tokio::main]
+
 async fn main() {
+
     let (mut send, _) = connect(
         url2!("ws://127.0.0.1:12345"),
         std::sync::Arc::new(WebsocketConfig::default()),
@@ -16,7 +19,9 @@ async fn main() {
     .unwrap();
 
     send.signal(TestMessage("Hey".to_string())).await.unwrap();
+
     let resp: TestMessage = send.request(TestMessage("Hey".to_string())).await.unwrap();
+
     println!("Got {:?}", resp);
 
     match send
@@ -24,7 +29,9 @@ async fn main() {
         .await
     {
         Ok(r) => {
+
             let resp: TestMessage = r;
+
             println!("Got {:?}", resp);
         }
         Err(WebsocketError::RespTimeout) => eprintln!("Failed to get a response in 1 second"),

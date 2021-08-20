@@ -10,6 +10,7 @@ use tracing::*;
 
 /// Spawn the QueueConsumer for countersigning workflow
 #[instrument(skip(env, stop, conductor_handle, workspace, cell_network, trigger_sys))]
+
 pub(crate) fn spawn_countersigning_consumer(
     env: EnvWrite,
     mut stop: sync::broadcast::Receiver<()>,
@@ -18,15 +19,22 @@ pub(crate) fn spawn_countersigning_consumer(
     cell_network: HolochainP2pCell,
     trigger_sys: TriggerSender,
 ) -> (TriggerSender, JoinHandle<ManagedTaskResult>) {
+
     let (tx, mut rx) = TriggerSender::new();
+
     let mut trigger_self = tx.clone();
+
     let handle = tokio::spawn(async move {
+
         loop {
+
             // Wait for next job
             if let Job::Shutdown = next_job_or_exit(&mut rx, &mut stop).await {
+
                 tracing::warn!(
                     "Cell is shutting down: stopping countersigning_workflow queue consumer."
                 );
+
                 break;
             }
 
@@ -45,7 +53,9 @@ pub(crate) fn spawn_countersigning_consumer(
                 _ => (),
             };
         }
+
         Ok(())
     });
+
     (tx, handle)
 }

@@ -17,12 +17,15 @@ mod tests;
 /// responses.
 /// TODO: Currently still waiting for responses because we don't have a network call
 /// that doesn't.
+
 pub async fn validation_receipt_workflow(
     vault: EnvWrite,
     network: &mut HolochainP2pCell,
 ) -> WorkflowResult<WorkComplete> {
+
     // Get the env and keystore
     let keystore = vault.keystore();
+
     // Who we are.
     let validator = network.from_agent();
 
@@ -30,8 +33,11 @@ pub async fn validation_receipt_workflow(
     // FIXME: Test this query.
     let receipts = vault
         .async_reader({
+
             let validator = validator.clone();
+
             move |txn| {
+
                 let mut stmt = txn.prepare(
                     "
             SELECT Header.author, DhtOp.hash, DhtOp.validation_status,
@@ -46,12 +52,18 @@ pub async fn validation_receipt_workflow(
             DhtOp.validation_status IS NOT NULL
             ",
                 )?;
+
                 let ops = stmt
                     .query_and_then([], |r| {
+
                         let author: AgentPubKey = r.get("author")?;
+
                         let dht_op_hash = r.get("hash")?;
+
                         let validation_status = r.get("validation_status")?;
+
                         let when_integrated = from_blob::<Timestamp>(r.get("when_integrated_ns")?)?;
+
                         StateQueryResult::Ok((
                             ValidationReceipt {
                                 dht_op_hash,
@@ -63,6 +75,7 @@ pub async fn validation_receipt_workflow(
                         ))
                     })?
                     .collect::<StateQueryResult<Vec<_>>>()?;
+
                 StateQueryResult::Ok(ops)
             }
         })
@@ -70,8 +83,10 @@ pub async fn validation_receipt_workflow(
 
     // Send the validation receipts
     for (receipt, author) in receipts {
+
         // Don't send receipt to self.
         if author == validator {
+
             continue;
         }
 
@@ -87,9 +102,11 @@ pub async fn validation_receipt_workflow(
             .send_validation_receipt(author, receipt.try_into()?)
             .await
         {
+
             // No one home, they will need to publish again.
             info!(failed_send_receipt = ?e);
         }
+
         // Attempted to send the receipt so we now mark
         // it to not send in the future.
         vault

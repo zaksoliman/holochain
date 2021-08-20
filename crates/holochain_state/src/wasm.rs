@@ -10,6 +10,7 @@ use crate::prelude::StateMutationResult;
 use crate::prelude::StateQueryResult;
 
 pub fn get(txn: &Transaction<'_>, hash: &WasmHash) -> StateQueryResult<Option<DnaWasmHashed>> {
+
     let item = txn
         .query_row(
             "SELECT hash, blob FROM Wasm WHERE hash = :hash",
@@ -17,12 +18,16 @@ pub fn get(txn: &Transaction<'_>, hash: &WasmHash) -> StateQueryResult<Option<Dn
                 ":hash": hash
             },
             |row| {
+
                 let hash: WasmHash = row.get("hash")?;
+
                 let wasm = row.get("blob")?;
+
                 Ok((hash, wasm))
             },
         )
         .optional()?;
+
     match item {
         Some((hash, wasm)) => Ok(Some(DnaWasmHashed::with_pre_hashed(from_blob(wasm)?, hash))),
         None => Ok(None),
@@ -30,6 +35,7 @@ pub fn get(txn: &Transaction<'_>, hash: &WasmHash) -> StateQueryResult<Option<Dn
 }
 
 pub fn contains(txn: &Transaction<'_>, hash: &WasmHash) -> StateQueryResult<bool> {
+
     Ok(txn.query_row(
         "SELECT EXISTS(SELECT 1 FROM Wasm WHERE hash = :hash)",
         named_params! {
@@ -40,19 +46,25 @@ pub fn contains(txn: &Transaction<'_>, hash: &WasmHash) -> StateQueryResult<bool
 }
 
 pub fn put(txn: &mut Transaction, wasm: DnaWasmHashed) -> StateMutationResult<()> {
+
     mutations::insert_wasm(txn, wasm)
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use super::*;
     use holo_hash::HasHash;
     use holochain_sqlite::prelude::DatabaseResult;
     use holochain_types::dna::wasm::DnaWasm;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn wasm_store_round_trip() -> DatabaseResult<()> {
+
         use holochain_sqlite::prelude::*;
+
         observability::test_run().ok();
 
         // all the stuff needed to have a WasmBuf
@@ -67,8 +79,11 @@ mod tests {
         env.conn()?
             .with_commit_sync(|txn| put(txn, wasm.clone()))
             .unwrap();
+
         fresh_reader_test!(env, |txn| {
+
             assert!(contains(&txn, &wasm.as_hash()).unwrap());
+
             // a wasm from the WasmBuf
             let ret = get(&txn, &wasm.as_hash()).unwrap().unwrap();
 

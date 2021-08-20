@@ -11,6 +11,7 @@ use crate::query::StateQueryError;
 use crate::scratch::SyncScratchError;
 
 #[derive(Error, Debug)]
+
 pub enum SourceChainError {
     #[error("The source chain is empty, but is expected to have been initialized")]
     ChainEmpty,
@@ -98,11 +99,13 @@ pub enum SourceChainError {
 // serde_json::Error does not implement PartialEq - why is that a requirement??
 impl From<serde_json::Error> for SourceChainError {
     fn from(e: serde_json::Error) -> Self {
+
         Self::SerdeJsonError(format!("{:?}", e))
     }
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
+
 pub enum ChainInvalidReason {
     #[error("A valid chain always begins with a Dna entry, followed by an Agent entry.")]
     GenesisDataMissing,

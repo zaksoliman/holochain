@@ -74,20 +74,27 @@ pub mod test_utils;
 pub use entry::Entry;
 pub use header::Header;
 pub use prelude::*;
+
 /// Re-exported dependencies
+
 pub mod dependencies {
+
     pub use ::subtle;
 }
+
 use holochain_wasmer_common::WasmError;
 
 #[allow(missing_docs)]
+
 pub trait CallbackResult: Sized {
     /// if a callback result is definitive we should halt any further iterations over remaining
     /// calls e.g. over sparse names or subsequent zomes
     /// typically a clear failure is definitive but success and missing dependencies are not
     /// in the case of success or missing deps, a subsequent callback could give us a definitive
     /// answer like a fail, and we don't want to over-optimise wasm calls and miss a clear failure
+
     fn is_definitive(&self) -> bool;
+
     /// when a WasmError is returned from a callback (e.g. via `?` operator) it might mean either:
     ///
     /// - There was an error that prevented the callback from coming to a CallbackResult (e.g. failing to connect to database)
@@ -95,6 +102,7 @@ pub trait CallbackResult: Sized {
     ///
     /// Typically this can be split as host/wasm errors are the former, and serialization/guest errors the latter.
     /// This function allows each CallbackResult to explicitly map itself.
+
     fn try_from_wasm_error(wasm_error: WasmError) -> Result<Self, WasmError>;
 }
 
@@ -102,6 +110,7 @@ pub trait CallbackResult: Sized {
 /// Serialization for fixed arrays is generally not available in a way that can be derived.
 /// Being able to wrap fixed size arrays is important e.g. for crypto safety etc. so this is a
 /// simple way to implement serialization so that we can send these types between the host/guest.
+
 macro_rules! fixed_array_serialization {
     ($t:ty, $len:expr) => {
         impl serde::ser::Serialize for $t {
@@ -109,6 +118,7 @@ macro_rules! fixed_array_serialization {
             where
                 S: serde::ser::Serializer,
             {
+
                 serializer.serialize_bytes(&self.0)
             }
         }
@@ -118,17 +128,25 @@ macro_rules! fixed_array_serialization {
             where
                 D: serde::de::Deserializer<'de>,
             {
+
                 use serde::de::Error;
+
                 let bytes: &[u8] = serde::de::Deserialize::deserialize(deserializer)?;
+
                 if bytes.len() != $len {
+
                     let exp_msg = format!("expected {} bytes got: {} bytes", $len, bytes.len());
+
                     return Err(D::Error::invalid_value(
                         serde::de::Unexpected::Bytes(bytes),
                         &exp_msg.as_str(),
                     ));
                 }
+
                 let mut inner: [u8; $len] = [0; $len];
+
                 inner.clone_from_slice(bytes);
+
                 Ok(Self(inner))
             }
         }
@@ -137,6 +155,7 @@ macro_rules! fixed_array_serialization {
 
 /// Errors related to the secure primitive macro.
 #[derive(Debug, thiserror::Error)]
+
 pub enum SecurePrimitiveError {
     /// We have the wrong number of bytes.
     #[error("Bad sized secure primitive.")]
@@ -174,6 +193,7 @@ pub enum SecurePrimitiveError {
 ///
 /// @todo implement explicit zeroing, moving and copying of memory for sensitive data.
 ///       - e.g. the secrecy crate https://crates.io/crates/secrecy
+
 macro_rules! secure_primitive {
     ($t:ty, $len:expr) => {
         $crate::fixed_array_serialization!($t, $len);
@@ -183,9 +203,12 @@ macro_rules! secure_primitive {
         /// measuring tiny changes in latency associated with optimised equality checks.
         /// More matching bytes = more latency = vulnerability.
         /// This type of attack has been successfully demonstrated over a network despite varied latencies.
+
         impl PartialEq for $t {
             fn eq(&self, other: &Self) -> bool {
+
                 use $crate::dependencies::subtle::ConstantTimeEq;
+
                 self.0.ct_eq(&other.0).into()
             }
         }
@@ -203,17 +226,22 @@ macro_rules! secure_primitive {
         ///
         /// @todo maybe we want something like **HIDDEN** by default and putting the actual bytes
         ///       behind a feature flag?
+
         impl std::fmt::Debug for $t {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
                 std::fmt::Debug::fmt(&self.0.to_vec(), f)
             }
         }
 
         #[cfg(feature = "subtle-encoding")]
+
         impl std::fmt::Debug for $t {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
                 let str = String::from_utf8(subtle_encoding::hex::encode(self.0.to_vec()))
                     .unwrap_or_else(|_| "<unparseable signature>".into());
+
                 f.write_str(&str)
             }
         }
@@ -221,20 +249,28 @@ macro_rules! secure_primitive {
         /// Trivial new type derivation.
         /// Secrets should have private interiors and be constructed directly from fixed length
         /// arrays of known length.
+
         impl From<[u8; $len]> for $t {
             fn from(b: [u8; $len]) -> Self {
+
                 Self(b)
             }
         }
 
         impl TryFrom<&[u8]> for $t {
             type Error = $crate::SecurePrimitiveError;
+
             fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+
                 if slice.len() == $len {
+
                     let mut inner = [0; $len];
+
                     inner.copy_from_slice(slice);
+
                     Ok(inner.into())
                 } else {
+
                     Err($crate::SecurePrimitiveError::BadSize)
                 }
             }
@@ -242,13 +278,16 @@ macro_rules! secure_primitive {
 
         impl TryFrom<Vec<u8>> for $t {
             type Error = $crate::SecurePrimitiveError;
+
             fn try_from(v: Vec<u8>) -> Result<Self, Self::Error> {
+
                 Self::try_from(v.as_ref())
             }
         }
 
         impl AsRef<[u8]> for $t {
             fn as_ref(&self) -> &[u8] {
+
                 &self.0
             }
         }
@@ -257,10 +296,12 @@ macro_rules! secure_primitive {
 
 /// Helper macro for implementing ToSql, when using rusqlite as a dependency
 #[macro_export]
+
 macro_rules! impl_to_sql_via_as_ref {
     ($s: ty) => {
         impl ::rusqlite::ToSql for $s {
             fn to_sql(&self) -> ::rusqlite::Result<::rusqlite::types::ToSqlOutput<'_>> {
+
                 Ok(::rusqlite::types::ToSqlOutput::Borrowed(
                     self.as_ref().into(),
                 ))
@@ -271,10 +312,12 @@ macro_rules! impl_to_sql_via_as_ref {
 
 /// Helper macro for implementing ToSql, when using rusqlite as a dependency
 #[macro_export]
+
 macro_rules! impl_to_sql_via_display {
     ($s: ty) => {
         impl ::rusqlite::ToSql for $s {
             fn to_sql(&self) -> ::rusqlite::Result<::rusqlite::types::ToSqlOutput<'_>> {
+
                 Ok(::rusqlite::types::ToSqlOutput::Owned(
                     self.to_string().into(),
                 ))
@@ -286,9 +329,13 @@ macro_rules! impl_to_sql_via_display {
 /// 10MB of entropy free for the taking.
 /// Useful for initializing arbitrary::Unstructured data
 #[cfg(any(test, feature = "test_utils"))]
+
 pub static NOISE: once_cell::sync::Lazy<Vec<u8>> = once_cell::sync::Lazy::new(|| {
+
     use rand::Rng;
+
     let mut rng = rand::thread_rng();
+
     std::iter::repeat_with(|| rng.gen())
         .take(10_000_000)
         .collect()

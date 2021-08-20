@@ -15,6 +15,7 @@ use holochain_serialized_bytes::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Data with an optional validation status.
+
 pub struct Judged<T> {
     /// The data that the status applies to.
     pub data: T,
@@ -24,7 +25,9 @@ pub struct Judged<T> {
 
 impl<T> Judged<T> {
     /// Create a Judged item with a given ValidationStatus
+
     pub fn new(data: T, status: ValidationStatus) -> Self {
+
         Self {
             data,
             status: Some(status),
@@ -32,12 +35,16 @@ impl<T> Judged<T> {
     }
 
     /// Create a Judged item where it's ok to not have a status.
+
     pub fn raw(data: T, status: Option<ValidationStatus>) -> Self {
+
         Self { data, status }
     }
 
     /// Create a valid status of T.
+
     pub fn valid(data: T) -> Self {
+
         Self {
             data,
             status: Some(ValidationStatus::Valid),
@@ -45,20 +52,26 @@ impl<T> Judged<T> {
     }
 
     /// Create a status where T hasn't been validated.
+
     pub fn none(data: T) -> Self {
+
         Self { data, status: None }
     }
 
     /// Move out the inner data type
+
     pub fn into_data(self) -> T {
+
         self.data
     }
 
     /// Map this type to another judged type with the same status.
+
     pub fn map<B, F>(self, f: F) -> Judged<B>
     where
         F: FnOnce(T) -> B,
     {
+
         Judged::<B> {
             data: f(self.data),
             status: self.status,
@@ -67,15 +80,19 @@ impl<T> Judged<T> {
 }
 
 /// Data that requires a validation status.
+
 pub trait HasValidationStatus {
     /// The type of the inner data
+
     type Data;
 
     /// Get the status of a some data.
     /// None means this data has not been validated yet.
+
     fn validation_status(&self) -> Option<ValidationStatus>;
 
     /// The data which has the validation status
+
     fn data(&self) -> &Self::Data;
 }
 
@@ -83,22 +100,26 @@ impl<T> HasValidationStatus for Judged<T> {
     type Data = T;
 
     fn validation_status(&self) -> Option<ValidationStatus> {
+
         self.status
     }
 
     fn data(&self) -> &Self::Data {
+
         &self.data
     }
 }
 
 impl<T> From<(T, Option<ValidationStatus>)> for Judged<T> {
     fn from((data, status): (T, Option<ValidationStatus>)) -> Self {
+
         Self { data, status }
     }
 }
 
 impl<T> From<Judged<T>> for (T, Option<ValidationStatus>) {
     fn from(judged: Judged<T>) -> (T, Option<ValidationStatus>) {
+
         (judged.data, judged.status)
     }
 }

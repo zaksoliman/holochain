@@ -15,6 +15,7 @@ use holochain_zome_types::ZomeName;
     derive_builder::Builder,
 )]
 #[serde(rename_all = "snake_case")]
+
 pub struct DnaManifestV1 {
     /// The friendly "name" of a Holochain DNA.
     pub(crate) name: String,
@@ -34,6 +35,7 @@ pub struct DnaManifestV1 {
 /// Manifest for an individual Zome
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+
 pub struct ZomeManifest {
     pub(crate) name: ZomeName,
     pub(crate) hash: Option<WasmHashB64>,
@@ -42,11 +44,14 @@ pub struct ZomeManifest {
 }
 
 /// Alias for a suitable representation of zome location
+
 pub type ZomeLocation = mr_bundle::Location;
 
 impl ZomeManifest {
     /// Accessor
+
     pub fn location(&self) -> &ZomeLocation {
+
         &self.location
     }
 }

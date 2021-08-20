@@ -5,6 +5,7 @@ use holochain_util::ffs;
 
 /// HcBundleError type.
 #[derive(Debug, thiserror::Error)]
+
 pub enum HcBundleError {
     /// std::io::Error
     #[error("IO error: {0}")]
@@ -38,4 +39,5 @@ pub enum HcBundleError {
 }
 
 /// HcBundle Result type.
+
 pub type HcBundleResult<T> = Result<T, HcBundleError>;

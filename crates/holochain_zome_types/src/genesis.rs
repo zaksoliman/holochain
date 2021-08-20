@@ -10,11 +10,13 @@ use holo_hash::AgentPubKey;
 use holochain_serialized_bytes::prelude::*;
 
 /// App-specific payload for proving membership in the membrane of the app
+
 pub type MembraneProof = SerializedBytes;
 
 /// Data passed into the genesis_self_check callback for verifying the initial
 /// chain entries
 #[derive(Clone, Debug, Serialize, Deserialize, SerializedBytes)]
+
 pub struct GenesisSelfCheckData {
     /// The Dna header (1st element)
     pub dna_def: DnaDef,

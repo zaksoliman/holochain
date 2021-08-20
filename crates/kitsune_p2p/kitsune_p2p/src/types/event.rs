@@ -8,6 +8,7 @@ use std::{collections::HashSet, sync::Arc, time::SystemTime};
 /// Also get the start and end times for ops within a time window
 /// up to a maximum number.
 #[derive(Debug)]
+
 pub struct QueryOpHashesEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -23,6 +24,7 @@ pub struct QueryOpHashesEvt {
 
 /// Gather all op-hash data for a list of op-hashes from our implementor.
 #[derive(Debug)]
+
 pub struct FetchOpDataEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -34,6 +36,7 @@ pub struct FetchOpDataEvt {
 
 /// Request that our implementor sign some data on behalf of an agent.
 #[derive(Debug)]
+
 pub struct SignNetworkDataEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -46,6 +49,7 @@ pub struct SignNetworkDataEvt {
 
 /// Store the AgentInfo as signed by the agent themselves.
 #[derive(Debug)]
+
 pub struct PutAgentInfoSignedEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -55,6 +59,7 @@ pub struct PutAgentInfoSignedEvt {
 
 /// Get agent info for a single agent, as previously signed and put.
 #[derive(Debug)]
+
 pub struct GetAgentInfoSignedEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -64,6 +69,7 @@ pub struct GetAgentInfoSignedEvt {
 
 /// Get agent info which satisfies a query.
 #[derive(Debug)]
+
 pub struct QueryAgentInfoSignedEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -73,6 +79,7 @@ pub struct QueryAgentInfoSignedEvt {
 
 /// Get agent info which satisfies a query.
 #[derive(Debug)]
+
 pub struct QueryGossipAgentsEvt {
     /// The "space" context.
     pub space: KSpace,
@@ -88,6 +95,7 @@ pub struct QueryGossipAgentsEvt {
 
 /// A single datum of metric info about an Agent, to be recorded by the client.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, derive_more::Display)]
+
 pub enum MetricKind {
     /// Our fast gossip loop synced this node up to this timestamp.
     /// The next quick loop can sync from this timestamp forward.
@@ -105,6 +113,7 @@ pub enum MetricKind {
 
 /// A single row in the metrics database
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub struct MetricDatum {
     /// The agent this event is about
     pub agent: KAgent,
@@ -116,8 +125,10 @@ pub struct MetricDatum {
 
 /// The ordering is defined as such to facilitate in-memory metric store
 /// implementations such that the earliest and latest metrics can be easily obtained.
+
 impl PartialOrd for MetricDatum {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+
         match self.timestamp.cmp(&other.timestamp) {
             std::cmp::Ordering::Equal => Some(self.agent.cmp(&other.agent)),
             o => Some(o),
@@ -127,12 +138,14 @@ impl PartialOrd for MetricDatum {
 
 impl Ord for MetricDatum {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+
         self.partial_cmp(other).unwrap()
     }
 }
 
 /// Different kinds of queries about metric data
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub enum MetricQuery {
     /// Filters for the "last sync" query.
     LastSync {
@@ -148,6 +161,7 @@ pub enum MetricQuery {
 
 /// Corresponding response to `MetricQuery`
 #[derive(Clone, Debug, PartialEq, Eq)]
+
 pub enum MetricQueryAnswer {
     /// The last sync time for all agents.
     LastSync(Option<std::time::SystemTime>),
@@ -156,19 +170,28 @@ pub enum MetricQueryAnswer {
 }
 
 /// A UNIX timestamp, measured in milliseconds
+
 pub type TimestampMs = u64;
 
 /// A range of timestamps, measured in milliseconds
+
 pub type TimeWindowMs = std::ops::Range<TimestampMs>;
 
 /// A time window which covers all of recordable time
+
 pub fn full_time_window() -> TimeWindowMs {
+
     TimestampMs::MIN..TimestampMs::MAX
 }
+
 type KSpace = Arc<super::KitsuneSpace>;
+
 type KAgent = Arc<super::KitsuneAgent>;
+
 type KOpHash = Arc<super::KitsuneOpHash>;
+
 type Payload = Vec<u8>;
+
 type Ops = Vec<(KOpHash, Payload)>;
 
 ghost_actor::ghost_chan! {
@@ -222,4 +245,5 @@ ghost_actor::ghost_chan! {
 }
 
 /// Receiver type for incoming connection events.
+
 pub type KitsuneP2pEventReceiver = futures::channel::mpsc::Receiver<KitsuneP2pEvent>;

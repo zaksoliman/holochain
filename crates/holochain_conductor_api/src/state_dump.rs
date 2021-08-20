@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
+
 pub struct JsonDump {
     pub peer_dump: P2pAgentsDump,
     pub source_chain_dump: SourceChainJsonDump,
@@ -15,6 +16,7 @@ pub struct JsonDump {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// A collection of many cells dumps for easy viewing.
 /// Use display to see a nice printout.
+
 pub struct IntegrationStateDumps(pub Vec<IntegrationStateDump>);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,6 +24,7 @@ pub struct IntegrationStateDumps(pub Vec<IntegrationStateDump>);
 /// they are currently.
 /// Ops start in the validation limbo then proceed
 /// to the integration limbo then finally are integrated.
+
 pub struct IntegrationStateDump {
     /// Ops in validation limbo awaiting sys
     /// or app validation.
@@ -35,6 +38,7 @@ pub struct IntegrationStateDump {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// State dump of all the peer info
+
 pub struct P2pAgentsDump {
     /// The info of this agents cell.
     pub this_agent_info: Option<AgentInfoDump>,
@@ -50,6 +54,7 @@ pub struct P2pAgentsDump {
 /// Agent info dump with the agent,
 /// space, signed time, expires in and
 /// urls printed in a pretty way.
+
 pub struct AgentInfoDump {
     pub kitsune_agent: Arc<kitsune_p2p::KitsuneAgent>,
     pub kitsune_space: Arc<kitsune_p2p::KitsuneSpace>,
@@ -58,14 +63,19 @@ pub struct AgentInfoDump {
 
 impl std::fmt::Display for JsonDump {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         let num_other_peers = self.peer_dump.peers.len();
+
         let s = &self.source_chain_dump;
+
         writeln!(f, "--- Cell State Dump Summary ---")?;
+
         writeln!(
             f,
             "Number of other peers in p2p store: {},",
             num_other_peers
         )?;
+
         writeln!(
             f,
             "Elements authored: {}, Ops published: {}",
@@ -77,16 +87,21 @@ impl std::fmt::Display for JsonDump {
 
 impl std::fmt::Display for IntegrationStateDumps {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         write!(f, "[")?;
+
         for i in &self.0 {
+
             write!(f, "{},", i)?;
         }
+
         writeln!(f, "]")
     }
 }
 
 impl std::fmt::Display for IntegrationStateDump {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         writeln!(
             f,
             "({},{},{})",
@@ -97,25 +112,38 @@ impl std::fmt::Display for IntegrationStateDump {
 
 impl std::fmt::Display for AgentInfoDump {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         writeln!(f, "space: {:?}", self.kitsune_space)?;
+
         writeln!(f, "agent: {:?}", self.kitsune_agent)?;
+
         writeln!(f, "{}", self.dump)
     }
 }
+
 impl std::fmt::Display for P2pAgentsDump {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         if let Some(this_agent) = &self.this_agent {
+
             writeln!(f, "This Agent {:?} is {:?}", this_agent.0, this_agent.1)?;
         }
+
         if let Some(this_dna) = &self.this_dna {
+
             writeln!(f, "This DNA {:?} is {:?}", this_dna.0, this_dna.1)?;
         }
+
         if let Some(this_agent_info) = &self.this_agent_info {
+
             writeln!(f, "This agents info: {}", this_agent_info)?;
         }
+
         for peer in &self.peers {
+
             writeln!(f, "{}", peer)?;
         }
+
         Ok(())
     }
 }

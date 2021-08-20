@@ -4,6 +4,7 @@ use std::{collections::HashSet, path::PathBuf};
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "manifest_version")]
 #[allow(missing_docs)]
+
 enum TestManifest {
     #[serde(rename = "1")]
     #[serde(alias = "\"1\"")]
@@ -12,55 +13,73 @@ enum TestManifest {
 
 impl Manifest for TestManifest {
     fn locations(&self) -> Vec<Location> {
+
         match self {
             Self::V1(mani) => mani.things.iter().map(|b| b.location.clone()).collect(),
         }
     }
 
     #[cfg(feature = "packing")]
+
     fn path() -> PathBuf {
+
         "test-manifest.yaml".into()
     }
 
     #[cfg(feature = "packing")]
+
     fn bundle_extension() -> &'static str {
+
         unimplemented!()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+
 struct ManifestV1 {
     name: String,
     things: Vec<ThingManifest>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+
 struct ThingManifest {
     #[serde(flatten)]
     location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+
 struct Thing(String);
 
 #[tokio::test]
+
 async fn resource_resolution() {
+
     let dir = tempdir::TempDir::new("mr_bundle").unwrap();
 
     // Write a ResourceBytes to disk
     let local_thing = Thing("local".into());
+
     let local_thing_encoded = mr_bundle::encode(&local_thing).unwrap();
+
     let local_path = dir.path().join("deeply/nested/local.thing");
+
     std::fs::create_dir_all(local_path.parent().unwrap()).unwrap();
+
     std::fs::write(&local_path, mr_bundle::encode(&local_thing).unwrap()).unwrap();
 
     let bundled_thing = Thing("bundled".into());
+
     let bundled_thing_encoded = mr_bundle::encode(&bundled_thing).unwrap();
+
     let bundled_path = PathBuf::from("another/nested/bundled.thing");
 
     // Create a Manifest that references these resources
     let bundled_location = Location::Bundled(bundled_path.clone());
+
     let local_location = Location::Path(local_path.clone());
+
     let manifest = TestManifest::V1(ManifestV1 {
         name: "name".to_string(),
         things: vec![
@@ -79,6 +98,7 @@ async fn resource_resolution() {
         vec![(bundled_path.clone(), bundled_thing_encoded.clone())],
     )
     .unwrap();
+
     assert_eq!(
         bundle
             .bundled_resources()
@@ -102,11 +122,14 @@ async fn resource_resolution() {
 
     // Ensure that the bundle is serializable and writable
     let bundled_path = dir.path().join("test.bundle");
+
     let bundle_bytes = bundle.encode().unwrap();
+
     std::fs::write(&bundled_path, bundle_bytes).unwrap();
 
     // Ensure that it is also readable and deserializable
     let decoded_bundle: Bundle<_> = Bundle::decode(&std::fs::read(bundled_path).unwrap()).unwrap();
+
     assert_eq!(bundle, decoded_bundle);
 
     // Ensure that bundle writing and reading are inverses
@@ -114,30 +137,41 @@ async fn resource_resolution() {
         .write_to_file(&dir.path().join("bundle.bundle"))
         .await
         .unwrap();
+
     let bundle_file = Bundle::read_from_file(&dir.path().join("bundle.bundle"))
         .await
         .unwrap();
+
     assert_eq!(bundle, bundle_file);
 }
 
 #[cfg(feature = "packing")]
 #[tokio::test]
+
 async fn unpack_roundtrip() {
+
     let dir = tempdir::TempDir::new("mr_bundle").unwrap();
 
     // Write a ResourceBytes to disk
     let local_thing = Thing("local".into());
+
     let local_path = dir.path().join("deeply/nested/local.thing");
+
     std::fs::create_dir_all(local_path.parent().unwrap()).unwrap();
+
     std::fs::write(&local_path, mr_bundle::encode(&local_thing).unwrap()).unwrap();
 
     let bundled_thing = Thing("bundled".into());
+
     let bundled_thing_encoded = mr_bundle::encode(&bundled_thing).unwrap();
+
     let bundled_path = PathBuf::from("another/nested/bundled.thing");
 
     // Create a Manifest that references these resources
     let bundled_location = Location::Bundled(bundled_path.clone());
+
     let local_location = Location::Path(local_path.clone());
+
     let manifest = TestManifest::V1(ManifestV1 {
         name: "name".to_string(),
         things: vec![
@@ -159,6 +193,7 @@ async fn unpack_roundtrip() {
         unpacked_dir.clone(),
     )
     .unwrap();
+
     assert_eq!(
         bundle
             .bundled_resources()
@@ -171,7 +206,9 @@ async fn unpack_roundtrip() {
     bundle.unpack_yaml(&unpacked_dir, false).await.unwrap();
 
     assert!(unpacked_dir.join("test-manifest.yaml").is_file());
+
     assert!(unpacked_dir.join("another/nested/bundled.thing").is_file());
+
     assert!(!unpacked_dir.join("deeply/nested/local.thing").exists());
 
     let reconstructed = Bundle::<TestManifest>::pack_yaml(&unpacked_dir.join("test-manifest.yaml"))

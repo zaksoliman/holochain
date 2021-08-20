@@ -15,6 +15,7 @@ use std::sync::Mutex;
 mod websocket;
 
 static TOKIO_RUNTIME: Lazy<Mutex<tokio::runtime::Runtime>> = Lazy::new(|| {
+
     Mutex::new(
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -25,6 +26,7 @@ static TOKIO_RUNTIME: Lazy<Mutex<tokio::runtime::Runtime>> = Lazy::new(|| {
 
 static REAL_RIBOSOME: Lazy<Mutex<holochain::core::ribosome::real_ribosome::RealRibosome>> =
     Lazy::new(|| {
+
         Mutex::new(
             holochain::fixt::RealRibosomeFixturator::new(holochain::fixt::curve::Zomes(vec![
                 TestWasm::Bench.into(),
@@ -35,6 +37,7 @@ static REAL_RIBOSOME: Lazy<Mutex<holochain::core::ribosome::real_ribosome::RealR
     });
 
 static CELL_ID: Lazy<Mutex<holochain_zome_types::cell::CellId>> = Lazy::new(|| {
+
     Mutex::new(
         holochain_types::fixt::CellIdFixturator::new(Unpredictable)
             .next()
@@ -51,12 +54,14 @@ static AGENT_KEY: Lazy<Mutex<AgentPubKey>> =
 static HOST_ACCESS_FIXTURATOR: Lazy<
     Mutex<holochain::fixt::ZomeCallHostAccessFixturator<Unpredictable>>,
 > = Lazy::new(|| {
+
     Mutex::new(holochain::fixt::ZomeCallHostAccessFixturator::new(
         Unpredictable,
     ))
 });
 
 pub fn wasm_call_n(c: &mut Criterion) {
+
     let mut group = c.benchmark_group("wasm_call_n");
 
     for n in vec![
@@ -64,16 +69,22 @@ pub fn wasm_call_n(c: &mut Criterion) {
         1_000,     // 1 kb
         1_000_000, // 1 mb
     ] {
+
         group.throughput(Throughput::Bytes(n as _));
 
         group.bench_function(BenchmarkId::from_parameter(n), |b| {
+
             // bytes
             let bytes = vec![0; n];
+
             let _g = TOKIO_RUNTIME.lock().unwrap().enter();
+
             let ha = HOST_ACCESS_FIXTURATOR.lock().unwrap().next().unwrap();
 
             b.iter(|| {
+
                 let zome: Zome = TestWasm::Bench.into();
+
                 let i = ZomeCallInvocation {
                     cell_id: CELL_ID.lock().unwrap().clone(),
                     zome: zome.clone(),
@@ -82,6 +93,7 @@ pub fn wasm_call_n(c: &mut Criterion) {
                     payload: ExternIO::encode(&bytes).unwrap(),
                     provenance: AGENT_KEY.lock().unwrap().clone(),
                 };
+
                 REAL_RIBOSOME
                     .lock()
                     .unwrap()

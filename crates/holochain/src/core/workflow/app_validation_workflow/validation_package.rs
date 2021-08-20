@@ -17,6 +17,7 @@ pub async fn get_as_author_sub_chain(
     app_entry_type: AppEntryType,
     source_chain: &SourceChain,
 ) -> SourceChainResult<ValidationPackage> {
+
     // Collect and return the sub chain
     let elements = source_chain
         .query(
@@ -26,6 +27,7 @@ pub async fn get_as_author_sub_chain(
                 .sequence_range(0..header_seq),
         )
         .await?;
+
     Ok(ValidationPackage::new(elements))
 }
 
@@ -33,6 +35,7 @@ pub async fn get_as_author_full(
     header_seq: u32,
     source_chain: &SourceChain,
 ) -> SourceChainResult<ValidationPackage> {
+
     let elements = source_chain
         .query(
             ChainQueryFilter::default()
@@ -40,6 +43,7 @@ pub async fn get_as_author_full(
                 .sequence_range(0..header_seq),
         )
         .await?;
+
     Ok(ValidationPackage::new(elements))
 }
 
@@ -49,8 +53,11 @@ pub fn get_as_author_custom(
     network: &HolochainP2pCell,
     workspace_lock: HostFnWorkspace,
 ) -> RibosomeResult<Option<ValidationPackageResult>> {
+
     let header = header_hashed.as_content();
+
     let access = ValidationPackageHostAccess::new(workspace_lock, network.clone());
+
     let app_entry_type = match header.entry_type() {
         Some(EntryType::App(a)) => a.clone(),
         _ => return Ok(None),
@@ -63,10 +70,12 @@ pub fn get_as_author_custom(
     {
         Some(zome_tuple) => zome_tuple.clone().into(),
         None => {
+
             warn!(
                 msg = "Tried to get custom validation package for header with invalid zome_id",
                 ?header
             );
+
             return Ok(None);
         }
     };

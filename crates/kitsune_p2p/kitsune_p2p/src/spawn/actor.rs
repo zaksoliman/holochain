@@ -26,14 +26,20 @@ use std::sync::Arc;
 mod bootstrap;
 mod discover;
 mod space;
+
 use ghost_actor::dependencies::tracing;
 use space::*;
 
 type EvtRcv = futures::channel::mpsc::Receiver<KitsuneP2pEvent>;
+
 type KSpace = Arc<KitsuneSpace>;
+
 type KAgent = Arc<KitsuneAgent>;
+
 type KBasis = Arc<KitsuneBasis>;
+
 type WireConHnd = Tx2ConHnd<wire::Wire>;
+
 type Payload = Box<[u8]>;
 
 ghost_actor::ghost_chan! {
@@ -87,6 +93,7 @@ impl KitsuneP2pActor {
         internal_sender: ghost_actor::GhostSender<Internal>,
         evt_sender: futures::channel::mpsc::Sender<KitsuneP2pEvent>,
     ) -> KitsuneP2pResult<Self> {
+
         crate::types::metrics::init();
 
         let tx2_conf = config.to_tx2().map_err(KitsuneP2pError::other)?;
@@ -94,9 +101,13 @@ impl KitsuneP2pActor {
         // set up our backend based on config
         let (f, bind_to) = match tx2_conf.backend {
             KitsuneP2pTx2Backend::Mem => {
+
                 let mut conf = MemConfig::default();
+
                 conf.tls = Some(tls_config.clone());
+
                 conf.tuning_params = Some(config.tuning_params.clone());
+
                 (
                     tx2_mem_adapter(conf)
                         .await
@@ -105,9 +116,13 @@ impl KitsuneP2pActor {
                 )
             }
             KitsuneP2pTx2Backend::Quic { bind_to } => {
+
                 let mut conf = QuicConfig::default();
+
                 conf.tls = Some(tls_config.clone());
+
                 conf.tuning_params = Some(config.tuning_params.clone());
+
                 (
                     tx2_quic_adapter(conf)
                         .await
@@ -122,10 +137,13 @@ impl KitsuneP2pActor {
 
         // wrap in proxy
         let mut conf = kitsune_p2p_proxy::tx2::ProxyConfig::default();
+
         conf.tuning_params = Some(config.tuning_params.clone());
+
         let f = tx2_proxy(f, conf)?;
 
         let metrics = Tx2ApiMetrics::default().set_write_len(|d, l| {
+
             let t = match d {
                 "Wire::Failure" => KitsuneMetrics::Failure,
                 "Wire::Call" => KitsuneMetrics::Call,
@@ -139,6 +157,7 @@ impl KitsuneP2pActor {
                 "Wire::PeerQueryResp" => KitsuneMetrics::PeerQueryResp,
                 _ => return,
             };
+
             KitsuneMetrics::count(t, l);
         });
 
@@ -156,29 +175,42 @@ impl KitsuneP2pActor {
 
         // if we should be proxying - set up the proxy connect retry / proxy addr
         let this_addr = if let Some(use_proxy) = tx2_conf.use_proxy {
+
             let local = ep_hnd.local_addr().map_err(KitsuneP2pError::other)?;
+
             let this_digest = ProxyUrl::from(local.as_str()).digest();
+
             let proxy_url = ProxyUrl::from(use_proxy.as_str());
 
             // spawn logic that will attempt to keep us connected to the proxy
             let ep_hnd = ep_hnd.clone();
+
             let tuning_params = config.tuning_params.clone();
+
             tokio::task::spawn(async move {
+
                 let mut con: Option<Tx2ConHnd<wire::Wire>> = None;
+
                 loop {
+
                     // see if we need a new connection to the proxy
                     if con.is_none() || con.as_ref().unwrap().is_closed() {
+
                         if ep_hnd.is_closed() {
+
                             break;
                         }
+
                         match ep_hnd
                             .get_connection(use_proxy.clone(), tuning_params.implicit_timeout())
                             .await
                         {
                             Ok(c) => {
+
                                 con = Some(c);
                             }
                             Err(e) => {
+
                                 tracing::warn!("failure to establish proxy connection: {:?}", e);
                             }
                         }
@@ -187,6 +219,7 @@ impl KitsuneP2pActor {
                     // this is very naive... just running every 5 seconds
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
+
                 tracing::warn!("proxy con refresh loop shutdown");
             });
 
@@ -195,23 +228,35 @@ impl KitsuneP2pActor {
                 .as_str()
                 .into()
         } else {
+
             ep_hnd.local_addr().map_err(KitsuneP2pError::other)?
         };
 
         tracing::info!("this_addr: {}", this_addr);
 
         let i_s = internal_sender.clone();
+
         tokio::task::spawn({
+
             let evt_sender = evt_sender.clone();
+
             let tuning_params = config.tuning_params.clone();
+
             async move {
+
                 ep.for_each_concurrent(tuning_params.concurrent_limit_per_thread, move |event| {
+
                     let evt_sender = evt_sender.clone();
+
                     let tuning_params = tuning_params.clone();
+
                     let i_s = i_s.clone();
+
                     async move {
+
                         macro_rules! resp {
                             ($r:expr, $e:expr) => {
+
                                 // this can only error as channel closed
                                 // it would be noise to output tracing errors
                                 let _ = $r.respond($e, tuning_params.implicit_timeout()).await;
@@ -219,10 +264,13 @@ impl KitsuneP2pActor {
                         }
 
                         let evt_sender = &evt_sender;
+
                         use tx2_api::Tx2EpEvent::*;
+
                         #[allow(clippy::single_match)]
                         match event {
                             IncomingRequest(Tx2EpIncomingRequest { data, respond, .. }) => {
+
                                 match data {
                                     wire::Wire::Call(wire::Call {
                                         space,
@@ -231,19 +279,26 @@ impl KitsuneP2pActor {
                                         data,
                                         ..
                                     }) => {
+
                                         let res = match evt_sender
                                             .call(space, to_agent, from_agent, data.into())
                                             .await
                                         {
                                             Err(err) => {
+
                                                 let reason = format!("{:?}", err);
+
                                                 let fail = wire::Wire::failure(reason);
+
                                                 resp!(respond, fail);
+
                                                 return;
                                             }
                                             Ok(r) => r,
                                         };
+
                                         let resp = wire::Wire::call_resp(res.into());
+
                                         resp!(respond, resp);
                                     }
                                     wire::Wire::PeerGet(wire::PeerGet { space, agent }) => {
@@ -254,17 +309,23 @@ impl KitsuneP2pActor {
                                             })
                                             .await
                                         {
+
                                             let resp = wire::Wire::peer_get_resp(agent_info_signed);
+
                                             resp!(respond, resp);
                                         } else {
+
                                             let resp = wire::Wire::failure("no such agent".into());
+
                                             resp!(respond, resp);
                                         }
                                     }
                                     wire::Wire::PeerQuery(wire::PeerQuery { space, basis_loc }) => {
+
                                         // this *does* go over the network...
                                         // so we don't want it to be too many
                                         const LIMIT: u32 = 8;
+
                                         match evt_sender
                                             .query_agent_info_signed_near_basis(
                                                 space, basis_loc, LIMIT,
@@ -272,14 +333,18 @@ impl KitsuneP2pActor {
                                             .await
                                         {
                                             Ok(list) if !list.is_empty() => {
+
                                                 let resp = wire::Wire::peer_query_resp(list);
+
                                                 resp!(respond, resp);
                                             }
                                             res => {
+
                                                 let resp = wire::Wire::failure(format!(
                                                     "error getting agents: {:?}",
                                                     res
                                                 ));
+
                                                 resp!(respond, resp);
                                             }
                                         }
@@ -296,6 +361,7 @@ impl KitsuneP2pActor {
                                     mod_cnt,
                                     data,
                                 }) => {
+
                                     // one might be tempted to notify here
                                     // as in Broadcast below... but we
                                     // notify all relevent agents inside
@@ -307,6 +373,7 @@ impl KitsuneP2pActor {
                                         )
                                         .await
                                     {
+
                                         tracing::warn!(
                                             ?err,
                                             "failed to handle incoming delegate broadcast"
@@ -319,10 +386,12 @@ impl KitsuneP2pActor {
                                     data,
                                     ..
                                 }) => {
+
                                     if let Err(err) = evt_sender
                                         .notify(space, to_agent.clone(), to_agent, data.into())
                                         .await
                                     {
+
                                         tracing::warn!(?err, "error processing incoming broadcast");
                                     }
                                 }
@@ -331,11 +400,15 @@ impl KitsuneP2pActor {
                                     data,
                                     module,
                                 }) => {
+
                                     let data: Vec<u8> = data.into();
+
                                     let data: Box<[u8]> = data.into_boxed_slice();
+
                                     if let Err(e) =
                                         i_s.incoming_gossip(space, con, data, module).await
                                     {
+
                                         tracing::warn!("failed to handle incoming gossip: {:?}", e);
                                     }
                                 }
@@ -346,11 +419,13 @@ impl KitsuneP2pActor {
                     }
                 })
                 .await;
+
                 tracing::warn!("KitsuneP2p tx2:ep poll shutdown");
             }
         });
 
         let bandwidth_throttles = BandwidthThrottles::new(&config.tuning_params);
+
         let parallel_notify_permit = Arc::new(tokio::sync::Semaphore::new(
             config.tuning_params.concurrent_limit_per_thread,
         ));
@@ -370,16 +445,24 @@ impl KitsuneP2pActor {
 }
 
 use ghost_actor::dependencies::must_future::MustBoxFuture;
+
 impl ghost_actor::GhostControlHandler for KitsuneP2pActor {
     fn handle_ghost_actor_shutdown(mut self) -> MustBoxFuture<'static, ()> {
+
         use futures::sink::SinkExt;
         use ghost_actor::GhostControlSender;
+
         async move {
+
             // this is a curtesy, ok if fails
             let _ = self.evt_sender.close().await;
+
             self.ep_hnd.close(500, "").await;
+
             for (_, space) in self.spaces.into_iter() {
+
                 let (space, _) = space.get().await;
+
                 let _ = space.ghost_actor_shutdown_immediate().await;
             }
         }
@@ -395,9 +478,13 @@ impl InternalHandler for KitsuneP2pActor {
         &mut self,
         recv: futures::channel::mpsc::Receiver<KitsuneP2pEvent>,
     ) -> InternalHandlerResult<()> {
+
         let f = self.channel_factory.attach_receiver(recv);
+
         Ok(async move {
+
             f.await?;
+
             Ok(())
         }
         .boxed()
@@ -413,18 +500,24 @@ impl InternalHandler for KitsuneP2pActor {
         mod_cnt: u32,
         data: crate::wire::WireData,
     ) -> InternalHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => {
+
                 tracing::warn!(
                     "received delegate_broadcast for unhandled space: {:?}",
                     space
                 );
+
                 return unit_ok_fut();
             }
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (_, space_inner) = space_sender.await;
+
             space_inner
                 .incoming_delegate_broadcast(space, basis, to_agent, mod_idx, mod_cnt, data)
                 .await
@@ -440,15 +533,21 @@ impl InternalHandler for KitsuneP2pActor {
         data: Box<[u8]>,
         module_type: GossipModuleType,
     ) -> InternalHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => {
+
                 tracing::warn!("received gossip for unhandled space: {:?}", space);
+
                 return unit_ok_fut();
             }
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (_, space_inner) = space_sender.await;
+
             space_inner
                 .incoming_gossip(space, con, data, module_type)
                 .await
@@ -465,6 +564,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: crate::event::PutAgentInfoSignedEvt,
     ) -> KitsuneP2pEventHandlerResult<()> {
+
         Ok(self.evt_sender.put_agent_info_signed(input))
     }
 
@@ -472,6 +572,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: crate::event::GetAgentInfoSignedEvt,
     ) -> KitsuneP2pEventHandlerResult<Option<crate::types::agent_store::AgentInfoSigned>> {
+
         Ok(self.evt_sender.get_agent_info_signed(input))
     }
 
@@ -479,6 +580,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: crate::event::QueryAgentInfoSignedEvt,
     ) -> KitsuneP2pEventHandlerResult<Vec<crate::types::agent_store::AgentInfoSigned>> {
+
         Ok(self.evt_sender.query_agent_info_signed(input))
     }
 
@@ -491,6 +593,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
             kitsune_p2p_types::dht_arc::ArcInterval,
         )>,
     > {
+
         Ok(self.evt_sender.query_gossip_agents(input))
     }
 
@@ -500,6 +603,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         basis_loc: u32,
         limit: u32,
     ) -> KitsuneP2pEventHandlerResult<Vec<crate::types::agent_store::AgentInfoSigned>> {
+
         Ok(self
             .evt_sender
             .query_agent_info_signed_near_basis(space, basis_loc, limit))
@@ -510,10 +614,12 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         space: Arc<KitsuneSpace>,
         dht_arc: kitsune_p2p_types::dht_arc::DhtArc,
     ) -> KitsuneP2pEventHandlerResult<kitsune_p2p_types::dht_arc::PeerDensity> {
+
         Ok(self.evt_sender.query_peer_density(space, dht_arc))
     }
 
     fn handle_put_metric_datum(&mut self, datum: MetricDatum) -> KitsuneP2pEventHandlerResult<()> {
+
         Ok(self.evt_sender.put_metric_datum(datum))
     }
 
@@ -521,6 +627,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         query: MetricQuery,
     ) -> KitsuneP2pEventHandlerResult<MetricQueryAnswer> {
+
         Ok(self.evt_sender.query_metrics(query))
     }
 
@@ -531,6 +638,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         from_agent: Arc<KitsuneAgent>,
         payload: Vec<u8>,
     ) -> KitsuneP2pEventHandlerResult<Vec<u8>> {
+
         Ok(self.evt_sender.call(space, to_agent, from_agent, payload))
     }
 
@@ -541,6 +649,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         from_agent: Arc<KitsuneAgent>,
         payload: Vec<u8>,
     ) -> KitsuneP2pEventHandlerResult<()> {
+
         Ok(self.evt_sender.notify(space, to_agent, from_agent, payload))
     }
 
@@ -550,6 +659,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         to_agent: Arc<KitsuneAgent>,
         ops: Vec<(Arc<KitsuneOpHash>, Vec<u8>)>,
     ) -> KitsuneP2pEventHandlerResult<()> {
+
         Ok(self.evt_sender.gossip(space, to_agent, ops))
     }
 
@@ -557,6 +667,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: FetchOpDataEvt,
     ) -> KitsuneP2pEventHandlerResult<Vec<(Arc<KitsuneOpHash>, Vec<u8>)>> {
+
         Ok(self.evt_sender.fetch_op_data(input))
     }
 
@@ -564,6 +675,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: QueryOpHashesEvt,
     ) -> KitsuneP2pEventHandlerResult<Option<(Vec<Arc<KitsuneOpHash>>, TimeWindowMs)>> {
+
         Ok(self.evt_sender.query_op_hashes(input))
     }
 
@@ -571,6 +683,7 @@ impl KitsuneP2pEventHandler for KitsuneP2pActor {
         &mut self,
         input: SignNetworkDataEvt,
     ) -> KitsuneP2pEventHandlerResult<KitsuneSignature> {
+
         Ok(self.evt_sender.sign_network_data(input))
     }
 }
@@ -579,7 +692,9 @@ impl ghost_actor::GhostHandler<KitsuneP2p> for KitsuneP2pActor {}
 
 impl KitsuneP2pHandler for KitsuneP2pActor {
     fn handle_list_transport_bindings(&mut self) -> KitsuneP2pHandlerResult<Vec<url2::Url2>> {
+
         let this_addr = vec![self.this_addr.clone()];
+
         Ok(async move { Ok(this_addr) }.boxed().into())
     }
 
@@ -588,16 +703,25 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         space: Arc<KitsuneSpace>,
         agent: Arc<KitsuneAgent>,
     ) -> KitsuneP2pHandlerResult<()> {
+
         let internal_sender = self.internal_sender.clone();
+
         let space2 = space.clone();
+
         let this_addr = self.this_addr.clone();
+
         let ep_hnd = self.ep_hnd.clone();
+
         let config = Arc::clone(&self.config);
+
         let bandwidth_throttles = self.bandwidth_throttles.clone();
+
         let parallel_notify_permit = self.parallel_notify_permit.clone();
+
         let space_sender = match self.spaces.entry(space.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(AsyncLazy::new(async move {
+
                 let (send, send_inner, evt_recv) = spawn_space(
                     space2,
                     this_addr,
@@ -608,16 +732,22 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
                 )
                 .await
                 .expect("cannot fail to create space");
+
                 internal_sender
                     .register_space_event_handler(evt_recv)
                     .await
                     .expect("FAIL");
+
                 (send, send_inner)
             })),
         };
+
         let space_sender = space_sender.get();
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.join(space, agent).await
         }
         .boxed()
@@ -629,13 +759,18 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         space: Arc<KitsuneSpace>,
         agent: Arc<KitsuneAgent>,
     ) -> KitsuneP2pHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return unit_ok_fut(),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.leave(space.clone(), agent).await?;
+
             Ok(())
         }
         .boxed()
@@ -650,12 +785,16 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         payload: Vec<u8>,
         timeout_ms: Option<u64>,
     ) -> KitsuneP2pHandlerResult<Vec<u8>> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return Err(KitsuneP2pError::RoutingSpaceError(space)),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender
                 .rpc_single(space, to_agent, from_agent, payload, timeout_ms)
                 .await
@@ -665,16 +804,21 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
     }
 
     #[tracing::instrument(skip(self, input))]
+
     fn handle_rpc_multi(
         &mut self,
         input: actor::RpcMulti,
     ) -> KitsuneP2pHandlerResult<Vec<actor::RpcMultiResponse>> {
+
         let space_sender = match self.spaces.get_mut(&input.space) {
             None => return Err(KitsuneP2pError::RoutingSpaceError(input.space)),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.rpc_multi(input).await
         }
         .boxed()
@@ -688,12 +832,16 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         timeout: KitsuneTimeout,
         payload: Vec<u8>,
     ) -> KitsuneP2pHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return Err(KitsuneP2pError::RoutingSpaceError(space)),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.broadcast(space, basis, timeout, payload).await
         }
         .boxed()
@@ -708,12 +856,16 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         timeout: KitsuneTimeout,
         payload: Vec<u8>,
     ) -> KitsuneP2pHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return Err(KitsuneP2pError::RoutingSpaceError(space)),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender
                 .targeted_broadcast(space, from_agent, agents, timeout, payload)
                 .await
@@ -726,13 +878,18 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         &mut self,
         space: Arc<KitsuneSpace>,
     ) -> KitsuneP2pHandlerResult<()> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return unit_ok_fut(),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.new_integrated_data(space).await?;
+
             Ok(())
         }
         .boxed()
@@ -745,12 +902,16 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
         agent: Arc<KitsuneAgent>,
         basis: Arc<KitsuneBasis>,
     ) -> KitsuneP2pHandlerResult<bool> {
+
         let space_sender = match self.spaces.get_mut(&space) {
             None => return Err(KitsuneP2pError::RoutingSpaceError(space)),
             Some(space) => space.get(),
         };
+
         Ok(async move {
+
             let (space_sender, _) = space_sender.await;
+
             space_sender.authority_for_hash(space, agent, basis).await
         }
         .boxed()
@@ -759,6 +920,7 @@ impl KitsuneP2pHandler for KitsuneP2pActor {
 }
 
 #[cfg(test)]
+
 mockall::mock! {
 
     pub KitsuneP2pEventHandler {}
@@ -851,6 +1013,9 @@ mockall::mock! {
 }
 
 #[cfg(test)]
+
 impl ghost_actor::GhostHandler<KitsuneP2pEvent> for MockKitsuneP2pEventHandler {}
+
 #[cfg(test)]
+
 impl ghost_actor::GhostControlHandler for MockKitsuneP2pEventHandler {}

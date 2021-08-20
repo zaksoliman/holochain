@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+
 pub enum ElementGroupError {
     #[error("Created an ElementGroup without an entry")]
     MissingEntry,

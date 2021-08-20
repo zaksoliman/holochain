@@ -7,23 +7,31 @@ use holochain_zome_types::ChainStatus;
 use pretty_assertions::assert_eq;
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn get_activity() {
+
     observability::test_run().ok();
 
     // Environments
     let cache = test_cell_env();
+
     let authority = test_cell_env();
 
     // Data
     let td = ActivityTestData::valid_chain_scenario();
 
     for hash_op in td.hash_ops.iter().cloned() {
+
         fill_db(&authority.env(), hash_op);
     }
+
     for hash_op in td.noise_ops.iter().cloned() {
+
         fill_db(&authority.env(), hash_op);
     }
+
     for hash_op in td.store_ops.iter().cloned() {
+
         fill_db(&cache.env(), hash_op);
     }
 
@@ -52,5 +60,6 @@ async fn get_activity() {
         status: ChainStatus::Valid(td.chain_head.clone()),
         highest_observed: Some(td.highest_observed.clone()),
     };
+
     assert_eq!(r, expected);
 }

@@ -1,11 +1,14 @@
 //! Kitsune Config Tuning Params
 
 /// How long kitsune should wait before timing out when joining the network.
+
 pub const JOIN_NETWORK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
 /// Wrapper for the actual KitsuneP2pTuningParams struct
 /// so the widely used type def can be an Arc<>
+
 pub mod tuning_params_struct {
+
     use ghost_actor::dependencies::tracing;
     use std::collections::HashMap;
 
@@ -176,7 +179,9 @@ pub mod tuning_params_struct {
     impl KitsuneP2pTuningParams {
         /// Generate a KitsuneTimeout instance
         /// based on the tuning parameter tx2_implicit_timeout_ms
+
         pub fn implicit_timeout(&self) -> crate::KitsuneTimeout {
+
             crate::KitsuneTimeout::from_millis(self.tx2_implicit_timeout_ms as u64)
         }
     }
@@ -184,4 +189,5 @@ pub mod tuning_params_struct {
 
 /// We don't want to clone these tuning params over-and-over.
 /// They should normally be passed around as an Arc.
+
 pub type KitsuneP2pTuningParams = std::sync::Arc<tuning_params_struct::KitsuneP2pTuningParams>;

@@ -13,6 +13,7 @@ use holochain_types::prelude::InstallAppBundlePayload;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
+
 struct Input {
     #[structopt(short, long, default_value = "holochain")]
     holochain_path: PathBuf,
@@ -20,9 +21,12 @@ struct Input {
 }
 
 #[tokio::main]
+
 async fn main() -> anyhow::Result<()> {
+
     // Get and parse any input.
     let input = Input::from_args();
+
     let happ = hc_sandbox::bundles::parse_happ(input.happ)?;
 
     // Using the default mem network.
@@ -32,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
     let app_id = "my-cool-app".to_string();
 
     for _ in 0..5 as usize {
+
         let app_id = app_id.clone();
 
         // Create a conductor config with the network.
@@ -74,5 +79,6 @@ async fn main() -> anyhow::Result<()> {
         )
         .await?;
     }
+
     Ok(())
 }

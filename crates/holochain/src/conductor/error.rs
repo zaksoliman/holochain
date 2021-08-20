@@ -11,6 +11,7 @@ use thiserror::Error;
 pub type ConductorResult<T> = Result<T, ConductorError>;
 
 #[derive(Error, Debug)]
+
 pub enum ConductorError {
     #[error("Internal Cell error: {0}")]
     InternalCellError(#[from] CellError),
@@ -119,6 +120,7 @@ pub enum ConductorError {
 // TODO: can this be removed?
 impl From<String> for ConductorError {
     fn from(s: String) -> Self {
+
         ConductorError::Todo(s)
     }
 }

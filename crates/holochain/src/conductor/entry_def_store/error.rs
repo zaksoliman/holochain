@@ -5,6 +5,7 @@ use holochain_zome_types::zome::ZomeName;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+
 pub enum EntryDefStoreError {
     #[error(transparent)]
     DnaError(#[from] RibosomeError),

@@ -6,6 +6,7 @@ use structopt::StructOpt;
 use url2::Url2;
 
 #[derive(Debug, StructOpt, Clone)]
+
 // This creates a new holochain sandbox
 // which is a
 // - conductor config
@@ -36,12 +37,14 @@ pub struct Create {
 }
 
 #[derive(Debug, StructOpt, Clone)]
+
 pub enum NetworkCmd {
     Network(Network),
 }
 
 impl NetworkCmd {
     pub fn into_inner(self) -> Network {
+
         match self {
             NetworkCmd::Network(n) => n,
         }
@@ -49,6 +52,7 @@ impl NetworkCmd {
 }
 
 #[derive(Debug, StructOpt, Clone)]
+
 pub struct Network {
     #[structopt(subcommand)]
     /// Set the type of network.
@@ -61,6 +65,7 @@ pub struct Network {
 }
 
 #[derive(Debug, StructOpt, Clone)]
+
 pub enum NetworkType {
     /// A transport that uses the local memory transport protocol.
     Mem,
@@ -71,6 +76,7 @@ pub enum NetworkType {
 }
 
 #[derive(Debug, StructOpt, Clone)]
+
 pub struct Quic {
     #[structopt(short, long, parse(from_str = Url2::parse))]
     /// To which network interface / port should we bind?
@@ -93,6 +99,7 @@ pub struct Quic {
 }
 
 #[derive(Debug, StructOpt, Clone)]
+
 pub struct Existing {
     #[structopt(short, long, value_delimiter = ",")]
     /// Paths to existing sandbox directories.
@@ -114,28 +121,36 @@ pub struct Existing {
 
 impl Existing {
     pub fn load(mut self) -> anyhow::Result<Vec<PathBuf>> {
+
         let sandboxes = crate::save::load(std::env::current_dir()?)?;
+
         if self.all {
+
             // Get all the sandboxes
             self.existing_paths.extend(sandboxes.into_iter())
         } else if self.last && sandboxes.last().is_some() {
+
             // Get just the last sandbox
             self.existing_paths
                 .push(sandboxes.last().cloned().expect("Safe due to check above"));
         } else if !self.indices.is_empty() {
+
             // Get the indices
             let e = self
                 .indices
                 .into_iter()
                 .filter_map(|i| sandboxes.get(i).cloned());
+
             self.existing_paths.extend(e);
         } else if !self.existing_paths.is_empty() {
             // If there is existing paths then use those
         } else if sandboxes.len() == 1 {
+
             // If there is only one sandbox then use that
             self.existing_paths
                 .push(sandboxes.last().cloned().expect("Safe due to check above"));
         } else if sandboxes.len() > 1 {
+
             // There is multiple sandboxes, the use must disambiguate
             msg!(
                 "
@@ -148,8 +163,10 @@ You can run:
     - `0 2` run multiple indices from the list below.
 Run `hc list` to see the sandboxes or `hc r --help` for more information."
             );
+
             crate::save::list(std::env::current_dir()?, 0)?;
         } else {
+
             // There is no sandboxes
             msg!(
                 "
@@ -158,27 +175,34 @@ You can use `hc generate` or `hc g` to do this.
 Run `hc g --help` for more options."
             );
         }
+
         Ok(self.existing_paths)
     }
 
     pub fn is_empty(&self) -> bool {
+
         self.existing_paths.is_empty() && self.indices.is_empty() && !self.all && !self.last
     }
 }
 
 impl From<Network> for KitsuneP2pConfig {
     fn from(n: Network) -> Self {
+
         let Network {
             transport,
             bootstrap,
         } = n;
+
         let mut kit = KitsuneP2pConfig::default();
+
         kit.bootstrap_service = bootstrap;
 
         match transport {
             NetworkType::Mem => (),
             NetworkType::Mdns => {
+
                 kit.network_type = holochain_p2p::kitsune_p2p::NetworkType::QuicMdns;
+
                 kit.transport_pool = vec![TransportConfig::Quic {
                     bind_to: None,
                     override_host: None,
@@ -191,6 +215,7 @@ impl From<Network> for KitsuneP2pConfig {
                 override_port,
                 proxy: None,
             }) => {
+
                 kit.transport_pool = vec![TransportConfig::Quic {
                     bind_to,
                     override_host,
@@ -203,11 +228,13 @@ impl From<Network> for KitsuneP2pConfig {
                 override_port,
                 proxy: Some(proxy_url),
             }) => {
+
                 let transport = TransportConfig::Quic {
                     bind_to,
                     override_host,
                     override_port,
                 };
+
                 kit.transport_pool = vec![TransportConfig::Proxy {
                     sub_transport: Box::new(transport),
                     proxy_config: holochain_p2p::kitsune_p2p::ProxyConfig::RemoteProxyClient {
@@ -216,12 +243,14 @@ impl From<Network> for KitsuneP2pConfig {
                 }]
             }
         }
+
         kit
     }
 }
 
 impl Default for Create {
     fn default() -> Self {
+
         Self {
             num_sandboxes: 1,
             network: None,

@@ -21,10 +21,12 @@ use super::MIN_PUBLISH_INTERVAL;
 /// - Don't publish private entries.
 /// - Only get ops that haven't been published within the minimum publish interval
 /// - Only get ops that have less then the RECEIPT_BUNDLE_SIZE
+
 pub async fn get_ops_to_publish(
     agent: AgentPubKey,
     env: &EnvRead,
 ) -> WorkflowResult<Vec<DhtOpHashed>> {
+
     let recency_threshold = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .ok()
@@ -34,6 +36,7 @@ pub async fn get_ops_to_publish(
 
     let results = env
         .async_reader(move |txn| {
+
             let mut stmt = txn.prepare(
                 "
             SELECT 
@@ -60,6 +63,7 @@ pub async fn get_ops_to_publish(
             DhtOp.receipts_complete IS NULL 
             ",
             )?;
+
             let r = stmt.query_and_then(
                 named_params! {
                     ":author": agent,
@@ -67,12 +71,18 @@ pub async fn get_ops_to_publish(
                     ":store_entry": DhtOpType::StoreEntry,
                 },
                 |row| {
+
                     let header = from_blob::<SignedHeader>(row.get("header_blob")?)?;
+
                     let op_type: DhtOpType = row.get("dht_type")?;
+
                     let hash: DhtOpHash = row.get("dht_hash")?;
+
                     let entry = match header.0.entry_type().map(|et| et.visibility()) {
                         Some(EntryVisibility::Public) => {
+
                             let entry: Option<Vec<u8>> = row.get("entry_blob")?;
+
                             match entry {
                                 Some(entry) => Some(from_blob::<Entry>(entry)?),
                                 None => None,
@@ -80,21 +90,27 @@ pub async fn get_ops_to_publish(
                         }
                         _ => None,
                     };
+
                     WorkflowResult::Ok(DhtOpHashed::with_pre_hashed(
                         DhtOp::from_type(op_type, header, entry)?,
                         hash,
                     ))
                 },
             )?;
+
             WorkflowResult::Ok(r.collect())
         })
         .await?;
+
     tracing::debug!(?results);
+
     results
 }
 
 #[cfg(test)]
+
 mod tests {
+
     use fixt::prelude::*;
     use holo_hash::EntryHash;
     use holo_hash::HasHash;
@@ -114,6 +130,7 @@ mod tests {
     use super::*;
 
     #[derive(Debug, Clone, Copy)]
+
     struct Facts {
         private: bool,
         within_min_period: bool,
@@ -133,13 +150,19 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn publish_query() {
+
         observability::test_run().ok();
+
         let env = test_cell_env();
+
         let expected = test_data(&env.env().into());
+
         let r = get_ops_to_publish(expected.agent, &env.env().into())
             .await
             .unwrap();
+
         assert_eq!(r, expected.results);
     }
 
@@ -148,18 +171,26 @@ mod tests {
         facts: Facts,
         consistent_data: &Consistent,
     ) -> DhtOpHashed {
+
         let this_agent = consistent_data.this_agent.clone();
+
         let entry = Entry::App(fixt!(AppEntryBytes));
+
         let mut header = fixt!(Create);
+
         header.author = this_agent.clone();
+
         header.entry_hash = EntryHash::with_data_sync(&entry);
+
         if facts.private {
+
             // - Private: true
             header.entry_type = AppEntryTypeFixturator::new(EntryVisibility::Private)
                 .map(EntryType::App)
                 .next()
                 .unwrap();
         } else {
+
             // - Private: false
             header.entry_type = AppEntryTypeFixturator::new(EntryVisibility::Public)
                 .map(EntryType::App)
@@ -169,25 +200,31 @@ mod tests {
 
         // - IsThisAgent: false.
         if !facts.is_this_agent {
+
             header.author = fixt!(AgentPubKey);
         }
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+
         let last_publish = if facts.within_min_period {
+
             // - WithinMinPeriod: true.
             now
         } else {
+
             // - WithinMinPeriod: false.
             now - MIN_PUBLISH_INTERVAL
         };
 
         let state = if facts.store_entry {
+
             DhtOpHashed::from_content_sync(DhtOp::StoreEntry(
                 fixt!(Signature),
                 NewEntryHeader::Create(header.clone()),
                 Box::new(entry.clone()),
             ))
         } else {
+
             DhtOpHashed::from_content_sync(DhtOp::StoreElement(
                 fixt!(Signature),
                 Header::Create(header.clone()),
@@ -198,21 +235,30 @@ mod tests {
         env.conn()
             .unwrap()
             .with_commit_sync(|txn| {
+
                 let hash = state.as_hash().clone();
+
                 insert_op(txn, state.clone(), facts.is_authored).unwrap();
+
                 set_last_publish_time(txn, hash.clone(), last_publish).unwrap();
+
                 set_receipts_complete(txn, &hash, facts.has_required_receipts).unwrap();
+
                 DatabaseResult::Ok(())
             })
             .unwrap();
+
         state
     }
 
     fn test_data(env: &EnvRead) -> Expected {
+
         let mut results = Vec::new();
+
         let cd = Consistent {
             this_agent: fixt!(AgentPubKey),
         };
+
         // We **do** expect any of these in the results:
         // - Private: false.
         // - WithinMinPeriod: false.
@@ -228,7 +274,9 @@ mod tests {
             is_authored: true,
             store_entry: true,
         };
+
         let op = create_and_insert_op(env, facts, &cd);
+
         results.push(op);
 
         // All facts are the same unless stated:
@@ -236,35 +284,49 @@ mod tests {
         // - Private: true.
         // - StoreEntry: false.
         let mut f = facts;
+
         f.private = true;
+
         f.store_entry = false;
+
         let op = create_and_insert_op(env, f, &cd);
+
         results.push(op);
 
         // We **don't** expect any of these in the results:
         // - Private: true.
         let mut f = facts;
+
         f.private = true;
+
         create_and_insert_op(env, f, &cd);
 
         // - WithinMinPeriod: true.
         let mut f = facts;
+
         f.within_min_period = true;
+
         create_and_insert_op(env, f, &cd);
 
         // - HasRequireReceipts: true.
         let mut f = facts;
+
         f.has_required_receipts = true;
+
         create_and_insert_op(env, f, &cd);
 
         // - IsThisAgent: false.
         let mut f = facts;
+
         f.is_this_agent = false;
+
         create_and_insert_op(env, f, &cd);
 
         // - IsAuthored: false.
         let mut f = facts;
+
         f.is_authored = false;
+
         create_and_insert_op(env, f, &cd);
 
         Expected {

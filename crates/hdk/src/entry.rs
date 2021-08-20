@@ -9,7 +9,9 @@ use crate::prelude::*;
 ///
 /// Usually you don't need to use this function directly; it is the most general way to create an
 /// entry and standardises the internals of higher level create functions.
+
 pub fn create(entry_with_def_id: EntryWithDefId) -> ExternResult<HeaderHash> {
+
     HDK.with(|h| h.borrow().create(entry_with_def_id))
 }
 
@@ -23,7 +25,9 @@ pub fn create(entry_with_def_id: EntryWithDefId) -> ExternResult<HeaderHash> {
 ///
 /// Usually you don't need to use this function directly; it is the most general way to update an
 /// entry and standardises the internals of higher level create functions.
+
 pub fn update(hash: HeaderHash, entry_with_def_id: EntryWithDefId) -> ExternResult<HeaderHash> {
+
     HDK.with(|h| h.borrow().update(UpdateInput::new(hash, entry_with_def_id)))
 }
 
@@ -36,7 +40,9 @@ pub fn update(hash: HeaderHash, entry_with_def_id: EntryWithDefId) -> ExternResu
 ///
 /// Usually you don't need to use this function directly; it is the most general way to update an
 /// entry and standardises the internals of higher level create functions.
+
 pub fn delete(hash: HeaderHash) -> ExternResult<HeaderHash> {
+
     HDK.with(|h| h.borrow().delete(hash))
 }
 
@@ -58,11 +64,13 @@ pub fn delete(hash: HeaderHash) -> ExternResult<HeaderHash> {
 /// ```
 ///
 /// See [ `get` ] and [ `get_details` ] for more information on CRUD.
+
 pub fn create_entry<I, E>(input: I) -> ExternResult<HeaderHash>
 where
     EntryWithDefId: TryFrom<I, Error = E>,
     WasmError: From<E>,
 {
+
     create(EntryWithDefId::try_from(input)?)
 }
 
@@ -73,7 +81,9 @@ where
 /// ```ignore
 /// delete_entry(entry_hash(foo_entry)?)?;
 /// ```
+
 pub fn delete_entry(hash: HeaderHash) -> ExternResult<HeaderHash> {
+
     delete(hash)
 }
 
@@ -116,11 +126,13 @@ pub fn delete_entry(hash: HeaderHash) -> ExternResult<HeaderHash> {
 ///
 /// let foo_hash = hash_entry(Foo)?;
 /// ```
+
 pub fn hash_entry<I, E>(input: I) -> ExternResult<EntryHash>
 where
     Entry: TryFrom<I, Error = E>,
     WasmError: From<E>,
 {
+
     HDK.with(|h| h.borrow().hash_entry(Entry::try_from(input)?))
 }
 
@@ -152,11 +164,13 @@ where
 /// See [ `create_entry` ]
 /// See [ `update` ]
 /// See [ `delete_entry` ]
+
 pub fn update_entry<I, E>(hash: HeaderHash, input: I) -> ExternResult<HeaderHash>
 where
     EntryWithDefId: TryFrom<I, Error = E>,
     WasmError: From<E>,
 {
+
     update(hash, EntryWithDefId::try_from(input)?)
 }
 
@@ -205,12 +219,15 @@ where
 ///       contacts on their current network partition, there could always be an older live entry
 ///       on another partition, and of course the oldest live entry could be deleted and no longer
 ///       be live.
+
 pub fn get<H>(hash: H, options: GetOptions) -> ExternResult<Option<Element>>
 where
     AnyDhtHash: From<H>,
 {
+
     Ok(HDK
         .with(|h| {
+
             h.borrow()
                 .get(vec![GetInput::new(AnyDhtHash::from(hash), options)])
         })?
@@ -242,8 +259,11 @@ where
 ///
 /// - Callbacks will return early with `UnresolvedDependencies`
 /// - Zome calls will receive a `WasmError` from the host
+
 pub fn must_get_entry(entry_hash: EntryHash) -> ExternResult<EntryHashed> {
+
     HDK.with(|h| {
+
         h.borrow()
             .must_get_entry(MustGetEntryInput::new(entry_hash))
     })
@@ -269,8 +289,11 @@ pub fn must_get_entry(entry_hash: EntryHash) -> ExternResult<EntryHashed> {
 ///
 /// - Callbacks will return early with `UnresolvedDependencies`
 /// - Zome calls will receive a `WasmError` from the host
+
 pub fn must_get_header(header_hash: HeaderHash) -> ExternResult<SignedHeaderHashed> {
+
     HDK.with(|h| {
+
         h.borrow()
             .must_get_header(MustGetHeaderInput::new(header_hash))
     })
@@ -315,8 +338,11 @@ pub fn must_get_header(header_hash: HeaderHash) -> ExternResult<SignedHeaderHash
 ///
 /// - Callbacks will return early with `UnresolvedDependencies`
 /// - Zome calls will receive a `WasmError` from the host
+
 pub fn must_get_valid_element(header_hash: HeaderHash) -> ExternResult<Element> {
+
     HDK.with(|h| {
+
         h.borrow()
             .must_get_valid_element(MustGetValidElementInput::new(header_hash))
     })
@@ -366,12 +392,15 @@ pub fn must_get_valid_element(header_hash: HeaderHash) -> ExternResult<Element> 
 ///       e.g. the DNA itself, links, migrations, etc.
 ///       However the element will still be returned by [ `get_details` ] if a header hash is passed,
 ///       these header-only elements will have [ `None` ] as the entry value.
+
 pub fn get_details<H: Into<AnyDhtHash>>(
     hash: H,
     options: GetOptions,
 ) -> ExternResult<Option<Details>> {
+
     Ok(HDK
         .with(|h| {
+
             h.borrow()
                 .get_details(vec![GetInput::new(hash.into(), options)])
         })?
@@ -382,6 +411,7 @@ pub fn get_details<H: Into<AnyDhtHash>>(
 
 /// Trait for binding static [ `EntryDef` ] property access for a type.
 /// See [ `register_entry` ]
+
 pub trait EntryDefRegistration {
     fn entry_def() -> crate::prelude::EntryDef;
 
@@ -402,6 +432,7 @@ pub trait EntryDefRegistration {
 /// which implies that [ `serde::Serialize` ] and [ `serde::Deserialize` ] is also implemented.
 /// These can all be derived and there is an attribute macro that both does the default defines.
 #[macro_export]
+
 macro_rules! app_entry {
     ( $t:ident ) => {
         impl TryFrom<&$crate::prelude::Entry> for $t {
@@ -499,26 +530,32 @@ macro_rules! app_entry {
 ///
 /// For most normal applications, you should use the [ `entry_def!` ] macro instead.
 #[macro_export]
+
 macro_rules! register_entry {
     ( $t:ident $def:expr ) => {
         impl $crate::prelude::EntryDefRegistration for $t {
             fn entry_def() -> $crate::prelude::EntryDef {
+
                 $def
             }
 
             fn entry_def_id() -> $crate::prelude::EntryDefId {
+
                 Self::entry_def().id
             }
 
             fn entry_visibility() -> $crate::prelude::EntryVisibility {
+
                 Self::entry_def().visibility
             }
 
             fn crdt_type() -> $crate::prelude::CrdtType {
+
                 Self::entry_def().crdt_type
             }
 
             fn required_validations() -> $crate::prelude::RequiredValidations {
+
                 Self::entry_def().required_validations
             }
         }
@@ -528,6 +565,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: $t) -> Self {
+
                 $t::entry_def()
             }
         }
@@ -537,6 +575,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: &$t) -> Self {
+
                 $t::entry_def()
             }
         }
@@ -546,6 +585,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: $t) -> Self {
+
                 $t::entry_def_id()
             }
         }
@@ -555,6 +595,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: &$t) -> Self {
+
                 $t::entry_def_id()
             }
         }
@@ -564,14 +605,18 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             type Error = $crate::prelude::WasmError;
+
             fn try_from(t: &$t) -> Result<Self, Self::Error> {
+
                 Ok(Self::new($t::entry_def_id(), t.try_into()?))
             }
         }
 
         impl TryFrom<$t> for $crate::prelude::EntryWithDefId {
             type Error = $crate::prelude::WasmError;
+
             fn try_from(t: $t) -> Result<Self, Self::Error> {
+
                 (&t).try_into()
             }
         }
@@ -581,6 +626,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: $t) -> Self {
+
                 $t::entry_visibility()
             }
         }
@@ -590,6 +636,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: &$t) -> Self {
+
                 $t::entry_visibility()
             }
         }
@@ -599,6 +646,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: $t) -> Self {
+
                 $t::crdt_type()
             }
         }
@@ -608,6 +656,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: &$t) -> Self {
+
                 $t::crdt_type()
             }
         }
@@ -617,6 +666,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: $t) -> Self {
+
                 $t::required_validations()
             }
         }
@@ -626,6 +676,7 @@ macro_rules! register_entry {
             $t: $crate::prelude::EntryDefRegistration,
         {
             fn from(_: &$t) -> Self {
+
                 $t::required_validations()
             }
         }
@@ -671,6 +722,7 @@ macro_rules! register_entry {
 /// });
 /// ```
 #[macro_export]
+
 macro_rules! entry_def {
     ( $t:ident $def:expr ) => {
         app_entry!($t);
@@ -693,6 +745,7 @@ macro_rules! entry_def {
 /// }
 /// ```
 #[macro_export]
+
 macro_rules! entry_defs {
     [ $( $def:expr ),* ] => {
         #[hdk_extern]
@@ -715,21 +768,26 @@ macro_rules! entry_defs {
 ///
 /// Obviously this assumes and requires that a compliant [ `entry_defs!` ] callback _is_ defined at the root of the crate.
 #[macro_export]
+
 macro_rules! entry_def_index {
     ( $t:ty ) => {
+
         match crate::entry_defs(()) {
             Ok($crate::prelude::EntryDefsCallbackResult::Defs(entry_defs)) => {
+
                 match entry_defs.entry_def_index_from_id(<$t>::entry_def_id()) {
                     Some(entry_def_index) => Ok::<
                         $crate::prelude::EntryDefIndex,
                         $crate::prelude::WasmError,
                     >(entry_def_index),
                     None => {
+
                         $crate::prelude::tracing::error!(
                             entry_def_type = stringify!($t),
                             ?entry_defs,
                             "Failed to lookup index for entry def id."
                         );
+
                         Err::<$crate::prelude::EntryDefIndex, $crate::prelude::WasmError>(
                             $crate::prelude::WasmError::Guest(
                                 "Failed to lookup index for entry def id.".into(),
@@ -739,7 +797,9 @@ macro_rules! entry_def_index {
                 }
             }
             Err(error) => {
+
                 $crate::prelude::tracing::error!(?error, "Failed to lookup entry defs.");
+
                 Err::<$crate::prelude::EntryDefIndex, $crate::prelude::WasmError>(error)
             }
         }
@@ -747,8 +807,10 @@ macro_rules! entry_def_index {
 }
 
 #[macro_export]
+
 macro_rules! entry_type {
     ( $t:ty ) => {
+
         match $crate::prelude::entry_def_index!($t) {
             Ok(id) => match $crate::prelude::zome_info() {
                 Ok(ZomeInfo { zome_id, .. }) => Ok($crate::prelude::EntryType::App(

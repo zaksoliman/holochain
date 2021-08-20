@@ -9,6 +9,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
+
 pub enum WorkspaceError {
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
@@ -24,4 +25,5 @@ pub enum WorkspaceError {
 }
 
 #[allow(missing_docs)]
+
 pub type WorkspaceResult<T> = Result<T, WorkspaceError>;

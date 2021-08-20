@@ -3,7 +3,9 @@ use crate::prelude::*;
 /// Generate a new x25519 keypair in lair from entropy.
 /// Only the pubkey is returned from lair because the secret key never leaves lair.
 /// @todo ability to export secrets from lair in encrypted format to send to other agents.
+
 pub fn create_x25519_keypair() -> ExternResult<X25519PubKey> {
+
     HDK.with(|h| h.borrow().create_x25519_keypair(()))
 }
 
@@ -17,11 +19,14 @@ pub fn create_x25519_keypair() -> ExternResult<X25519PubKey> {
 /// of the shared key and has not been tampered with.
 ///
 /// See [aeads](https://www.imperialviolet.org/2015/05/16/aeads.html)
+
 pub fn x_salsa20_poly1305_decrypt(
     key_ref: XSalsa20Poly1305KeyRef,
     encrypted_data: XSalsa20Poly1305EncryptedData,
 ) -> ExternResult<Option<XSalsa20Poly1305Data>> {
+
     HDK.with(|h| {
+
         h.borrow()
             .x_salsa20_poly1305_decrypt(XSalsa20Poly1305Decrypt::new(key_ref, encrypted_data))
     })
@@ -58,11 +63,14 @@ pub fn x_salsa20_poly1305_decrypt(
 ///
 /// See https://doc.libsodium.org/secret-key_cryptography/secretbox
 /// See https://nacl.cr.yp.to/secretbox.html
+
 pub fn x_salsa20_poly1305_encrypt(
     key_ref: XSalsa20Poly1305KeyRef,
     data: XSalsa20Poly1305Data,
 ) -> ExternResult<XSalsa20Poly1305EncryptedData> {
+
     HDK.with(|h| {
+
         h.borrow()
             .x_salsa20_poly1305_encrypt(XSalsa20Poly1305Encrypt::new(key_ref, data))
     })
@@ -105,12 +113,15 @@ pub fn x_salsa20_poly1305_encrypt(
 ///
 /// See https://doc.libsodium.org/public-key_cryptography/authenticated_encryption
 /// See https://nacl.cr.yp.to/box.html
+
 pub fn x_25519_x_salsa20_poly1305_encrypt(
     sender: X25519PubKey,
     recipient: X25519PubKey,
     data: XSalsa20Poly1305Data,
 ) -> ExternResult<XSalsa20Poly1305EncryptedData> {
+
     HDK.with(|h| {
+
         h.borrow()
             .x_25519_x_salsa20_poly1305_encrypt(X25519XSalsa20Poly1305Encrypt::new(
                 sender, recipient, data,
@@ -128,12 +139,15 @@ pub fn x_25519_x_salsa20_poly1305_encrypt(
 /// keypair and has not been tampered with.
 ///
 /// See https://www.imperialviolet.org/2015/05/16/aeads.html
+
 pub fn x_25519_x_salsa20_poly1305_decrypt(
     recipient: X25519PubKey,
     sender: X25519PubKey,
     encrypted_data: XSalsa20Poly1305EncryptedData,
 ) -> ExternResult<Option<XSalsa20Poly1305Data>> {
+
     HDK.with(|h| {
+
         h.borrow()
             .x_25519_x_salsa20_poly1305_decrypt(X25519XSalsa20Poly1305Decrypt::new(
                 recipient,

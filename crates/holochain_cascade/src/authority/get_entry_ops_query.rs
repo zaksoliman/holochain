@@ -19,10 +19,12 @@ use holochain_zome_types::TryInto;
 use holochain_zome_types::ValidationStatus;
 
 #[derive(Debug, Clone)]
+
 pub struct GetEntryOpsQuery(EntryHash);
 
 impl GetEntryOpsQuery {
     pub fn new(hash: EntryHash) -> Self {
+
         Self(hash)
     }
 }
@@ -34,6 +36,7 @@ impl GetEntryOpsQuery {
 // same entry hash.
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+
 pub struct WireDhtOp {
     pub validation_status: Option<ValidationStatus>,
     pub op_type: DhtOpType,
@@ -45,10 +48,12 @@ impl HasValidationStatus for WireDhtOp {
     type Data = Self;
 
     fn validation_status(&self) -> Option<ValidationStatus> {
+
         self.validation_status
     }
 
     fn data(&self) -> &Self {
+
         self
     }
 }
@@ -59,6 +64,7 @@ pub struct Item {
 }
 
 #[derive(Debug, Default)]
+
 pub struct State {
     ops: WireEntryOps,
     entry_data: Option<(EntryHash, EntryType)>,
@@ -66,10 +72,13 @@ pub struct State {
 
 impl Query for GetEntryOpsQuery {
     type Item = Judged<Item>;
+
     type State = State;
+
     type Output = WireEntryOps;
 
     fn query(&self) -> String {
+
         "
         SELECT Header.blob AS header_blob, DhtOp.type AS dht_type,
         DhtOp.validation_status AS status
@@ -85,32 +94,43 @@ impl Query for GetEntryOpsQuery {
     }
 
     fn params(&self) -> Vec<Params> {
+
         let params = named_params! {
             ":store_entry": DhtOpType::StoreEntry,
             ":delete": DhtOpType::RegisterDeletedEntryHeader,
             ":update": DhtOpType::RegisterUpdatedContent,
             ":entry_hash": self.0,
         };
+
         params.to_vec()
     }
 
     fn as_map(&self) -> Arc<dyn Fn(&Row) -> StateQueryResult<Self::Item>> {
+
         let f = |row: &Row| {
+
             let header = from_blob::<SignedHeader>(row.get(row.column_index("header_blob")?)?)?;
+
             let op_type = row.get(row.column_index("dht_type")?)?;
+
             let validation_status = row.get(row.column_index("status")?)?;
+
             Ok(Judged::raw(Item { op_type, header }, validation_status))
         };
+
         Arc::new(f)
     }
 
     fn init_fold(&self) -> StateQueryResult<Self::State> {
+
         Ok(Default::default())
     }
 
     fn fold(&self, mut state: Self::State, dht_op: Self::Item) -> StateQueryResult<Self::State> {
+
         match &dht_op.data.op_type {
             DhtOpType::StoreEntry => {
+
                 if dht_op
                     .data
                     .header
@@ -119,8 +139,11 @@ impl Query for GetEntryOpsQuery {
                     .filter(|et| *et.visibility() == EntryVisibility::Public)
                     .is_some()
                 {
+
                     let status = dht_op.validation_status();
+
                     if state.entry_data.is_none() {
+
                         state.entry_data = dht_op
                             .data
                             .header
@@ -128,6 +151,7 @@ impl Query for GetEntryOpsQuery {
                             .entry_data()
                             .map(|(h, t)| (h.clone(), t.clone()));
                     }
+
                     state
                         .ops
                         .creates
@@ -135,15 +159,20 @@ impl Query for GetEntryOpsQuery {
                 }
             }
             DhtOpType::RegisterDeletedEntryHeader => {
+
                 let status = dht_op.validation_status();
+
                 state
                     .ops
                     .deletes
                     .push(Judged::raw(dht_op.data.header.try_into()?, status));
             }
             DhtOpType::RegisterUpdatedContent => {
+
                 let status = dht_op.validation_status();
+
                 let header = dht_op.data.header;
+
                 state.ops.updates.push(Judged::raw(
                     WireUpdateRelationship::try_from(header)?,
                     status,
@@ -151,6 +180,7 @@ impl Query for GetEntryOpsQuery {
             }
             _ => return Err(StateQueryError::UnexpectedOp(dht_op.data.op_type)),
         }
+
         Ok(state)
     }
 
@@ -158,10 +188,14 @@ impl Query for GetEntryOpsQuery {
     where
         S: Store,
     {
+
         if let Some((entry_hash, entry_type)) = state.entry_data {
+
             let entry = stores.get_entry(&entry_hash)?;
+
             state.ops.entry = entry.map(|entry| EntryData { entry, entry_type });
         }
+
         Ok(state.ops)
     }
 }

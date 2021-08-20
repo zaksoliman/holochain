@@ -7,16 +7,22 @@ use app_manifest_v1::tests::{app_manifest_fixture, app_manifest_properties_fixtu
 use super::AppBundle;
 
 async fn app_bundle_fixture() -> (AppBundle, DnaFile) {
+
     let dna_wasm = DnaWasmHashed::from_content(DnaWasm::new_invalid()).await;
+
     let fake_wasms = vec![dna_wasm.clone().into_content()];
+
     let fake_zomes = vec![Zome::new(
         "hi".into(),
         ZomeDef::Wasm(WasmZome::new(dna_wasm.as_hash().clone())),
     )];
+
     let dna_def_1 = DnaDef::unique_from_zomes(fake_zomes.clone());
+
     let dna_def_2 = DnaDef::unique_from_zomes(fake_zomes);
 
     let dna1 = DnaFile::new(dna_def_1, fake_wasms.clone()).await.unwrap();
+
     let dna2 = DnaFile::new(dna_def_2, fake_wasms.clone()).await.unwrap();
 
     let path1 = PathBuf::from(format!("{}", dna1.dna_hash()));
@@ -32,14 +38,19 @@ async fn app_bundle_fixture() -> (AppBundle, DnaFile) {
     let bundle = AppBundle::new(manifest, resources, PathBuf::from("."))
         .await
         .unwrap();
+
     (bundle, dna1)
 }
 
 /// Test that an app with a single Created cell can be provisioned
 #[tokio::test]
+
 async fn provisioning_1_create() {
+
     observability::test_run().ok();
+
     let agent = fixt!(AgentPubKey);
+
     let (bundle, dna) = app_bundle_fixture().await;
 
     // Apply the phenotype overrides specified in the manifest fixture
@@ -67,5 +78,6 @@ async fn provisioning_1_create() {
         dnas_to_register: vec![(dna, None)],
         slots: vec![("nick".into(), slot)],
     };
+
     assert_eq!(resolution, expected);
 }

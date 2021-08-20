@@ -2,6 +2,7 @@ use super::*;
 use futures::stream::StreamExt;
 
 pub(crate) async fn run(opt: KdOptNode) -> KdResult<()> {
+
     let persist = new_persist_mem();
 
     let conf = KitsuneDirectV1Config {
@@ -13,21 +14,29 @@ pub(crate) async fn run(opt: KdOptNode) -> KdResult<()> {
     };
 
     let (kd, driver) = new_kitsune_direct_v1(conf).await?;
+
     let (done_s, done_r) = tokio::sync::oneshot::channel();
+
     tokio::task::spawn(async move {
+
         driver.await;
+
         let _ = done_s.send(());
     });
 
     let node_addrs = kd.list_transport_bindings().await?;
+
     for addr in node_addrs {
+
         println!("{}", addr);
     }
+
     let ui_addr = kd.get_ui_addr()?;
 
     let _root = mk_demo(&kd).await?;
 
     println!("http://{}", ui_addr);
+
     let _ = done_r.await.map_err(KdError::other)?;
 
     Ok(())
@@ -50,14 +59,19 @@ const INDEX: &[u8] = br#"<!DOCTYPE html>
 </html>"#;
 
 async fn mk_demo(kd: &KitsuneDirect) -> KdResult<KdHash> {
+
     let (hnd, mut evt) = kd.bind_control_handle().await?;
+
     tokio::task::spawn(async move { while evt.next().await.is_some() {} });
 
     let persist = kd.get_persist();
+
     let root = persist.generate_signing_keypair().await?;
 
     let mk_entry = |t: &'static str, p: &KdHash, d: serde_json::Value, b: &[u8]| {
+
         let b = b.to_vec().into_boxed_slice().into();
+
         let e = KdEntryContent {
             kind: t.to_string(),
             parent: p.clone(),
@@ -65,7 +79,9 @@ async fn mk_demo(kd: &KitsuneDirect) -> KdResult<KdHash> {
             verify: "".to_string(),
             data: d,
         };
+
         async {
+
             let e = hnd
                 .entry_author(root.clone(), root.clone(), e, b)
                 .await
@@ -76,7 +92,9 @@ async fn mk_demo(kd: &KitsuneDirect) -> KdResult<KdHash> {
     };
 
     let app = mk_entry("s.app", &root, serde_json::json!({}), &[]).await?;
+
     let ui = mk_entry("s.ui", &app, serde_json::json!({}), &[]).await?;
+
     let _favicon = mk_entry(
         "s.file",
         &ui,
@@ -87,6 +105,7 @@ async fn mk_demo(kd: &KitsuneDirect) -> KdResult<KdHash> {
         ICON,
     )
     .await?;
+
     let _index_html = mk_entry(
         "s.file",
         &ui,
@@ -97,6 +116,7 @@ async fn mk_demo(kd: &KitsuneDirect) -> KdResult<KdHash> {
         INDEX,
     )
     .await?;
+
     let _index = mk_entry(
         "s.index",
         &ui,

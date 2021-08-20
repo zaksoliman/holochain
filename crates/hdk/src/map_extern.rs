@@ -22,6 +22,7 @@ use crate::prelude::*;
 /// }
 /// ```
 #[macro_export]
+
 macro_rules! map_extern {
     ( $name:tt, $f:ident, $input:ty, $output:ty ) => {
         $crate::paste::paste! {
@@ -65,4 +66,5 @@ macro_rules! map_extern {
 }
 
 /// Every extern _must_ retern a `WasmError` in the case of failure.
+
 pub type ExternResult<T> = Result<T, WasmError>;

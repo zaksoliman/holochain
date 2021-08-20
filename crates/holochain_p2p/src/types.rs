@@ -1,6 +1,7 @@
 /// Error type for Holochain P2p.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
+
 pub enum HolochainP2pError {
     /// GhostError
     #[error(transparent)]
@@ -33,12 +34,16 @@ pub enum HolochainP2pError {
 
 impl HolochainP2pError {
     /// promote a custom error type to a TransportError
+
     pub fn other(e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+
         Self::Other(e.into())
     }
 
     /// construct an invalid p2p message error variant
+
     pub fn invalid_p2p_message(s: String) -> Self {
+
         Self::InvalidP2pMessage(s)
     }
 }
@@ -46,7 +51,9 @@ impl HolochainP2pError {
 // do some manual type translation so we get better error displays
 impl From<kitsune_p2p::KitsuneP2pError> for HolochainP2pError {
     fn from(e: kitsune_p2p::KitsuneP2pError) -> Self {
+
         use kitsune_p2p::KitsuneP2pError::*;
+
         match e {
             RoutingSpaceError(space) => {
                 Self::RoutingDnaError(holo_hash::DnaHash::from_kitsune(&space))
@@ -61,7 +68,9 @@ impl From<kitsune_p2p::KitsuneP2pError> for HolochainP2pError {
 
 impl From<HolochainP2pError> for kitsune_p2p::KitsuneP2pError {
     fn from(e: HolochainP2pError) -> Self {
+
         use HolochainP2pError::*;
+
         match e {
             RoutingDnaError(dna) => Self::RoutingSpaceError(dna.to_kitsune()),
             RoutingAgentError(agent) => Self::RoutingAgentError(agent.to_kitsune()),
@@ -73,10 +82,14 @@ impl From<HolochainP2pError> for kitsune_p2p::KitsuneP2pError {
 
 impl From<String> for HolochainP2pError {
     fn from(s: String) -> Self {
+
         #[derive(Debug, thiserror::Error)]
+
         struct OtherError(String);
+
         impl std::fmt::Display for OtherError {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
                 write!(f, "{}", self.0)
             }
         }
@@ -87,17 +100,22 @@ impl From<String> for HolochainP2pError {
 
 impl From<&str> for HolochainP2pError {
     fn from(s: &str) -> Self {
+
         s.to_string().into()
     }
 }
 
 /// Turn an [AgentKey] into a [KitsuneAgent]
+
 pub fn agent_holo_to_kit(a: holo_hash::AgentPubKey) -> kitsune_p2p::KitsuneAgent {
+
     a.into_kitsune_raw()
 }
 
 /// Turn a [DnaHash] into a [KitsuneSpace]
+
 pub fn space_holo_to_kit(d: holo_hash::DnaHash) -> kitsune_p2p::KitsuneSpace {
+
     d.into_kitsune_raw()
 }
 

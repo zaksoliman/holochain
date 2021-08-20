@@ -7,14 +7,17 @@ use crate::prelude::*;
 /// It doesn't matter how, although concurrent remote calls are probably the
 /// simplest mechanism to distribute and accept preflight requests before the
 /// session times out.
+
 pub fn accept_countersigning_preflight_request(
     preflight_request: PreflightRequest,
 ) -> ExternResult<PreflightRequestAcceptance> {
+
     // Host should:
     // - Check system constraints on request
     // - Freeze chain for session end
     // - Build response
     HDK.with(|h| {
+
         h.borrow()
             .accept_countersigning_preflight_request(preflight_request)
     })
@@ -28,9 +31,13 @@ pub fn accept_countersigning_preflight_request(
 /// The countersigning parties will check these times as part of accepting the
 /// preflight request so all system clocks need to be roughly aligned and the
 /// ambient network latency must fit comfortably within the session duration.
+
 pub fn session_times_from_millis(ms: u64) -> ExternResult<CounterSigningSessionTimes> {
+
     let start = sys_time()?;
+
     let end = start + core::time::Duration::from_millis(ms);
+
     CounterSigningSessionTimes::try_new(start, end.map_err(|e| WasmError::Guest(e.to_string()))?)
         .map_err(|e| WasmError::Guest(e.to_string()))
 }

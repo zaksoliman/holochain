@@ -3,9 +3,11 @@
 use ::fixt::prelude::*;
 
 #[derive(Debug, PartialEq, Clone)]
+
 pub struct MyNewType(bool);
 
 newtype_fixturator!(MyNewType<bool>);
+
 basic_test!(
     MyNewType,
     vec![MyNewType(false); 40],

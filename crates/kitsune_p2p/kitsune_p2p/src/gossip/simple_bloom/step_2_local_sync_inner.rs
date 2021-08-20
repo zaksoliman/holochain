@@ -8,8 +8,11 @@ impl SimpleBloomMod {
         &self,
         local_agents: HashSet<Arc<KitsuneAgent>>,
     ) -> KitsuneResult<(DataMap, KeySet, BloomFilter)> {
+
         let space = self.space.clone();
+
         let evt_sender = self.evt_sender.clone();
+
         let mut inner = Inner {
             space,
             evt_sender,
@@ -19,8 +22,11 @@ impl SimpleBloomMod {
         };
 
         inner.collect_local_ops().await;
+
         inner.collect_local_agents().await;
+
         inner.local_sync().await?;
+
         Ok(inner.finish())
     }
 }
@@ -35,6 +41,7 @@ struct Inner {
 
 impl Inner {
     pub async fn collect_local_ops(&mut self) {
+
         let Inner {
             space,
             evt_sender,
@@ -45,6 +52,7 @@ impl Inner {
 
         // collect all local agents' ops
         for agent in local_agents.iter() {
+
             if let Ok(Some((ops, _))) = evt_sender
                 .query_op_hashes(QueryOpHashesEvt {
                     space: space.clone(),
@@ -55,8 +63,11 @@ impl Inner {
                 })
                 .await
             {
+
                 for op in ops {
+
                     let key = Arc::new(MetaOpKey::Op(op));
+
                     has_map
                         .entry(agent.clone())
                         .or_insert_with(HashSet::new)
@@ -67,6 +78,7 @@ impl Inner {
     }
 
     pub async fn collect_local_agents(&mut self) {
+
         let Inner {
             space,
             evt_sender,
@@ -85,11 +97,17 @@ impl Inner {
             })
             .await
         {
+
             for agent_info in agent_infos {
+
                 let data = Arc::new(MetaOpData::Agent(agent_info));
+
                 let key = data.key();
+
                 data_map.insert(key.clone(), data);
+
                 for (_agent, has) in has_map.iter_mut() {
+
                     has.insert(key.clone());
                 }
             }
@@ -97,6 +115,7 @@ impl Inner {
     }
 
     pub async fn local_sync(&mut self) -> KitsuneResult<()> {
+
         let mut new_has_map = self.has_map.clone();
 
         let Self {
@@ -108,20 +127,30 @@ impl Inner {
         } = self;
 
         let mut local_synced_ops = 0;
+
         for (old_agent, old_set) in has_map.iter() {
+
             for (new_agent, new_set) in new_has_map.iter_mut() {
+
                 if old_agent == new_agent {
+
                     continue;
                 }
+
                 let mut to_send = Vec::new();
+
                 for old_key in old_set.iter() {
+
                     if !new_set.contains(old_key) {
+
                         local_synced_ops += 1;
+
                         let op_data =
                             data_map_get(evt_sender, space, old_agent, data_map, &old_key).await?;
 
                         match &*op_data {
                             MetaOpData::Op(key, data) => {
+
                                 to_send.push((key.clone(), data.clone()));
                             }
                             // this should be impossible right now
@@ -132,6 +161,7 @@ impl Inner {
                         new_set.insert(old_key.clone());
                     }
                 }
+
                 evt_sender
                     .gossip(space.clone(), new_agent.clone(), to_send)
                     .await
@@ -140,6 +170,7 @@ impl Inner {
         }
 
         if local_synced_ops > 0 {
+
             tracing::debug!(
                 %local_synced_ops,
                 "local sync",
@@ -152,6 +183,7 @@ impl Inner {
     }
 
     pub fn finish(self) -> (DataMap, KeySet, BloomFilter) {
+
         let Self {
             data_map, has_map, ..
         } = self;
@@ -164,17 +196,24 @@ impl Inner {
         // at this point, all the local has_map maps should be identical,
         // so we can just take the first one
         let (key_set, bloom) = if let Some((_, map)) = has_map.into_iter().next() {
+
             let len = map.len();
+
             tracing::trace!(
                 local_op_count=%len,
                 "generating local bloom",
             );
+
             let mut bloom = bloomfilter::Bloom::new_for_fp_rate(len, TGT_FP);
+
             for h in map.iter() {
+
                 bloom.set(h);
             }
+
             (map, bloom)
         } else {
+
             (HashSet::new(), bloomfilter::Bloom::new(1, 1))
         };
 
@@ -189,12 +228,17 @@ async fn data_map_get(
     map: &mut DataMap,
     key: &Arc<MetaOpKey>,
 ) -> KitsuneResult<Arc<MetaOpData>> {
+
     use crate::event::*;
+
     if let Some(data) = map.get(key) {
+
         return Ok(data.clone());
     }
+
     match &**key {
         MetaOpKey::Op(key) => {
+
             let mut op = evt_sender
                 .fetch_op_data(FetchOpDataEvt {
                     space: space.clone(),
@@ -205,14 +249,18 @@ async fn data_map_get(
                 .map_err(KitsuneError::other)?;
 
             if op.len() != 1 {
+
                 return Err(format!("Error fetching op {:?}", &key).into());
             }
 
             let (key, data) = op.remove(0);
+
             let data = Arc::new(MetaOpData::Op(key.clone(), data));
+
             let key = Arc::new(MetaOpKey::Op(key));
 
             map.insert(key, data.clone());
+
             Ok(data)
         }
         // the query agents api returns all the data,

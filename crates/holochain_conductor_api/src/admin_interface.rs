@@ -18,6 +18,7 @@ use crate::InstalledAppInfo;
 /// [`AdminResponse`]: enum.AdminResponse.html
 #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum AdminRequest {
     /// Set up and register one or more new Admin interfaces
     /// as specified by a list of configurations. See [`AdminInterfaceConfig`]
@@ -271,6 +272,7 @@ pub enum AdminRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes)]
 #[cfg_attr(test, derive(Clone))]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum AdminResponse {
     /// Can occur in response to any [`AdminRequest`].
     ///
@@ -444,6 +446,7 @@ pub enum AdminResponse {
 /// so it should be readable and relevant
 #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes, Clone)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
+
 pub enum ExternalApiWireError {
     // TODO: B-01506 Constrain these errors so they are relevant to
     // application developers and what they would need
@@ -466,7 +469,9 @@ pub enum ExternalApiWireError {
 
 impl ExternalApiWireError {
     /// Convert the error from the display.
+
     pub fn internal<T: std::fmt::Display>(e: T) -> Self {
+
         // Display format is used because
         // this version intended for users.
         ExternalApiWireError::InternalError(e.to_string())
@@ -475,6 +480,7 @@ impl ExternalApiWireError {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, SerializedBytes, Clone)]
 /// Filter for `ListApps`.
+
 pub enum AppStatusFilter {
     Enabled,
     Disabled,

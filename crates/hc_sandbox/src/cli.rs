@@ -15,6 +15,7 @@ const DEFAULT_APP_ID: &str = "test-app";
 /// with a single Holochain app installed in the conductor:
 /// Everything you need to quickly run your app in holochain,
 /// or create complex multi-conductor sandboxes for testing.
+
 pub struct HcSandbox {
     #[structopt(subcommand)]
     command: HcSandboxSubcommand,
@@ -31,6 +32,7 @@ pub struct HcSandbox {
 /// The list of subcommands for `hc sandbox`
 #[derive(Debug, StructOpt)]
 #[structopt(setting = structopt::clap::AppSettings::InferSubcommands)]
+
 pub enum HcSandboxSubcommand {
     /// Generate one or more new Holochain Conductor sandbox(es) for later use.
     ///
@@ -84,6 +86,7 @@ pub enum HcSandboxSubcommand {
 
 /// Options for running a sandbox
 #[derive(Debug, StructOpt)]
+
 pub struct Run {
     /// Optionally specifies app interface ports to bind when running.
     /// This allows your UI to talk to the conductor.
@@ -100,7 +103,9 @@ pub struct Run {
 
 impl HcSandbox {
     /// Run this command
+
     pub async fn run(self) -> anyhow::Result<()> {
+
         match self.command {
             HcSandboxSubcommand::Generate {
                 app_id,
@@ -108,42 +113,63 @@ impl HcSandbox {
                 run,
                 happ,
             } => {
+
                 let paths = generate(&self.holochain_path, happ, create, app_id).await?;
+
                 for (port, path) in self
                     .force_admin_ports
                     .clone()
                     .into_iter()
                     .zip(paths.clone().into_iter())
                 {
+
                     crate::force_admin_port(path, port)?;
                 }
+
                 if let Some(ports) = run {
+
                     let holochain_path = self.holochain_path.clone();
+
                     let force_admin_ports = self.force_admin_ports.clone();
+
                     tokio::task::spawn(async move {
+
                         if let Err(e) =
                             run_n(&holochain_path, paths, ports, force_admin_ports).await
                         {
+
                             tracing::error!(failed_to_run = ?e);
                         }
                     });
+
                     tokio::signal::ctrl_c().await?;
+
                     crate::save::release_ports(std::env::current_dir()?).await?;
                 }
             }
             HcSandboxSubcommand::Run(Run { ports, existing }) => {
+
                 let paths = existing.load()?;
+
                 if paths.is_empty() {
+
                     return Ok(());
                 }
+
                 let holochain_path = self.holochain_path.clone();
+
                 let force_admin_ports = self.force_admin_ports.clone();
+
                 tokio::task::spawn(async move {
+
                     if let Err(e) = run_n(&holochain_path, paths, ports, force_admin_ports).await {
+
                         tracing::error!(failed_to_run = ?e);
                     }
                 });
+
                 tokio::signal::ctrl_c().await?;
+
                 crate::save::release_ports(std::env::current_dir()?).await?;
             }
             HcSandboxSubcommand::Call(call) => {
@@ -160,20 +186,27 @@ impl HcSandbox {
                 root,
                 directories,
             }) => {
+
                 let mut paths = Vec::with_capacity(num_sandboxes);
+
                 msg!(
                     "Creating {} conductor sandboxes with same settings",
                     num_sandboxes
                 );
+
                 for i in 0..num_sandboxes {
+
                     let path = crate::generate::generate(
                         network.clone().map(|n| n.into_inner().into()),
                         root.clone(),
                         directories.get(i).cloned(),
                     )?;
+
                     paths.push(path);
                 }
+
                 crate::save::save(std::env::current_dir()?, paths.clone())?;
+
                 msg!("Created {:?}", paths);
             }
         }
@@ -188,26 +221,36 @@ async fn run_n(
     app_ports: Vec<u16>,
     force_admin_ports: Vec<u16>,
 ) -> anyhow::Result<()> {
+
     let run_holochain = |holochain_path: PathBuf, path: PathBuf, ports, force_admin_port| async move {
+
         crate::run::run(&holochain_path, path, ports, force_admin_port).await?;
+
         Result::<_, anyhow::Error>::Ok(())
     };
+
     let mut force_admin_ports = force_admin_ports.into_iter();
+
     let mut app_ports = app_ports.into_iter();
+
     let jhs = paths
         .into_iter()
         .zip(std::iter::repeat_with(|| force_admin_ports.next()))
         .zip(std::iter::repeat_with(|| app_ports.next()))
         .map(|((path, force_admin_port), app_port)| {
+
             let f = run_holochain(
                 holochain_path.to_path_buf(),
                 path,
                 app_port.map(|p| vec![p]).unwrap_or_default(),
                 force_admin_port,
             );
+
             tokio::task::spawn(f)
         });
+
     futures::future::try_join_all(jhs).await?;
+
     Ok(())
 }
 
@@ -217,8 +260,12 @@ async fn generate(
     create: Create,
     app_id: InstalledAppId,
 ) -> anyhow::Result<Vec<PathBuf>> {
+
     let happ = crate::bundles::parse_happ(happ)?;
+
     let paths = crate::sandbox::default_n(holochain_path, create, happ, app_id).await?;
+
     crate::save::save(std::env::current_dir()?, paths.clone())?;
+
     Ok(paths)
 }

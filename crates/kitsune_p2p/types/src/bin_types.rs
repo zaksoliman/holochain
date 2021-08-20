@@ -3,6 +3,7 @@
 /// Kitsune hashes are expected to be 36 bytes.
 /// The first 32 bytes are the proper hash.
 /// The final 4 bytes are a hash-of-the-hash that can be treated like a u32 "location".
+
 pub trait KitsuneBinType:
     'static
     + Send
@@ -17,17 +18,22 @@ pub trait KitsuneBinType:
     + std::convert::Into<Vec<u8>>
 {
     /// Create an instance, ensuring the proper number of bytes were provided.
+
     fn new(bytes: Vec<u8>) -> Self;
 
     /// Fetch just the core 32 bytes (without the 4 location bytes).
+
     fn get_bytes(&self) -> &[u8];
 
     /// Fetch the dht "loc" / location for this hash.
+
     fn get_loc(&self) -> u32;
 }
 
 /// internal convert 4 location bytes into a u32 location
+
 fn bytes_to_loc(bytes: &[u8]) -> u32 {
+
     (bytes[0] as u32)
         + ((bytes[1] as u32) << 8)
         + ((bytes[2] as u32) << 16)
@@ -152,15 +158,21 @@ These metadata "Operations" each also have unique OpHashes."#,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[shrinkwrap(mutable)]
+
 pub struct KitsuneSignature(#[serde(with = "serde_bytes")] pub Vec<u8>);
 
 impl std::fmt::Debug for KitsuneSignature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
         f.write_fmt(format_args!("Signature(0x"))?;
+
         for byte in &self.0 {
+
             f.write_fmt(format_args!("{:02x}", byte))?;
         }
+
         f.write_fmt(format_args!(")"))?;
+
         Ok(())
     }
 }

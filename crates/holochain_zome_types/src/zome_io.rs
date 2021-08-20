@@ -7,6 +7,7 @@ use holochain_serialized_bytes::prelude::*;
 
 /// All wasm shared I/O types need to share the same basic behaviours to cross the host/guest
 /// boundary in a predictable way.
+
 macro_rules! wasm_io_types {
     ( $( fn $f:ident ( $in_arg:ty ) -> $out_arg:ty; )* ) => {
         pub trait HostFnApiT {
@@ -33,6 +34,7 @@ macro_rules! wasm_io_types {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(transparent)]
 #[repr(transparent)]
+
 pub struct ExternIO(#[serde(with = "serde_bytes")] pub Vec<u8>);
 
 impl ExternIO {
@@ -40,37 +42,46 @@ impl ExternIO {
     where
         I: serde::Serialize + std::fmt::Debug,
     {
+
         Ok(Self(holochain_serialized_bytes::encode(&input)?))
     }
+
     pub fn decode<O>(&self) -> Result<O, SerializedBytesError>
     where
         O: serde::de::DeserializeOwned + std::fmt::Debug,
     {
+
         holochain_serialized_bytes::decode(&self.0)
     }
 
     pub fn into_vec(self) -> Vec<u8> {
+
         self.into()
     }
+
     pub fn as_bytes(&self) -> &[u8] {
+
         &self.as_ref()
     }
 }
 
 impl AsRef<[u8]> for ExternIO {
     fn as_ref(&self) -> &[u8] {
+
         &self.0
     }
 }
 
 impl From<Vec<u8>> for ExternIO {
     fn from(v: Vec<u8>) -> Self {
+
         Self(v)
     }
 }
 
 impl From<ExternIO> for Vec<u8> {
     fn from(extern_io: ExternIO) -> Self {
+
         extern_io.0
     }
 }
@@ -213,6 +224,7 @@ wasm_io_types! {
 
 /// Anything that can go wrong while calling a HostFnApi method
 #[derive(thiserror::Error, Debug)]
+
 pub enum HostFnApiError {
     #[error("Error from within host function implementation: {0}")]
     RibosomeError(Box<dyn std::error::Error + Send + Sync>),
@@ -220,6 +232,7 @@ pub enum HostFnApiError {
 
 /// Response to a zome call.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, SerializedBytes, PartialEq)]
+
 pub enum ZomeCallResponse {
     /// Arbitrary response from zome fns to the outside world.
     /// Something like a 200 http response.

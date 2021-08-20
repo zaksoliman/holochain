@@ -23,6 +23,7 @@ use tracing::*;
 
 /// The struct which implements the genesis Workflow
 #[derive(Constructor, Debug)]
+
 pub struct GenesisWorkflowArgs<Ribosome>
 where
     Ribosome: RibosomeT + Send + 'static,
@@ -34,6 +35,7 @@ where
 }
 
 #[instrument(skip(workspace, api))]
+
 pub async fn genesis_workflow<'env, Api: CellConductorApiT, Ribosome>(
     mut workspace: GenesisWorkspace,
     api: Api,
@@ -42,7 +44,9 @@ pub async fn genesis_workflow<'env, Api: CellConductorApiT, Ribosome>(
 where
     Ribosome: RibosomeT + Send + 'static,
 {
+
     genesis_workflow_inner(&mut workspace, args, api).await?;
+
     Ok(())
 }
 
@@ -54,6 +58,7 @@ async fn genesis_workflow_inner<Api: CellConductorApiT, Ribosome>(
 where
     Ribosome: RibosomeT + Send + 'static,
 {
+
     let GenesisWorkflowArgs {
         dna_file,
         agent_pubkey,
@@ -62,6 +67,7 @@ where
     } = args;
 
     if workspace.has_genesis(&agent_pubkey)? {
+
         return Ok(());
     }
 
@@ -78,6 +84,7 @@ where
 
     // If the self-check fails, fail genesis, and don't create the source chain.
     if let GenesisSelfCheckResult::Invalid(reason) = result {
+
         return Err(WorkflowError::GenesisFailure(reason));
     }
 
@@ -88,6 +95,7 @@ where
         .expect("TODO: actually implement this")
         == "INVALID"
     {
+
         return Err(WorkflowError::AgentInvalid(agent_pubkey.clone()));
     }
 
@@ -103,18 +111,23 @@ where
 }
 
 /// The workspace for Genesis
+
 pub struct GenesisWorkspace {
     vault: EnvWrite,
 }
 
 impl GenesisWorkspace {
     /// Constructor
+
     pub fn new(env: EnvWrite) -> WorkspaceResult<Self> {
+
         Ok(Self { vault: env })
     }
 
     pub fn has_genesis(&self, author: &AgentPubKey) -> DatabaseResult<bool> {
+
         let count = self.vault.conn()?.with_reader(|txn| {
+
             let count: u32 = txn.query_row(
                 "
                 SELECT
@@ -132,14 +145,18 @@ impl GenesisWorkspace {
                 },
                 |row| row.get(0),
             )?;
+
             DatabaseResult::Ok(count)
         })?;
+
         Ok(count >= 3)
     }
 }
 
 #[cfg(test)]
+
 pub mod tests {
+
     use super::*;
 
     use crate::conductor::api::MockCellConductorApi;
@@ -152,35 +169,50 @@ pub mod tests {
     use observability;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn genesis_initializes_source_chain() {
+
         observability::test_run().unwrap();
+
         let test_env = test_cell_env();
+
         let vault = test_env.env();
+
         let dna = fake_dna_file("a");
+
         let author = fake_agent_pubkey_1();
 
         {
+
             let workspace = GenesisWorkspace::new(vault.clone().into()).unwrap();
+
             let mut api = MockCellConductorApi::new();
+
             api.expect_sync_dpki_request()
                 .returning(|_, _| Ok("mocked dpki request response".to_string()));
+
             let mut ribosome = MockRibosomeT::new();
+
             ribosome
                 .expect_run_genesis_self_check()
                 .returning(|_, _| Ok(GenesisSelfCheckResult::Valid));
+
             let args = GenesisWorkflowArgs {
                 dna_file: dna.clone(),
                 agent_pubkey: author.clone(),
                 membrane_proof: None,
                 ribosome,
             };
+
             let _: () = genesis_workflow(workspace, api, args).await.unwrap();
         }
 
         {
+
             let source_chain = SourceChain::new(vault.clone().into(), author.clone())
                 .await
                 .unwrap();
+
             let headers = source_chain
                 .query(Default::default())
                 .await

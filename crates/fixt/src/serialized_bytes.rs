@@ -1,4 +1,5 @@
 //! @todo move all this out to the serialized bytes crate
+
 use crate::prelude::*;
 use holochain_serialized_bytes::prelude::*;
 use rand::seq::SliceRandom;
@@ -6,6 +7,7 @@ use rand::seq::SliceRandom;
 #[derive(Clone, Copy)]
 /// there are many different types of things that we could reasonably serialize in our examples
 /// a list of things that we serialize iteratively (Predictable) or randomly (Unpredictable)
+
 pub enum ThingsToSerialize {
     Unit,
     Bool,
@@ -22,18 +24,27 @@ pub const THINGS_TO_SERIALIZE: [ThingsToSerialize; 4] = [
 
 /// Serialization wrapper for bools
 #[derive(serde::Serialize, serde::Deserialize, SerializedBytes, Debug)]
+
 struct BoolWrap(bool);
+
 /// Serialization wrapper for u32 (number)
 #[derive(serde::Serialize, serde::Deserialize, SerializedBytes, Debug)]
+
 struct U32Wrap(u32);
+
 /// Serialzation wrapper for Strings
 #[derive(serde::Serialize, serde::Deserialize, SerializedBytes, Debug)]
+
 struct StringWrap(String);
 
 fixturator!(
     SerializedBytes,
-    { SerializedBytes::try_from(()).unwrap() },
     {
+
+        SerializedBytes::try_from(()).unwrap()
+    },
+    {
+
         // randomly select a thing to serialize
         let thing_to_serialize = THINGS_TO_SERIALIZE
             .to_vec()
@@ -66,7 +77,9 @@ fixturator!(
         }
     },
     {
+
         let mut index = get_fixt_index!();
+
         // iteratively select a thing to serialize
         let thing_to_serialize = THINGS_TO_SERIALIZE
             .to_vec()
@@ -110,7 +123,9 @@ fixturator!(
         };
 
         index += 1;
+
         set_fixt_index!(index);
+
         ret
     }
 );

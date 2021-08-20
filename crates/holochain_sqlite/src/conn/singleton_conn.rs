@@ -23,6 +23,7 @@ lazy_static! {
 /// want to go back to singletons at some point.
 #[deprecated = "remove if we never wind up using singleton connections"]
 #[derive(Clone)]
+
 pub struct SConn {
     inner: Arc<Mutex<Connection>>,
     kind: DbKind,
@@ -30,13 +31,18 @@ pub struct SConn {
 
 impl SConn {
     /// Create a new connection with decryption key set
+
     pub fn open(path: &Path, kind: &DbKind) -> DatabaseResult<Self> {
+
         let mut conn = Connection::open(path)?;
+
         initialize_connection(&mut conn, kind, true)?;
+
         Ok(Self::new(conn, kind.clone()))
     }
 
     fn new(inner: Connection, kind: DbKind) -> Self {
+
         Self {
             inner: Arc::new(Mutex::new(inner)),
             kind,
@@ -44,14 +50,20 @@ impl SConn {
     }
 
     pub fn inner(&mut self) -> SwanSong<MutexGuard<Connection>> {
+
         let kind = self.kind.clone();
+
         tracing::trace!("lock attempt {}", &kind);
+
         let guard = self
             .inner
             .try_lock_for(std::time::Duration::from_secs(30))
             .unwrap_or_else(|| panic!("Couldn't unlock connection. Kind: {}", &kind));
+
         tracing::trace!("lock success {}", &kind);
+
         SwanSong::new(guard, move |_| {
+
             tracing::trace!("lock drop {}", &kind);
         })
     }
@@ -59,16 +71,23 @@ impl SConn {
 
 impl DbRead {
     #[deprecated = "remove if we never use singleton connections"]
+
     fn _connection_naive(&self) -> DatabaseResult<SConn> {
+
         SConn::open(self.path(), &self.kind())
     }
 
     #[deprecated = "remove if we never use singleton connections"]
+
     fn _connection_singleton(&self) -> DatabaseResult<SConn> {
+
         let mut map = CONNECTIONS.write();
+
         let conn = match map.entry(self.path().to_owned()) {
             Entry::Vacant(e) => {
+
                 let conn = SConn::open(self.path(), self.kind())?;
+
                 e.insert(conn).clone()
             }
             Entry::Occupied(e) => e.get().clone(),

@@ -21,52 +21,72 @@ use std::collections::{hash_map, HashMap, HashSet};
 /// DNA store and the app installation process. Without needing to know exactly
 /// what we will need from the DNA store, we can define what questions we will
 /// need to ask of it through this type.
+
 pub struct DnaGamut(HashMap<DnaHash, HashSet<AgentPubKey>>);
 
 /// We don't have any notion of DNA versioning other than the hash, but this is
 /// a placeholder to indicate the need for it in the future and to start using
 /// it in public interfaces.
+
 pub struct DnaVersion;
 
 impl DnaGamut {
     /// Constructor. Restructure a list of CellIds into the proper format.
+
     pub fn new<I: IntoIterator<Item = CellId>>(cells: I) -> Self {
+
         let mut map: HashMap<DnaHash, HashSet<AgentPubKey>> = HashMap::new();
+
         for cell in cells {
+
             let (dna, agent) = cell.into_dna_and_agent();
+
             match map.entry(dna) {
                 hash_map::Entry::Occupied(mut e) => {
+
                     e.get_mut().insert(agent);
                 }
                 hash_map::Entry::Vacant(e) => {
+
                     e.insert(vec![agent].into_iter().collect());
                 }
             }
         }
+
         Self(map)
     }
 
     #[deprecated = "Stop using the placeholder"]
     #[allow(missing_docs)]
+
     pub fn placeholder() -> Self {
+
         Self::new(std::iter::empty())
     }
 
     /// Given a version spec, return the best-matching DNA in the gamut
+
     pub fn resolve_dna(&self, spec: DnaVersionSpec) -> DnaResolution {
+
         for hash in spec.dna_hashes() {
+
             if self.0.contains_key(hash.as_ref()) {
+
                 return DnaResolution::Match(hash.clone(), DnaVersion);
             }
         }
+
         DnaResolution::NoMatch
     }
 
     /// Given a version spec, return the best-matching CellId
+
     // TODO: use DPKI to filter Cells which belong to Agents that are not
     //       associated with the provided agent
     pub fn resolve_cell(&self, spec: DnaVersionSpec, _agent: &AgentPubKey) -> CellResolution {
+
         for hash in spec.dna_hashes() {
+
             if let Some(agent) = self
                 .0
                 .get(hash.as_ref())
@@ -75,17 +95,20 @@ impl DnaGamut {
                 .map(|agents| agents.iter().next())
                 .unwrap_or(None)
             {
+
                 return CellResolution::Match(
                     CellId::new(hash.clone().into(), agent.clone()),
                     DnaVersion,
                 );
             }
         }
+
         CellResolution::NoMatch
     }
 }
 
 /// Possible results of DNA resolution
+
 pub enum DnaResolution {
     /// A match was found within the gamut
     Match(DnaHashB64, DnaVersion),
@@ -97,6 +120,7 @@ pub enum DnaResolution {
 }
 
 /// Possible results of Cell resolution
+
 pub enum CellResolution {
     /// A match was found within the gamut
     Match(CellId, DnaVersion),

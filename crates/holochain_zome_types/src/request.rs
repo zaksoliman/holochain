@@ -4,6 +4,7 @@ use holochain_serialized_bytes::prelude::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Serialize, Deserialize)]
 /// Metadata that can be requested on a basis
+
 pub struct MetadataRequest {
     /// Get all the headers on an entry.
     /// Invalid request on a header.
@@ -25,6 +26,7 @@ pub struct MetadataRequest {
 
 impl Default for MetadataRequest {
     fn default() -> Self {
+
         Self {
             all_valid_headers: true,
             all_invalid_headers: false,

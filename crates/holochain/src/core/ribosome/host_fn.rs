@@ -10,6 +10,7 @@ pub struct HostFnApi<Ribosome: RibosomeT> {
 
 impl<Ribosome: RibosomeT> HostFnApi<Ribosome> {
     pub fn new(ribosome: Arc<Ribosome>, call_context: Arc<CallContext>) -> Self {
+
         Self {
             ribosome,
             call_context,

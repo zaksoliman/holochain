@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "consistency-stress")]
+
 struct Opt {
     /// how many nodes to create
     #[structopt(short = "n", long, default_value = "10")]
@@ -30,7 +31,9 @@ struct Opt {
 }
 
 #[tokio::main(flavor = "multi_thread")]
+
 async fn main() {
+
     let Opt {
         node_count,
         agents_per_node,
@@ -41,7 +44,9 @@ async fn main() {
 
     let mut tuning_params =
         kitsune_p2p_types::config::tuning_params_struct::KitsuneP2pTuningParams::default();
+
     tuning_params.gossip_peer_on_success_next_gossip_delay_ms = peer_gossip_success_delay_ms;
+
     let tuning_params = std::sync::Arc::new(tuning_params);
 
     let (mut progress, _shutdown) = run(Config {
@@ -53,6 +58,7 @@ async fn main() {
     });
 
     while let Some(progress) = progress.next().await {
+
         println!("{}", progress);
     }
 }

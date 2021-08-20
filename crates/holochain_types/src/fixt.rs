@@ -55,6 +55,7 @@ fixturator!(
 );
 
 fn new_entry_element(entry: Entry, header_type: HeaderType, index: usize) -> Element {
+
     let et = match entry {
         Entry::App(_) | Entry::CounterSign(_, _) => EntryType::App(
             AppEntryTypeFixturator::new_indexed(Unpredictable, index)
@@ -65,19 +66,30 @@ fn new_entry_element(entry: Entry, header_type: HeaderType, index: usize) -> Ele
         Entry::CapClaim(_) => EntryType::CapClaim,
         Entry::CapGrant(_) => EntryType::CapGrant,
     };
+
     match header_type {
         HeaderType::Create => {
+
             let c = CreateFixturator::new_indexed(et, index).next().unwrap();
+
             let c = NewEntryHeader::Create(c);
+
             let element: Element = ElementFixturator::new_indexed(c, index).next().unwrap();
+
             let (shh, _) = element.into_inner();
+
             Element::new(shh, Some(entry))
         }
         HeaderType::Update => {
+
             let u = UpdateFixturator::new_indexed(et, index).next().unwrap();
+
             let u = NewEntryHeader::Update(u);
+
             let element: Element = ElementFixturator::new_indexed(u, index).next().unwrap();
+
             let (shh, _) = element.into_inner();
+
             Element::new(shh, Some(entry))
         }
         _ => panic!("You choose {:?} for an Element with en Entry", header_type),

@@ -6,6 +6,7 @@ pub mod post_commit;
 pub mod validate;
 pub mod validate_link;
 pub mod validation_package;
+
 use super::HostContext;
 use crate::core::ribosome::error::RibosomeError;
 use crate::core::ribosome::FnComponents;
@@ -25,6 +26,7 @@ pub struct CallIterator<R: RibosomeT, I: Invocation> {
 
 impl<R: RibosomeT, I: Invocation> CallIterator<R, I> {
     pub fn new(host_context: HostContext, ribosome: R, invocation: I) -> Self {
+
         Self {
             host_context,
             remaining_zomes: ribosome.zomes_to_invoke(invocation.zomes()),
@@ -37,12 +39,17 @@ impl<R: RibosomeT, I: Invocation> CallIterator<R, I> {
 
 impl<R: RibosomeT, I: Invocation + 'static> FallibleIterator for CallIterator<R, I> {
     type Item = (Zome, ExternIO);
+
     type Error = (Zome, RibosomeError);
+
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
+
         Ok(match self.remaining_zomes.first() {
             Some(zome) => {
+
                 match self.remaining_components.next() {
                     Some(to_call) => {
+
                         match self.ribosome.maybe_call(
                             self.host_context.clone(),
                             &self.invocation,
@@ -57,8 +64,11 @@ impl<R: RibosomeT, I: Invocation + 'static> FallibleIterator for CallIterator<R,
                     // there are no more callbacks to call in this zome
                     // reset fn components and move to the next zome
                     None => {
+
                         self.remaining_components = self.invocation.fn_components();
+
                         self.remaining_zomes.remove(0);
+
                         self.next()?
                     }
                 }
@@ -70,7 +80,9 @@ impl<R: RibosomeT, I: Invocation + 'static> FallibleIterator for CallIterator<R,
 
 #[cfg(test)]
 #[cfg(feature = "slow_tests")]
+
 mod tests {
+
     use super::CallIterator;
     use crate::core::ribosome::FnComponents;
     use crate::core::ribosome::MockInvocation;
@@ -85,9 +97,12 @@ mod tests {
     use mockall::Sequence;
 
     #[tokio::test(flavor = "multi_thread")]
+
     async fn call_iterator_iterates() {
+
         // stuff we need to test with
         let mut sequence = Sequence::new();
+
         let mut ribosome = MockRibosomeT::new();
 
         let mut invocation = MockInvocation::new();
@@ -95,11 +110,14 @@ mod tests {
         let host_access = ZomeCallHostAccessFixturator::new(::fixt::Empty)
             .next()
             .unwrap();
+
         let zome_fixturator = ZomeFixturator::new(::fixt::Unpredictable);
+
         let mut fn_components_fixturator = FnComponentsFixturator::new(::fixt::Unpredictable);
 
         // let returning_init_invocation = init_invocation.clone();
         let zomes: Vec<Zome> = zome_fixturator.take(3).collect();
+
         let fn_components: FnComponents = fn_components_fixturator.next().unwrap();
 
         invocation
@@ -124,7 +142,9 @@ mod tests {
         // zomes are the outer loop as we process all callbacks in a single zome before moving to
         // the next one
         for zome in zomes.clone() {
+
             for fn_component in fn_components.clone() {
+
                 // the invocation zome name and component will be called by the ribosome
                 ribosome
                     .expect_maybe_call::<MockInvocation>()
@@ -137,6 +157,7 @@ mod tests {
                     .times(1)
                     .in_sequence(&mut sequence)
                     .returning(|_, _, _, _| {
+
                         Ok(Some(ExternIO::encode(InitCallbackResult::Pass).unwrap()))
                     });
             }
@@ -152,6 +173,7 @@ mod tests {
         let call_iterator = CallIterator::new(host_access.into(), ribosome, invocation);
 
         let output: Vec<(_, ExternIO)> = call_iterator.collect().unwrap();
+
         assert_eq!(output.len(), zomes.len() * fn_components.0.len());
     }
 }

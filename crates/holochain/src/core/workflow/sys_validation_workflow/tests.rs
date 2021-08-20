@@ -23,7 +23,9 @@ use std::convert::TryInto;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn sys_validation_workflow_test() {
+
     observability::test_run().ok();
 
     let dna_file = DnaFile::new(
@@ -39,11 +41,15 @@ async fn sys_validation_workflow_test() {
     .unwrap();
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     let bob_agent_id = fake_agent_pubkey_2();
+
     let bob_cell_id = CellId::new(dna_file.dna_hash().to_owned(), bob_agent_id.clone());
+
     let bob_installed_cell = InstalledCell::new(bob_cell_id.clone(), "bob_handle".into());
 
     let (_tmpdir, _app_api, handle) = setup_app(
@@ -58,7 +64,9 @@ async fn sys_validation_workflow_test() {
     run_test(alice_cell_id, bob_cell_id, handle.clone(), dna_file).await;
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
@@ -68,10 +76,12 @@ async fn run_test(
     handle: ConductorHandle,
     dna_file: DnaFile,
 ) {
+
     // Check if the correct number of ops are integrated
     // every 100 ms for a maximum of 10 seconds but early exit
     // if they are there.
     let num_attempts = 100;
+
     let delay_per_attempt = Duration::from_millis(100);
 
     bob_links_in_a_legit_way(&bob_cell_id, &handle, &dna_file).await;
@@ -82,6 +92,7 @@ async fn run_test(
     let expected_count = 9 + 14;
 
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(
         &alice_env,
         expected_count,
@@ -91,6 +102,7 @@ async fn run_test(
     .await;
 
     let limbo_is_empty = |txn: &Transaction| {
+
         let not_empty: bool = txn
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM DhtOP WHERE when_integrated IS NULL)",
@@ -98,9 +110,12 @@ async fn run_test(
                 |row| row.get(0),
             )
             .unwrap();
+
         !not_empty
     };
+
     let show_limbo = |txn: &Transaction| {
+
         txn.prepare("SELECT blob FROM DhtOp WHERE when_integrated IS NULL")
             .unwrap()
             .query_and_then([], |row| from_blob(row.get("blob")?))
@@ -111,7 +126,9 @@ async fn run_test(
 
     // Validation should be empty
     fresh_reader_test(alice_env, |txn| {
+
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         let num_valid_ops: usize = txn
@@ -121,6 +138,7 @@ async fn run_test(
                 },
                 |row| row.get(0))
                 .unwrap();
+
         assert_eq!(num_valid_ops, expected_count);
     });
 
@@ -131,6 +149,7 @@ async fn run_test(
     let expected_count = 14 + expected_count;
 
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(
         &alice_env,
         expected_count,
@@ -140,7 +159,9 @@ async fn run_test(
     .await;
 
     let bad_update_entry_hash: AnyDhtHash = bad_update_entry_hash.into();
+
     let num_valid_ops = |txn: &Transaction| {
+
         let valid_ops: usize = txn
                 .query_row(
                     "
@@ -178,15 +199,19 @@ async fn run_test(
                 },
                 |row| row.get(0))
                 .unwrap();
+
         valid_ops
     };
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         let valid_ops = num_valid_ops(&txn);
+
         assert_eq!(valid_ops, expected_count);
     });
 
@@ -196,6 +221,7 @@ async fn run_test(
     let expected_count = 4 + expected_count;
 
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(
         &alice_env,
         expected_count,
@@ -207,12 +233,17 @@ async fn run_test(
     // Validation should still contain bobs link pending because the target was missing
     // holochain_state::prelude::dump_tmp(&alice_env);
     fresh_reader_test(alice_env.clone(), |txn| {
+
         let valid_ops = num_valid_ops(&txn);
+
         assert_eq!(valid_ops, expected_count);
     });
+
     crate::assert_eq_retry_1m!(
         {
+
             fresh_reader_test(alice_env.clone(), |txn| {
+
                 let num_limbo_ops: usize = txn
                     .query_row(
                         "
@@ -225,6 +256,7 @@ async fn run_test(
                         |row| row.get(0),
                     )
                     .unwrap();
+
                 num_limbo_ops
             })
         },
@@ -237,12 +269,19 @@ async fn bob_links_in_a_legit_way(
     handle: &ConductorHandle,
     dna_file: &DnaFile,
 ) -> HeaderHash {
+
     let base = Post("Bananas are good for you".into());
+
     let target = Post("Potassium is radioactive".into());
+
     let base_entry_hash = Entry::try_from(base.clone()).unwrap().to_hash();
+
     let target_entry_hash = Entry::try_from(target.clone()).unwrap().to_hash();
+
     let link_tag = fixt!(LinkTag);
+
     let call_data = HostFnCaller::create(bob_cell_id, handle, dna_file).await;
+
     // 3
     call_data
         .commit_entry(base.clone().try_into().unwrap(), POST_ID)
@@ -265,7 +304,9 @@ async fn bob_links_in_a_legit_way(
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
+
     link_add_address
 }
 
@@ -274,17 +315,24 @@ async fn bob_makes_a_large_link(
     handle: &ConductorHandle,
     dna_file: &DnaFile,
 ) -> (HeaderHash, EntryHash, HeaderHash) {
+
     let base = Post("Small time base".into());
+
     let target = Post("Spam it big time".into());
+
     let bad_update = Msg("This is not the msg you were looking for".into());
+
     let base_entry_hash = Entry::try_from(base.clone()).unwrap().to_hash();
+
     let target_entry_hash = Entry::try_from(target.clone()).unwrap().to_hash();
+
     let bad_update_entry_hash = Entry::try_from(bad_update.clone()).unwrap().to_hash();
 
     let bytes = (0..MAX_TAG_SIZE + 1)
         .map(|_| 0u8)
         .into_iter()
         .collect::<Vec<_>>();
+
     let link_tag = LinkTag(bytes);
 
     let call_data = HostFnCaller::create(bob_cell_id, handle, dna_file).await;
@@ -321,16 +369,24 @@ async fn bob_makes_a_large_link(
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
+
     (bad_update_header, bad_update_entry_hash, link_add_address)
 }
 
 async fn dodgy_bob(bob_cell_id: &CellId, handle: &ConductorHandle, dna_file: &DnaFile) {
+
     let base = Post("Bob is the best and I'll link to proof so you can check".into());
+
     let target = Post("Dodgy proof Bob is the best".into());
+
     let base_entry_hash = Entry::try_from(base.clone()).unwrap().to_hash();
+
     let target_entry_hash = Entry::try_from(target.clone()).unwrap().to_hash();
+
     let link_tag = fixt!(LinkTag);
+
     let call_data = HostFnCaller::create(bob_cell_id, handle, dna_file).await;
 
     // 11
@@ -351,6 +407,7 @@ async fn dodgy_bob(bob_cell_id: &CellId, handle: &ConductorHandle, dna_file: &Dn
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
 }
 

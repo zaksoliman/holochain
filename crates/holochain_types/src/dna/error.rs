@@ -6,6 +6,7 @@ use thiserror::Error;
 
 /// Holochain DnaError type.
 #[derive(Debug, Error)]
+
 pub enum DnaError {
     /// EmptyZome
     #[error("Zome has no code: {0}")]
@@ -63,9 +64,11 @@ pub enum DnaError {
 
 impl From<std::io::Error> for DnaError {
     fn from(error: std::io::Error) -> Self {
+
         Self::StdIoError(error.to_string())
     }
 }
 
 /// Result type for DnaError
+
 pub type DnaResult<T> = Result<T, DnaError>;

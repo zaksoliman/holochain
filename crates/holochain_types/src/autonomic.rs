@@ -2,6 +2,7 @@
 
 /// The various processes which run "autonomically", aka subconsciously.
 /// These are currently not used.
+
 pub enum AutonomicProcess {
     /// Validation / Correction may propagate much slower.
     SlowHeal,
@@ -13,6 +14,7 @@ pub enum AutonomicProcess {
 
 /// A cue that the autonomic system should perform one of its functions now,
 /// rather than at the next scheduled time
+
 pub enum AutonomicCue {
     // /// Cue sent when it is known that entries are ready for initial publishing,
 // /// i.e. after committing new entries to your source chain
@@ -21,6 +23,7 @@ pub enum AutonomicCue {
 
 impl From<AutonomicCue> for AutonomicProcess {
     fn from(cue: AutonomicCue) -> AutonomicProcess {
+
         match cue {}
     }
 }

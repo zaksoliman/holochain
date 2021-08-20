@@ -12,6 +12,7 @@ pub(crate) async fn handle_rpc_multi(
     ro_inner: Arc<SpaceReadOnlyInner>,
     local_joined_agents: HashSet<Arc<KitsuneAgent>>,
 ) -> KitsuneP2pResult<Vec<actor::RpcMultiResponse>> {
+
     let (driver, agg) = TaskAgg::new();
 
     let out = Outer::new(input, ro_inner, local_joined_agents, agg);
@@ -28,27 +29,36 @@ struct Inner {
 }
 
 fn check_already_tried(inner: &mut Inner, agent: &Arc<KitsuneAgent>) -> bool {
+
     if inner.already_tried.contains(agent) {
+
         true
     } else {
+
         inner.already_tried.insert(agent.clone());
+
         false
     }
 }
 
 fn check_local_agent(inner: &Share<Inner>, agent: &Arc<KitsuneAgent>) -> bool {
+
     inner
         .share_mut(|i, _| Ok(check_already_tried(i, agent)))
         .expect("we never close this share")
 }
 
 fn check_remote_agent(inner: &Share<Inner>, agent: &Arc<KitsuneAgent>) -> bool {
+
     inner
         .share_mut(|i, _| {
             if i.remain_remote_count == 0 || check_already_tried(i, agent) {
+
                 Ok(true)
             } else {
+
                 i.remain_remote_count -= 1;
+
                 Ok(false)
             }
         })
@@ -72,12 +82,14 @@ struct Outer {
 
 impl Outer {
     /// construct a new container for this rpc_multi logic
+
     fn new(
         input: actor::RpcMulti,
         ro_inner: Arc<SpaceReadOnlyInner>,
         local_joined_agents: HashSet<Arc<KitsuneAgent>>,
         agg: TaskAgg,
     ) -> Self {
+
         let RpcMulti {
             space,
             from_agent,
@@ -89,7 +101,9 @@ impl Outer {
         } = input;
 
         let grace_rs = ReverseSemaphore::new();
+
         let local_start_permit = grace_rs.acquire();
+
         let remote_start_permit = grace_rs.acquire();
 
         let out = Self {
@@ -112,15 +126,20 @@ impl Outer {
         };
 
         out.add_max_timeout_task(max_timeout);
+
         out.add_data_and_grace_timeout_task();
+
         out.add_local_fetch_task(local_start_permit, local_joined_agents);
+
         out.add_remote_fetch_task(remote_start_permit);
 
         out
     }
 
     /// consume this logic container, returning the results
+
     fn finish(self) -> Vec<actor::RpcMultiResponse> {
+
         let Self { inner, .. } = self;
 
         inner
@@ -129,14 +148,19 @@ impl Outer {
     }
 
     /// add a task that will be dropped if `kill` is notified.
+
     fn add_task<F>(&self, f: F)
     where
         F: Future<Output = ()> + 'static + Send,
     {
+
         let f = f.boxed();
+
         let kill = self.kill.clone();
+
         self.agg.push(
             async move {
+
                 // ignore the result,
                 // either we got a unit value `()` from the driver
                 // or we got a notification from the kill Notify
@@ -158,11 +182,17 @@ impl Outer {
     ///
     /// Once the `block_in_place` calls are removed from conductor,
     /// we can remove this specialization.
+
     fn gen_add_tokio_task_fn(&self) -> Arc<dyn Fn(BoxFuture<'static, ()>) + 'static + Send + Sync> {
+
         let kill = self.kill.clone();
+
         Arc::new(move |f| {
+
             let kill = kill.clone();
+
             tokio::task::spawn(async move {
+
                 // ignore the result,
                 // either we got a unit value `()` from the driver
                 // or we got a notification from the kill Notify
@@ -173,10 +203,13 @@ impl Outer {
     }
 
     /// stop all processing if/when we reach our max timeout.
+
     fn add_max_timeout_task(&self, max_timeout: KitsuneTimeout) {
+
         let kill = self.kill.clone();
 
         self.add_task(async move {
+
             // wait the max timeout
             tokio::time::sleep(max_timeout.time_remaining()).await;
 
@@ -189,20 +222,27 @@ impl Outer {
 
     /// once we have any data, wait for any grace period timeouts,
     /// then allow our processing to die, and return what results we have.
+
     fn add_data_and_grace_timeout_task(&self) {
+
         let kill = self.kill.clone();
+
         let got_data = self.got_data.clone();
+
         let grace_rs = self.grace_rs.clone();
 
         self.add_task(async move {
+
             tracing::trace!("(rpc_multi_logic) grace time check start");
 
             // wait to have any data
             got_data.notified().await;
+
             tracing::trace!("(rpc_multi_logic) grace time got data");
 
             // wait for any pending grace permits
             grace_rs.wait_on_zero_permits().await;
+
             tracing::trace!("(rpc_multi_logic) grace time zero permits");
 
             // end all processing
@@ -213,21 +253,30 @@ impl Outer {
     }
 
     /// generate a closure that will in-turn generate a grace permit
+
     fn gen_grace_permit_fn(
         &self,
     ) -> Arc<dyn Fn() -> Share<ReverseSemaphorePermit> + 'static + Send + Sync> {
+
         let remote_request_grace_ms = self.remote_request_grace_ms;
+
         let agg = self.agg.clone();
+
         let grace_rs = self.grace_rs.clone();
+
         Arc::new(move || {
+
             let permit = Share::new(grace_rs.acquire());
+
             let permit2 = permit.clone();
 
             // the permit will exist for max grace period
             agg.push(
                 async move {
+
                     tokio::time::sleep(std::time::Duration::from_millis(remote_request_grace_ms))
                         .await;
+
                     permit2.close();
                 }
                 .boxed(),
@@ -239,14 +288,21 @@ impl Outer {
     }
 
     /// generate a closure that will in-turn report rpc_multi results (response)
+
     fn gen_report_results_fn(&self) -> Arc<dyn Fn(RpcMultiResponse) + 'static + Send + Sync> {
+
         let inner = self.inner.clone();
+
         let got_data = self.got_data.clone();
+
         Arc::new(move |resp| {
+
             // store the results in our inner data structure
             inner
                 .share_mut(move |i, _| {
+
                     i.response.push(resp);
+
                     Ok(())
                 })
                 .expect("we never close this share");
@@ -257,19 +313,27 @@ impl Outer {
     }
 
     /// generate a closure that will in-turn make a local "call" to conductor
+
     fn gen_local_call_fn(
         &self,
     ) -> Arc<dyn Fn(Arc<KitsuneAgent>, Share<ReverseSemaphorePermit>) + 'static + Send + Sync> {
+
         let add_tokio_task = self.gen_add_tokio_task_fn();
+
         let report_results = self.gen_report_results_fn();
+
         let evt_sender = self.ro_inner.evt_sender.clone();
 
         let space = self.space.clone();
+
         let from_agent = self.from_agent.clone();
+
         let payload = self.payload.clone();
 
         Arc::new(move |to_agent, permit| {
+
             let report_results = report_results.clone();
+
             let fut = evt_sender.call(
                 space.clone(),
                 to_agent.clone(),
@@ -280,14 +344,17 @@ impl Outer {
             // see add_tokio_task vs add_task
             add_tokio_task(
                 async move {
+
                     match fut.await {
                         Ok(res) => {
+
                             report_results(RpcMultiResponse {
                                 agent: to_agent,
                                 response: res,
                             });
                         }
                         Err(err) => {
+
                             tracing::warn!(?err, "local call error");
                         }
                     }
@@ -300,38 +367,56 @@ impl Outer {
     }
 
     /// generate a closure that will in-turn make a remote "call" to agent
+
     fn gen_remote_call_fn(
         &self,
     ) -> Arc<dyn Fn(AgentInfoSigned, Share<ReverseSemaphorePermit>) + 'static + Send + Sync> {
+
         let add_tokio_task = self.gen_add_tokio_task_fn();
+
         let report_results = self.gen_report_results_fn();
 
         let ro_inner = self.ro_inner.clone();
+
         let space = self.space.clone();
+
         let from_agent = self.from_agent.clone();
+
         let payload = self.payload.clone();
+
         let max_timeout = self.max_timeout;
 
         Arc::new(move |info, permit| {
+
             let report_results = report_results.clone();
+
             let ro_inner = ro_inner.clone();
+
             let space = space.clone();
+
             let from_agent = from_agent.clone();
+
             let payload = payload.clone();
 
             add_tokio_task(
                 async move {
+
                     use discover::PeerDiscoverResult;
 
                     let con_hnd =
                         match discover::peer_connect(ro_inner.clone(), &info, max_timeout).await {
                             PeerDiscoverResult::OkShortcut => {
+
                                 permit.close();
+
                                 return;
                             }
                             PeerDiscoverResult::Err(err) => {
+
                                 tracing::warn!(?err, "remote call error");
+
                                 permit.close();
+
                                 return;
                             }
                             PeerDiscoverResult::OkRemote { con_hnd, .. } => con_hnd,
@@ -344,12 +429,14 @@ impl Outer {
 
                     match res {
                         Ok(wire::Wire::CallResp(c)) => {
+
                             report_results(RpcMultiResponse {
                                 agent: info.agent.clone(),
                                 response: c.data.into(),
                             });
                         }
                         oth => {
+
                             tracing::warn!(?oth, "unexpected remote call result");
                         }
                     }
@@ -362,23 +449,31 @@ impl Outer {
     }
 
     /// fetch results from any matching local agents
+
     fn add_local_fetch_task(
         &self,
         startup_permit: ReverseSemaphorePermit,
         local_joined_agents: HashSet<Arc<KitsuneAgent>>,
     ) {
+
         let inner = self.inner.clone();
+
         let grace_permit = self.gen_grace_permit_fn();
+
         let local_call = self.gen_local_call_fn();
 
         self.add_task(async move {
+
             let _startup_permit = startup_permit;
 
             let agent_count = local_joined_agents.len();
+
             tracing::trace!(%agent_count, "(rpc_multi_logic) local get start");
 
             for agent in local_joined_agents {
+
                 if check_local_agent(&inner, &agent) {
+
                     continue;
                 }
 
@@ -393,19 +488,29 @@ impl Outer {
     }
 
     /// fetch results from discovered remote nodes
+
     fn add_remote_fetch_task(&self, startup_permit: ReverseSemaphorePermit) {
+
         let inner = self.inner.clone();
+
         let ro_inner = self.ro_inner.clone();
+
         let basis = self.basis.clone();
+
         let max_timeout = self.max_timeout;
+
         let grace_permit = self.gen_grace_permit_fn();
+
         let add_tokio_task = self.gen_add_tokio_task_fn();
+
         let remote_call = self.gen_remote_call_fn();
 
         // see add_tokio_task vs add_task
         add_tokio_task(
             async move {
+
                 let first_discover_permit = grace_permit();
+
                 drop(startup_permit);
 
                 tracing::trace!("(rpc_multi_logic) remote get cached start");
@@ -418,18 +523,23 @@ impl Outer {
                 )
                 .await
                 {
+
                     let cached_remote_count = infos.len();
+
                     tracing::trace!(
                         %cached_remote_count,
                         "(rpc_multi_logic) remote get cached",
                     );
 
                     for info in infos {
+
                         if check_remote_agent(&inner, &info.agent) {
+
                             continue;
                         }
 
                         let permit = grace_permit();
+
                         remote_call(info, permit);
                     }
                 }
@@ -438,21 +548,28 @@ impl Outer {
                 let already_done = inner
                     .share_mut(|i, _| {
                         if i.remain_remote_count == 0 {
+
                             Ok(true)
                         } else {
+
                             Ok(false)
                         }
                     })
                     .expect("we never close this share");
+
                 if already_done {
+
                     tracing::trace!("(rpc_multi_logic) remote get done after cached");
+
                     first_discover_permit.close();
+
                     return;
                 }
 
                 tracing::trace!("(rpc_multi_logic) remote get searched start");
 
                 let second_discover_permit = grace_permit();
+
                 first_discover_permit.close();
 
                 // if we still have requests to send, let's discover new nodes
@@ -463,18 +580,23 @@ impl Outer {
                 )
                 .await
                 {
+
                     let searched_remote_count = infos.len();
+
                     tracing::trace!(
                         %searched_remote_count,
                         "(rpc_multi_logic) remote get searched",
                     );
 
                     for info in infos {
+
                         if check_remote_agent(&inner, &info.agent) {
+
                             continue;
                         }
 
                         let permit = grace_permit();
+
                         remote_call(info, permit);
                     }
                 }

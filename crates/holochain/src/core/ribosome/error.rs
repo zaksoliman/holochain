@@ -15,6 +15,7 @@ use tokio::task::JoinError;
 
 /// Errors occurring during a [Ribosome] call
 #[derive(Error, Debug)]
+
 pub enum RibosomeError {
     /// Dna error while working with Ribosome.
     #[error("Dna error while working with Ribosome: {0}")]
@@ -98,15 +99,18 @@ pub enum RibosomeError {
 
 impl From<xsalsa20poly1305::aead::Error> for RibosomeError {
     fn from(error: xsalsa20poly1305::aead::Error) -> Self {
+
         Self::Aead(error.to_string())
     }
 }
 
 impl From<ring::error::Unspecified> for RibosomeError {
     fn from(_: ring::error::Unspecified) -> Self {
+
         Self::RingUnspecified
     }
 }
 
 /// Type alias
+
 pub type RibosomeResult<T> = Result<T, RibosomeError>;

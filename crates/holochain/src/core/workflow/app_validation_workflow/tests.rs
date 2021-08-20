@@ -24,7 +24,9 @@ use std::convert::TryInto;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn app_validation_workflow_test() {
+
     observability::test_run_open().ok();
 
     let dna_file = DnaFile::new(
@@ -49,11 +51,15 @@ async fn app_validation_workflow_test() {
     .unwrap();
 
     let alice_agent_id = fake_agent_pubkey_1();
+
     let alice_cell_id = CellId::new(dna_file.dna_hash().to_owned(), alice_agent_id.clone());
+
     let alice_installed_cell = InstalledCell::new(alice_cell_id.clone(), "alice_handle".into());
 
     let bob_agent_id = fake_agent_pubkey_2();
+
     let bob_cell_id = CellId::new(dna_file.dna_hash().to_owned(), bob_agent_id.clone());
+
     let bob_installed_cell = InstalledCell::new(bob_cell_id.clone(), "bob_handle".into());
 
     let (_tmpdir, _app_api, handle) = setup_app(
@@ -72,6 +78,7 @@ async fn app_validation_workflow_test() {
         &dna_file,
     )
     .await;
+
     run_test_entry_def_id(
         alice_cell_id,
         bob_cell_id,
@@ -82,7 +89,9 @@ async fn app_validation_workflow_test() {
     .await;
 
     let shutdown = handle.take_shutdown_handle().await.unwrap();
+
     handle.shutdown().await;
+
     shutdown.await.unwrap().unwrap();
 }
 
@@ -94,6 +103,7 @@ fn expected_invalid_entry(
     invalid_header_hash: &HeaderHash,
     invalid_entry_hash: &AnyDhtHash,
 ) -> bool {
+
     let sql = format!(
         "
         {}
@@ -121,11 +131,13 @@ fn expected_invalid_entry(
             |row| row.get(0),
         )
         .unwrap();
+
     count == 2
 }
 
 // Now we expect an invalid link
 fn expected_invalid_link(txn: &Transaction, invalid_link_hash: &HeaderHash) -> bool {
+
     let sql = format!(
         "
         {}
@@ -152,11 +164,13 @@ fn expected_invalid_link(txn: &Transaction, invalid_link_hash: &HeaderHash) -> b
             |row| row.get(0),
         )
         .unwrap();
+
     count == 2
 }
 
 // Now we're trying to remove an invalid link
 fn expected_invalid_remove_link(txn: &Transaction, invalid_remove_hash: &HeaderHash) -> bool {
+
     let sql = format!(
         "
         {}
@@ -183,10 +197,12 @@ fn expected_invalid_remove_link(txn: &Transaction, invalid_remove_hash: &HeaderH
             |row| row.get(0),
         )
         .unwrap();
+
     count == 2
 }
 
 fn limbo_is_empty(txn: &Transaction) -> bool {
+
     let not_empty: bool = txn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM DhtOP WHERE when_integrated IS NULL)",
@@ -194,10 +210,12 @@ fn limbo_is_empty(txn: &Transaction) -> bool {
             |row| row.get(0),
         )
         .unwrap();
+
     !not_empty
 }
 
 fn show_limbo(txn: &Transaction) -> Vec<DhtOpLight> {
+
     txn.prepare("SELECT blob FROM DhtOp WHERE when_integrated IS NULL")
         .unwrap()
         .query_and_then([], |row| from_blob(row.get("blob")?))
@@ -207,6 +225,7 @@ fn show_limbo(txn: &Transaction) -> Vec<DhtOpLight> {
 }
 
 fn num_valid(txn: &Transaction) -> usize {
+
     txn
     .query_row("SELECT COUNT(hash) FROM DhtOP WHERE when_integrated IS NOT NULL AND validation_status = :status", 
             named_params!{
@@ -222,29 +241,37 @@ async fn run_test(
     handle: ConductorHandle,
     dna_file: &DnaFile,
 ) -> usize {
+
     // Check if the correct number of ops are integrated
     // every 100 ms for a maximum of 10 seconds but early exit
     // if they are there.
     let num_attempts = 100;
+
     let delay_per_attempt = Duration::from_millis(100);
 
     let invocation =
         new_zome_call(&bob_cell_id, "always_validates", (), TestWasm::Validate).unwrap();
+
     handle.call_zome(invocation).await.unwrap().unwrap();
 
     // Integration should have 3 ops in it
     // Plus another 16 for genesis + init
     // Plus 2 for Cap Grant
     let expected_count = 3 + 16 + 2;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
+
     holochain_state::prelude::dump_tmp(&alice_env);
 
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert_eq!(num_valid(&txn), expected_count);
@@ -252,6 +279,7 @@ async fn run_test(
 
     let (invalid_header_hash, invalid_entry_hash) =
         commit_invalid(&bob_cell_id, &handle, dna_file).await;
+
     let invalid_entry_hash: AnyDhtHash = invalid_entry_hash.into();
 
     // Integration should have 3 ops in it
@@ -259,12 +287,16 @@ async fn run_test(
     // RegisterAgentActivity doesn't run app validation
     // So they will be valid.
     let expected_count = 3 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -272,21 +304,27 @@ async fn run_test(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert_eq!(num_valid(&txn), expected_count - 2);
     });
 
     let invocation =
         new_zome_call(&bob_cell_id, "add_valid_link", (), TestWasm::ValidateLink).unwrap();
+
     handle.call_zome(invocation).await.unwrap().unwrap();
 
     // Integration should have 6 ops in it
     let expected_count = 6 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -294,11 +332,13 @@ async fn run_test(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert_eq!(num_valid(&txn), expected_count - 2);
     });
 
     let invocation =
         new_invocation(&bob_cell_id, "add_invalid_link", (), TestWasm::ValidateLink).unwrap();
+
     let invalid_link_hash: HeaderHash =
         call_zome_directly(&bob_cell_id, &handle, dna_file, invocation)
             .await
@@ -307,12 +347,16 @@ async fn run_test(
 
     // Integration should have 9 ops in it
     let expected_count = 9 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -320,7 +364,9 @@ async fn run_test(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert!(expected_invalid_link(&txn, &invalid_link_hash));
+
         assert_eq!(num_valid(&txn), expected_count - 4);
     });
 
@@ -331,16 +377,21 @@ async fn run_test(
         TestWasm::ValidateLink,
     )
     .unwrap();
+
     call_zome_directly(&bob_cell_id, &handle, dna_file, invocation).await;
 
     // Integration should have 9 ops in it
     let expected_count = 9 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -348,7 +399,9 @@ async fn run_test(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert!(expected_invalid_link(&txn, &invalid_link_hash));
+
         assert_eq!(num_valid(&txn), expected_count - 4);
     });
 
@@ -359,6 +412,7 @@ async fn run_test(
         TestWasm::ValidateLink,
     )
     .unwrap();
+
     let invalid_remove_hash: HeaderHash =
         call_zome_directly(&bob_cell_id, &handle, dna_file, invocation)
             .await
@@ -367,12 +421,16 @@ async fn run_test(
 
     // Integration should have 12 ops in it
     let expected_count = 12 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -380,11 +438,15 @@ async fn run_test(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert!(expected_invalid_link(&txn, &invalid_link_hash));
+
         assert!(expected_invalid_remove_link(&txn, &invalid_remove_hash));
+
         // 6 invalid ops above plus 2 extra invalid ops that `remove_invalid_link` commits.
         assert_eq!(num_valid(&txn), expected_count - (6 + 2));
     });
+
     expected_count
 }
 
@@ -392,6 +454,7 @@ async fn run_test(
 /// 2. The callback rejects the entry proving that it actually ran.
 /// 3. Reject only Post with "Banana" as the String to show it doesn't
 ///    affect other entries.
+
 async fn run_test_entry_def_id(
     alice_cell_id: CellId,
     bob_cell_id: CellId,
@@ -399,25 +462,32 @@ async fn run_test_entry_def_id(
     dna_file: &DnaFile,
     expected_count: usize,
 ) {
+
     // Check if the correct number of ops are integrated
     // every 100 ms for a maximum of 10 seconds but early exit
     // if they are there.
     let num_attempts = 100;
+
     let delay_per_attempt = Duration::from_millis(100);
 
     let (invalid_header_hash, invalid_entry_hash) =
         commit_invalid_post(&bob_cell_id, &handle, dna_file).await;
+
     let invalid_entry_hash: AnyDhtHash = invalid_entry_hash.into();
 
     // Integration should have 3 ops in it
     // StoreEntry and StoreElement should be invalid.
     let expected_count = 3 + expected_count;
+
     let alice_env = handle.get_cell_env(&alice_cell_id).await.unwrap();
+
     wait_for_integration(&alice_env, expected_count, num_attempts, delay_per_attempt).await;
 
     fresh_reader_test(alice_env, |txn| {
+
         // Validation should be empty
         let limbo = show_limbo(&txn);
+
         assert!(limbo_is_empty(&txn), "{:?}", limbo);
 
         assert!(expected_invalid_entry(
@@ -425,6 +495,7 @@ async fn run_test_entry_def_id(
             &invalid_header_hash,
             &invalid_entry_hash
         ));
+
         assert_eq!(num_valid(&txn), expected_count - 10);
     });
 }
@@ -436,9 +507,13 @@ async fn commit_invalid(
     handle: &ConductorHandle,
     dna_file: &DnaFile,
 ) -> (HeaderHash, EntryHash) {
+
     let entry = ThisWasmEntry::NeverValidates;
+
     let entry_hash = EntryHash::with_data_sync(&Entry::try_from(entry.clone()).unwrap());
+
     let call_data = HostFnCaller::create(bob_cell_id, handle, dna_file).await;
+
     // 4
     let invalid_header_hash = call_data
         .commit_entry(entry.clone().try_into().unwrap(), INVALID_ID)
@@ -446,7 +521,9 @@ async fn commit_invalid(
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
+
     (invalid_header_hash, entry_hash)
 }
 
@@ -457,11 +534,15 @@ async fn commit_invalid_post(
     handle: &ConductorHandle,
     dna_file: &DnaFile,
 ) -> (HeaderHash, EntryHash) {
+
     // Bananas are not allowed
     let entry = Post("Banana".into());
+
     let entry_hash = EntryHash::with_data_sync(&Entry::try_from(entry.clone()).unwrap());
+
     // Create call data for the 3rd zome Create
     let call_data = HostFnCaller::create_for_zome(bob_cell_id, handle, dna_file, 2).await;
+
     // 9
     let invalid_header_hash = call_data
         .commit_entry(entry.clone().try_into().unwrap(), POST_ID)
@@ -469,7 +550,9 @@ async fn commit_invalid_post(
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
+
     (invalid_header_hash, entry_hash)
 }
 
@@ -479,12 +562,16 @@ async fn call_zome_directly(
     dna_file: &DnaFile,
     invocation: ZomeCallInvocation,
 ) -> ExternIO {
+
     let call_data = HostFnCaller::create(bob_cell_id, handle, dna_file).await;
+
     // 4
     let output = call_data.call_zome_direct(invocation).await;
 
     // Produce and publish these commits
     let mut triggers = handle.get_cell_triggers(&bob_cell_id).await.unwrap();
+
     triggers.publish_dht_ops.trigger();
+
     output
 }

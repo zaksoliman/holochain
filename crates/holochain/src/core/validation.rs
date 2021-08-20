@@ -1,4 +1,5 @@
 //! Types needed for all validation
+
 use std::convert::TryFrom;
 
 use holo_hash::DhtOpHash;
@@ -10,6 +11,7 @@ use super::SysValidationError;
 use super::ValidationOutcome;
 
 /// Exit early with either an outcome or an error
+
 pub enum OutcomeOrError<T, E> {
     Outcome(T),
     Err(E),
@@ -18,10 +20,12 @@ pub enum OutcomeOrError<T, E> {
 /// Helper macro for implementing from sub error types
 /// for the error in OutcomeOrError
 #[macro_export]
+
 macro_rules! from_sub_error {
     ($error_type:ident, $sub_error_type:ident) => {
         impl<T> From<$sub_error_type> for OutcomeOrError<T, $error_type> {
             fn from(e: $sub_error_type) -> Self {
+
                 OutcomeOrError::Err($error_type::from(e))
             }
         }
@@ -34,6 +38,7 @@ macro_rules! from_sub_error {
 // TODO: We can probably remove this now?
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+
 pub enum DhtOpOrder {
     RegisterAgentActivity(holochain_zome_types::timestamp::Timestamp),
     StoreEntry(holochain_zome_types::timestamp::Timestamp),
@@ -48,6 +53,7 @@ pub enum DhtOpOrder {
 
 /// Op data that will be ordered by [DhtOpOrder]
 #[derive(Debug, Clone)]
+
 pub struct OrderedOp<V> {
     pub order: DhtOpOrder,
     pub hash: DhtOpHash,
@@ -60,24 +66,32 @@ pub struct OrderedOp<V> {
 
 impl<V> PartialEq for OrderedOp<V> {
     fn eq(&self, other: &Self) -> bool {
+
         self.order.eq(&other.order)
     }
 }
+
 impl<V> PartialOrd for OrderedOp<V> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+
         self.order.partial_cmp(&other.order)
     }
 }
+
 impl<V> Eq for OrderedOp<V> {}
+
 impl<V> Ord for OrderedOp<V> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+
         self.order.cmp(&other.order)
     }
 }
 
 impl From<&DhtOp> for DhtOpOrder {
     fn from(op: &DhtOp) -> Self {
+
         use DhtOpOrder::*;
+
         match op {
             DhtOp::StoreElement(_, h, _) => StoreElement(h.timestamp()),
             DhtOp::StoreEntry(_, h, _) => StoreEntry(*h.timestamp()),
@@ -95,7 +109,9 @@ impl From<&DhtOp> for DhtOpOrder {
 impl OutcomeOrError<ValidationOutcome, SysValidationError> {
     /// Convert an OutcomeOrError<ValidationOutcome, SysValidationError> into
     /// a InvalidCommit and exit the call zome workflow early
+
     pub fn invalid_call_zome_commit<T>(self) -> WorkflowResult<T> {
+
         Err(SourceChainError::InvalidCommit(ValidationOutcome::try_from(self)?.to_string()).into())
     }
 }

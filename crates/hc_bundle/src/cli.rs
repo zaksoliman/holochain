@@ -11,13 +11,16 @@ use structopt::StructOpt;
 use crate::error::HcBundleResult;
 
 /// The file extension to use for DNA bundles
+
 pub const DNA_BUNDLE_EXT: &str = "dna";
 
 /// The file extension to use for hApp bundles
+
 pub const APP_BUNDLE_EXT: &str = "happ";
 
 /// Work with Holochain DNA bundles
 #[derive(Debug, StructOpt)]
+
 pub enum HcDnaBundle {
     /// Create a new, empty Holochain DNA bundle working directory and create a new
     /// sample `dna.yaml` manifest inside.
@@ -77,6 +80,7 @@ pub enum HcDnaBundle {
 
 /// Work with Holochain hApp bundles
 #[derive(Debug, StructOpt)]
+
 pub enum HcAppBundle {
     /// Create a new, empty Holochain app (hApp) working directory and create a new
     /// sample `happ.yaml` manifest inside.
@@ -135,15 +139,21 @@ pub enum HcAppBundle {
 
 impl HcDnaBundle {
     /// Run this command
+
     pub async fn run(self) -> anyhow::Result<()> {
+
         match self {
             Self::Init { path } => {
+
                 crate::init::init_dna(path).await?;
             }
             Self::Pack { path, output } => {
+
                 let name = get_dna_name(&path).await?;
+
                 let (bundle_path, _) =
                     crate::packing::pack::<DnaManifest>(&path, output, name).await?;
+
                 println!("Wrote bundle {}", bundle_path.to_string_lossy());
             }
             Self::Unpack {
@@ -151,27 +161,36 @@ impl HcDnaBundle {
                 output,
                 force,
             } => {
+
                 let dir_path =
                     crate::packing::unpack::<DnaManifest>(DNA_BUNDLE_EXT, &path, output, force)
                         .await?;
+
                 println!("Unpacked to directory {}", dir_path.to_string_lossy());
             }
         }
+
         Ok(())
     }
 }
 
 impl HcAppBundle {
     /// Run this command
+
     pub async fn run(self) -> anyhow::Result<()> {
+
         match self {
             Self::Init { path } => {
+
                 crate::init::init_app(path).await?;
             }
             Self::Pack { path, output } => {
+
                 let name = get_app_name(&path).await?;
+
                 let (bundle_path, _) =
                     crate::packing::pack::<AppManifest>(&path, output, name).await?;
+
                 println!("Wrote bundle {}", bundle_path.to_string_lossy());
             }
             Self::Unpack {
@@ -179,28 +198,41 @@ impl HcAppBundle {
                 output,
                 force,
             } => {
+
                 let dir_path =
                     crate::packing::unpack::<AppManifest>(APP_BUNDLE_EXT, &path, output, force)
                         .await?;
+
                 println!("Unpacked to directory {}", dir_path.to_string_lossy());
             }
         }
+
         Ok(())
     }
 }
 
 async fn get_dna_name(manifest_path: &Path) -> HcBundleResult<String> {
+
     let manifest_path = manifest_path.to_path_buf();
+
     let manifest_path = manifest_path.join(&DnaManifest::path());
+
     let manifest_yaml = ffs::read_to_string(&manifest_path).await?;
+
     let manifest: DnaManifest = serde_yaml::from_str(&manifest_yaml)?;
+
     Ok(manifest.name())
 }
 
 async fn get_app_name(manifest_path: &Path) -> HcBundleResult<String> {
+
     let manifest_path = manifest_path.to_path_buf();
+
     let manifest_path = manifest_path.join(&AppManifest::path());
+
     let manifest_yaml = ffs::read_to_string(&manifest_path).await?;
+
     let manifest: AppManifest = serde_yaml::from_str(&manifest_yaml)?;
+
     Ok(manifest.app_name().to_string())
 }

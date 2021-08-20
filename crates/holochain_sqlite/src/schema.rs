@@ -5,6 +5,7 @@ use crate::db::DbKind;
 use crate::sql::*;
 
 pub static SCHEMA_CELL: Lazy<Schema> = Lazy::new(|| {
+
     let migration_0 = Migration::initial(sql_cell::SCHEMA);
 
     Schema {
@@ -14,6 +15,7 @@ pub static SCHEMA_CELL: Lazy<Schema> = Lazy::new(|| {
 });
 
 pub static SCHEMA_CONDUCTOR: Lazy<Schema> = Lazy::new(|| {
+
     let migration_0 = Migration::initial(sql_conductor::SCHEMA);
 
     Schema {
@@ -23,6 +25,7 @@ pub static SCHEMA_CONDUCTOR: Lazy<Schema> = Lazy::new(|| {
 });
 
 pub static SCHEMA_WASM: Lazy<Schema> = Lazy::new(|| {
+
     let migration_0 = Migration::initial(sql_wasm::SCHEMA);
 
     Schema {
@@ -32,6 +35,7 @@ pub static SCHEMA_WASM: Lazy<Schema> = Lazy::new(|| {
 });
 
 pub static SCHEMA_P2P_STATE: Lazy<Schema> = Lazy::new(|| {
+
     let migration_0 = Migration::initial(sql_p2p_agent_store::SCHEMA);
 
     Schema {
@@ -41,6 +45,7 @@ pub static SCHEMA_P2P_STATE: Lazy<Schema> = Lazy::new(|| {
 });
 
 pub static SCHEMA_P2P_METRICS: Lazy<Schema> = Lazy::new(|| {
+
     let migration_0 = Migration::initial(sql_p2p_metrics::SCHEMA);
 
     Schema {
@@ -59,33 +64,46 @@ impl Schema {
     /// The decision is based on the difference between this Schema's
     /// current_index and the user_version pragma value in the database itself.
     /// NB: The current_index is 0-based, and the user_version is 1-based.
+
     pub fn initialize(
         &self,
         conn: &mut Connection,
         db_kind: Option<&DbKind>,
     ) -> rusqlite::Result<()> {
+
         let user_version: u16 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+
         let db_kind = db_kind
             .map(ToString::to_string)
             .unwrap_or_else(|| "<no name>".to_string());
 
         if user_version == 0 {
+
             // database just needs to be created / initialized
             self.migrations[self.current_index].initialize(conn)?;
+
             tracing::info!("database initialized: {}", db_kind);
+
             return Ok(());
         } else {
+
             let current_index = user_version as usize - 1;
+
             match current_index.cmp(&self.current_index) {
                 std::cmp::Ordering::Less => {
+
                     // run forward migrations
                     for v in current_index..self.current_index + 1 {
+
                         self.migrations[v].run(conn)?;
                     }
+
                     // set the DB user_version so that next time we don't run
                     // the same migration
                     let new_user_version = (self.current_index + 1) as u16;
+
                     conn.pragma_update(None, "user_version", &new_user_version)?;
+
                     tracing::info!(
                         "database forward migrated: {} from {} to {}",
                         db_kind,
@@ -94,12 +112,14 @@ impl Schema {
                     );
                 }
                 std::cmp::Ordering::Equal => {
+
                     tracing::debug!(
                         "database needed no migration or initialization, good to go: {}",
                         db_kind
                     );
                 }
                 std::cmp::Ordering::Greater => {
+
                     unimplemented!("backward migrations unimplemented");
                 }
             }
@@ -117,6 +137,7 @@ pub struct Migration {
 
 impl Migration {
     pub fn initial(schema: &str) -> Self {
+
         Self {
             schema: schema.into(),
             _forward: "".into(),
@@ -125,11 +146,14 @@ impl Migration {
     }
 
     pub fn initialize(&self, conn: &mut Connection) -> rusqlite::Result<()> {
+
         conn.execute_batch(&self.schema)?;
+
         Ok(())
     }
 
     pub fn run(&self, _conn: &mut Connection) -> rusqlite::Result<()> {
+
         unimplemented!("actual migrations not yet implemented")
     }
 }

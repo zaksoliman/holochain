@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+
 pub enum DatabaseError {
     #[error("A database's database map was initialized more than once: {0}")]
     EnvironmentDoubleInitialized(PathBuf),
@@ -56,6 +57,7 @@ pub enum DatabaseError {
 
 impl PartialEq for DatabaseError {
     fn eq(&self, other: &Self) -> bool {
+
         self.to_string() == other.to_string()
     }
 }

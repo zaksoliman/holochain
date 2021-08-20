@@ -2,6 +2,7 @@ use ghost_actor::GhostError;
 use holochain_serialized_bytes::SerializedBytesError;
 
 #[derive(Debug, thiserror::Error)]
+
 pub enum WebsocketError {
     #[error(transparent)]
     GhostError(#[from] GhostError),

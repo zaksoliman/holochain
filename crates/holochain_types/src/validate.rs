@@ -15,4 +15,5 @@ use holochain_zome_types::prelude::*;
     derive_more::Into,
 )]
 /// Type for sending responses to `get_validation_package`
+
 pub struct ValidationPackageResponse(pub Option<ValidationPackage>);

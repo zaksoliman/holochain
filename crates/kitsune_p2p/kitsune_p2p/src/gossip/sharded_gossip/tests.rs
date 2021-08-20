@@ -19,8 +19,10 @@ impl ShardedGossipLocal {
         evt_sender: EventSender,
         inner: ShardedGossipLocalState,
     ) -> Self {
+
         // TODO: randomize space
         let space = Arc::new(KitsuneSpace::new([0; 36].to_vec()));
+
         Self {
             gossip_type,
             tuning_params: Default::default(),

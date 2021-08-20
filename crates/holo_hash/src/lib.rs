@@ -50,4 +50,5 @@ pub use hashed::*;
 /// A convenience type, for specifying a hash by HashableContent rather than
 /// by its HashType
 #[cfg(feature = "serialized-bytes")]
+
 pub type HoloHashOf<C> = HoloHash<<C as HashableContent>::HashType>;

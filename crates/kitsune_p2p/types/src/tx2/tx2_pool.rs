@@ -8,26 +8,34 @@ use futures::future::BoxFuture;
 use futures::stream::Stream;
 
 /// Trait representing a connection handle.
+
 pub trait AsConHnd: std::fmt::Debug + 'static + Send + Sync + Unpin {
     /// Get the opaque Uniq identifier for this connection.
+
     fn uniq(&self) -> Uniq;
 
     /// Get the directionality of this connection.
+
     fn dir(&self) -> Tx2ConDir;
 
     /// Get the remote address of this connection.
+
     fn peer_addr(&self) -> KitsuneResult<TxUrl>;
 
     /// Get the certificate digest of the remote peer.
+
     fn peer_cert(&self) -> Tx2Cert;
 
     /// Is this connection closed?
+
     fn is_closed(&self) -> bool;
 
     /// Close this connection.
+
     fn close(&self, code: u32, reason: &str) -> BoxFuture<'static, ()>;
 
     /// Write data to this connection.
+
     fn write(
         &self,
         msg_id: MsgId,
@@ -37,33 +45,43 @@ pub trait AsConHnd: std::fmt::Debug + 'static + Send + Sync + Unpin {
 }
 
 /// Trait object connection handle
+
 pub type ConHnd = Arc<dyn AsConHnd>;
 
 /// Trait representing a connection handle.
+
 pub trait AsEpHnd: 'static + Send + Sync + Unpin {
     /// Capture a debugging internal state dump.
+
     fn debug(&self) -> serde_json::Value;
 
     /// Get the opaque Uniq identifier for this endpoint.
+
     fn uniq(&self) -> Uniq;
 
     /// Get the bound local address of this endpoint.
+
     fn local_addr(&self) -> KitsuneResult<TxUrl>;
 
     /// Get the local certificate digest.
+
     fn local_cert(&self) -> Tx2Cert;
 
     /// Is this endpoint closed?
+
     fn is_closed(&self) -> bool;
 
     /// Close this endpoint.
+
     fn close(&self, code: u32, reason: &str) -> BoxFuture<'static, ()>;
 
     /// Force close a specific connection.
+
     fn close_connection(&self, remote: TxUrl, code: u32, reason: &str) -> BoxFuture<'static, ()>;
 
     /// Get a connection handle to an existing connection.
     /// If one does not exist, establish a new connection.
+
     fn get_connection(
         &self,
         remote: TxUrl,
@@ -71,6 +89,7 @@ pub trait AsEpHnd: 'static + Send + Sync + Unpin {
     ) -> BoxFuture<'static, KitsuneResult<ConHnd>>;
 
     /// Write data to target remote.
+
     fn write(
         &self,
         remote: TxUrl,
@@ -78,28 +97,37 @@ pub trait AsEpHnd: 'static + Send + Sync + Unpin {
         data: PoolBuf,
         timeout: KitsuneTimeout,
     ) -> BoxFuture<'static, KitsuneResult<()>> {
+
         let con_fut = self.get_connection(remote, timeout);
+
         futures::future::FutureExt::boxed(async move {
+
             con_fut.await?.write(msg_id, data, timeout).await
         })
     }
 }
 
 /// Trait object endpoint handle
+
 pub type EpHnd = Arc<dyn AsEpHnd>;
 
 /// Trait representing a transport endpoint.
+
 pub trait AsEp: 'static + Send + Unpin + Stream<Item = EpEvent> {
     /// A cheaply clone-able handle to this endpoint.
+
     fn handle(&self) -> &EpHnd;
 }
 
 /// Trait object endpoint
+
 pub type Ep = Box<dyn AsEp>;
 
 /// Trait representing an endpoint factory (binder).
+
 pub trait AsEpFactory: 'static + Send + Sync + Unpin {
     /// Bind a new local transport endpoint.
+
     fn bind(
         &self,
         bind_spec: TxUrl,
@@ -108,10 +136,12 @@ pub trait AsEpFactory: 'static + Send + Sync + Unpin {
 }
 
 /// Trait object endpoint factory
+
 pub type EpFactory = Arc<dyn AsEpFactory>;
 
 /// Data associated with an IncomingConnection EpEvent
 #[derive(Debug)]
+
 pub struct EpConnection {
     /// handle to the remote connection
     pub con: ConHnd,
@@ -122,6 +152,7 @@ pub struct EpConnection {
 
 /// Data associated with an IncomingData EpEvent
 #[derive(Debug)]
+
 pub struct EpIncomingData {
     /// handle to the remote connection that send this data
     pub con: ConHnd,
@@ -138,6 +169,7 @@ pub struct EpIncomingData {
 
 /// Data associated with an IncomingError EpEvent
 #[derive(Debug)]
+
 pub struct EpIncomingError {
     /// handle to the remote connection that send this data
     pub con: ConHnd,
@@ -154,6 +186,7 @@ pub struct EpIncomingError {
 
 /// Data associated with a ConnectionClosed EpEvent
 #[derive(Debug)]
+
 pub struct EpConnectionClosed {
     /// handle to the closed connection
     pub con: ConHnd,
@@ -170,6 +203,7 @@ pub struct EpConnectionClosed {
 
 /// Event emitted by a transport endpoint.
 #[derive(Debug)]
+
 pub enum EpEvent {
     /// We've established an outgoing connection.
     OutgoingConnection(EpConnection),

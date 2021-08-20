@@ -6,6 +6,7 @@ use holochain_websocket::WebsocketReceiver;
 use holochain_websocket::WebsocketSender;
 
 pub async fn admin_port(conductor: &ConductorHandle) -> u16 {
+
     conductor
         .get_arbitrary_admin_websocket_port()
         .await
@@ -15,7 +16,9 @@ pub async fn admin_port(conductor: &ConductorHandle) -> u16 {
 pub async fn websocket_client(
     conductor: &ConductorHandle,
 ) -> Result<(WebsocketSender, WebsocketReceiver)> {
+
     let port = admin_port(conductor).await;
+
     Ok(websocket_client_by_port(port).await?)
 }
 
@@ -51,11 +54,14 @@ use holochain_wasm_test_utils::TestWasm;
 use holochain_websocket::*;
 
 /// Wrapper that synchronously waits for the Child to terminate on drop.
+
 pub struct SupervisedChild(String, Child);
 
 impl Drop for SupervisedChild {
     fn drop(&mut self) {
+
         tokio_helper::block_forever_on(async move {
+
             self.1
                 .kill()
                 .await
@@ -65,9 +71,13 @@ impl Drop for SupervisedChild {
 }
 
 pub async fn start_holochain(config_path: PathBuf) -> SupervisedChild {
+
     tracing::info!("\n\n----\nstarting holochain\n----\n\n");
+
     let cmd = std::process::Command::cargo_bin("holochain").unwrap();
+
     let mut cmd = Command::from(cmd);
+
     cmd.arg("--structured")
         .arg("--config-path")
         .arg(config_path)
@@ -75,16 +85,23 @@ pub async fn start_holochain(config_path: PathBuf) -> SupervisedChild {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
+
     let mut child = cmd.spawn().expect("Failed to spawn holochain");
+
     spawn_output(&mut child);
+
     check_started(&mut child).await;
+
     SupervisedChild("Holochain".to_string(), child)
 }
 
 pub async fn call_foo_fn(app_port: u16, original_dna_hash: DnaHash) {
+
     // Connect to App Interface
     let (mut app_tx, _) = websocket_client_by_port(app_port).await.unwrap();
+
     let cell_id = CellId::from((original_dna_hash, fake_agent_pubkey_1()));
+
     call_zome_fn(&mut app_tx, cell_id, TestWasm::Foo, "foo".into(), ()).await;
 }
 
@@ -97,6 +114,7 @@ pub async fn call_zome_fn<S>(
 ) where
     S: Serialize + std::fmt::Debug,
 {
+
     let call: ZomeCall = ZomeCallInvocationFixturator::new(NamedInvocation(
         cell_id,
         wasm,
@@ -106,17 +124,26 @@ pub async fn call_zome_fn<S>(
     .next()
     .unwrap()
     .into();
+
     let request = AppRequest::ZomeCallInvocation(Box::new(call));
+
     let response = app_tx.request(request);
+
     let call_response = check_timeout(response, 6000).await;
+
     trace!(?call_response);
+
     assert_matches!(call_response, AppResponse::ZomeCallInvocation(_));
 }
 
 pub async fn attach_app_interface(client: &mut WebsocketSender, port: Option<u16>) -> u16 {
+
     let request = AdminRequest::AttachAppInterface { port };
+
     let response = client.request(request);
+
     let response = check_timeout(response, 3000).await;
+
     match response {
         AdminResponse::AppInterfaceAttached { port } => port,
         _ => panic!("Attach app interface failed: {:?}", response),
@@ -128,18 +155,25 @@ pub async fn retry_admin_interface(
     mut attempts: usize,
     delay: Duration,
 ) -> WebsocketSender {
+
     loop {
+
         match websocket_client_by_port(port).await {
             Ok(c) => return c.0,
             Err(e) => {
+
                 attempts -= 1;
+
                 if attempts == 0 {
+
                     panic!("Failed to join admin interface");
                 }
+
                 warn!(
                     "Failed with {:?} to open admin interface, trying {} more times",
                     e, attempts
                 );
+
                 tokio::time::sleep(delay).await;
             }
         }
@@ -147,8 +181,11 @@ pub async fn retry_admin_interface(
 }
 
 pub async fn generate_agent_pubkey(client: &mut WebsocketSender, timeout: u64) -> AgentPubKey {
+
     let request = AdminRequest::GenerateAgentPubKey;
+
     let response = client.request(request);
+
     let response = check_timeout_named("GenerateAgentPubkey", response, timeout).await;
 
     unwrap_to::unwrap_to!(response => AdminResponse::AgentPubKeyGenerated).clone()
@@ -163,6 +200,7 @@ pub async fn register_and_install_dna(
     nick: String,
     timeout: u64,
 ) -> DnaHash {
+
     register_and_install_dna_named(
         client,
         orig_dna_hash,
@@ -186,18 +224,26 @@ pub async fn register_and_install_dna_named(
     name: String,
     timeout: u64,
 ) -> DnaHash {
+
     let register_payload = RegisterDnaPayload {
         uid: None,
         properties,
         source: DnaSource::Path(dna_path),
     };
+
     let request = AdminRequest::RegisterDna(Box::new(register_payload));
+
     let response = client.request(request);
+
     let response = check_timeout_named("RegisterDna", response, timeout).await;
+
     assert_matches!(response, AdminResponse::DnaRegistered(_));
+
     let dna_hash = if let AdminResponse::DnaRegistered(h) = response {
+
         h.clone()
     } else {
+
         orig_dna_hash
     };
 
@@ -206,33 +252,51 @@ pub async fn register_and_install_dna_named(
         nick,
         membrane_proof: None,
     };
+
     let payload = InstallAppPayload {
         dnas: vec![dna_payload],
         installed_app_id: name,
         agent_key,
     };
+
     let request = AdminRequest::InstallApp(Box::new(payload));
+
     let response = client.request(request);
+
     let response = check_timeout_named("InstallApp", response, timeout).await;
+
     assert_matches!(response, AdminResponse::AppInstalled(_));
+
     dna_hash
 }
 
 pub fn spawn_output(holochain: &mut Child) {
+
     let stdout = holochain.stdout.take();
+
     let stderr = holochain.stderr.take();
+
     tokio::task::spawn(async move {
+
         if let Some(stdout) = stdout {
+
             let mut reader = BufReader::new(stdout).lines();
+
             while let Ok(Some(line)) = reader.next_line().await {
+
                 trace!("holochain bin stdout: {}", line);
             }
         }
     });
+
     tokio::task::spawn(async move {
+
         if let Some(stderr) = stderr {
+
             let mut reader = BufReader::new(stderr).lines();
+
             while let Ok(Some(line)) = reader.next_line().await {
+
                 trace!("holochain bin stderr: {}", line);
             }
         }
@@ -240,13 +304,17 @@ pub fn spawn_output(holochain: &mut Child) {
 }
 
 pub async fn check_started(holochain: &mut Child) {
+
     let started = tokio::time::timeout(std::time::Duration::from_secs(1), holochain.wait()).await;
+
     if let Ok(status) = started {
+
         panic!("Holochain failed to start. status: {:?}", status);
     }
 }
 
 pub fn create_config(port: u16, environment_path: PathBuf) -> ConductorConfig {
+
     ConductorConfig {
         admin_interfaces: Some(vec![AdminInterfaceConfig {
             driver: InterfaceDriver::Websocket { port },
@@ -263,28 +331,36 @@ pub fn create_config(port: u16, environment_path: PathBuf) -> ConductorConfig {
 }
 
 pub fn write_config(mut path: PathBuf, config: &ConductorConfig) -> PathBuf {
+
     path.push("conductor_config.yml");
+
     std::fs::write(path.clone(), serde_yaml::to_string(&config).unwrap()).unwrap();
+
     path
 }
 
 #[instrument(skip(response))]
+
 pub async fn check_timeout<T>(
     response: impl Future<Output = Result<T, WebsocketError>>,
     timeout_ms: u64,
 ) -> T {
+
     check_timeout_named("<unnamed>", response, timeout_ms).await
 }
 
 #[instrument(skip(response))]
+
 async fn check_timeout_named<T>(
     name: &'static str,
     response: impl Future<Output = Result<T, WebsocketError>>,
     timeout_millis: u64,
 ) -> T {
+
     match tokio::time::timeout(std::time::Duration::from_millis(timeout_millis), response).await {
         Ok(response) => response.unwrap(),
         Err(e) => {
+
             panic!(
                 "{}: Timed out on request after {}: {}",
                 name, timeout_millis, e

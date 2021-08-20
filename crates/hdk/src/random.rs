@@ -24,7 +24,9 @@ use crate::prelude::*;
 /// PRNG from there.
 ///
 /// See the rand rust crate
+
 pub fn random_bytes(number_of_bytes: u32) -> ExternResult<Bytes> {
+
     HDK.with(|h| h.borrow().random_bytes(number_of_bytes))
 }
 
@@ -38,15 +40,21 @@ pub trait TryFromRandom {
 /// All we want is to implement this trait with whatever length our random-bytes-new-types need to
 /// be, but if we use a const on the trait directly we get 'constant expression depends on a
 /// generic parameter'
+
 macro_rules! impl_try_from_random {
     ( $t:ty, $bytes:expr ) => {
         impl TryFromRandom for $t {
             fn try_from_random() -> $crate::prelude::ExternResult<Self> {
+
                 $crate::prelude::random_bytes($bytes as u32).map(|bytes| {
+
                     // Always a fatal error if our own bytes generation has the wrong length.
                     assert_eq!($bytes, bytes.len());
+
                     let mut inner = [0; $bytes];
+
                     inner.copy_from_slice(bytes.as_ref());
+
                     Self::from(inner)
                 })
             }

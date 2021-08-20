@@ -14,11 +14,17 @@ use super::*;
 ///
 /// When syncing, we expect the missing op at the end of each arc to be received
 /// from the agent whose arc start intersects our arc end.
+
 pub(super) fn three_way_sharded_ownership() -> (Vec<Arc<KitsuneAgent>>, OwnershipData) {
+
     let agents = agents(3);
+
     let alice = agents[0].clone();
+
     let bobbo = agents[1].clone();
+
     let carol = agents[2].clone();
+
     let ownership = vec![
         // NB: each agent has an arc that covers 3 ops, but the op at the endpoint
         //     of the arc is intentionally missing
@@ -26,22 +32,34 @@ pub(super) fn three_way_sharded_ownership() -> (Vec<Arc<KitsuneAgent>>, Ownershi
         (bobbo.clone(), (1, 3), vec![1, 2]),
         (carol.clone(), (3, 5), vec![3, 4]),
     ];
+
     (agents, OwnershipData::from_compact(6, ownership))
 }
 
 #[tokio::test(flavor = "multi_thread")]
+
 async fn local_sync_scenario() {
+
     observability::test_run().ok();
+
     let mut u = arbitrary::Unstructured::new(&NOISE);
+
     let space = Arc::new(KitsuneSpace::arbitrary(&mut u).unwrap());
+
     let (agents, ownership) = three_way_sharded_ownership();
+
     let (data, _) = mock_agent_persistence(&mut u, ownership);
+
     let agent_arcs: Vec<_> = data.iter().map(|(info, _)| info.to_agent_arc()).collect();
+
     let delta = calculate_missing_ops(&data);
+
     let delta_counts = delta.iter().map(|(_, hs)| hs.len()).collect::<Vec<_>>();
 
     let agent_arc_map: HashMap<_, _> = agent_arcs.clone().into_iter().collect();
+
     for (_, arc) in agent_arcs.iter() {
+
         println!("arc: |{}|", arc.to_ascii(64));
     }
 
@@ -53,14 +71,19 @@ async fn local_sync_scenario() {
     // Set up expectations to ensure that the proper data is gossiped to each agent,
     // while still also allowing flexibility for some extraneous gossip
     for (agent, hashes) in delta {
+
         let agent = agent.clone();
+
         let hashes: HashSet<_> = hashes.iter().cloned().collect();
+
         // - Ensure that the agents with missing ops get gossiped those ops
         let agent = agent.clone();
+
         evt_handler
             .expect_handle_gossip()
             .times(1)
             .withf(move |_, to_agent, ops| {
+
                 *to_agent == agent && ops.iter().all(|op| hashes.contains(&*op.0))
             })
             .returning(move |_, _, _| unit_ok_fut());
@@ -73,12 +96,15 @@ async fn local_sync_scenario() {
         .expect_handle_gossip()
         .times(0..6)
         .withf(move |_, to_agent, ops| {
+
             let arc = agent_arc_map.get(to_agent).unwrap();
+
             ops.iter().all(|op| arc.contains(op.0.get_loc()))
         })
         .returning(move |_, _, _| unit_ok_fut());
 
     let (evt_sender, task) = spawn_handler(evt_handler).await;
+
     let gossip = ShardedGossipLocal::test(
         GossipType::Recent,
         evt_sender.clone(),
@@ -90,6 +116,7 @@ async fn local_sync_scenario() {
 
     // Ensure that before local sync, a single agent only holds 2 ops
     {
+
         let (hashes_before, _) = store::all_op_hashes_within_arcset(
             &evt_sender,
             &space,

@@ -9,26 +9,34 @@ use super::*;
 
 /// Data which represents the agent store of a backend.
 /// Specifies a list of agents along with their arc and timestamped op hashes held.
+
 pub type MockAgentPersistence = Vec<(AgentInfoSigned, Vec<(KitsuneOpHash, TimestampMs)>)>;
 
 /// Build up the functionality of a mock event handler a la carte with these
 /// provided methods
+
 pub struct HandlerBuilder(MockKitsuneP2pEventHandler);
 
 impl HandlerBuilder {
     /// Constructor
+
     pub fn new() -> Self {
+
         Self(MockKitsuneP2pEventHandler::new())
     }
 
     /// Make the mock available
+
     pub fn build(self) -> MockKitsuneP2pEventHandler {
+
         self.0
     }
 
     /// Mocks gossip to do nothing
     #[allow(dead_code, unused_variables)]
+
     pub fn with_noop_gossip(mut self, agent_data: MockAgentPersistence) -> Self {
+
         self.0
             .expect_handle_gossip()
             .returning(|_, _, _| Ok(async { Ok(()) }.boxed().into()));
@@ -42,27 +50,40 @@ impl HandlerBuilder {
     /// Limitations/Discrepancies:
     /// - Op data returned is completely arbitrary and does NOT hash to the hash it's "stored" under
     /// - The agent location will NOT be centered on their DhtArc
+
     pub fn with_agent_persistence(mut self, agent_data: MockAgentPersistence) -> Self {
+
         let info_only: Vec<_> = agent_data.iter().map(|(info, _)| info.clone()).collect();
+
         let agents_only: Vec<_> = info_only.iter().map(|info| info.agent.clone()).collect();
+
         let agents_arcs: Vec<_> = agent_data
             .iter()
             .map(|(info, _)| (info.agent.clone(), info.storage_arc.interval()))
             .collect();
 
         self.0.expect_handle_query_agent_info_signed().returning({
+
             let info_only = info_only.clone();
+
             move |_| {
+
                 let info_only = info_only.clone();
+
                 Ok(async move { Ok(info_only) }.boxed().into())
             }
         });
 
         self.0.expect_handle_get_agent_info_signed().returning({
+
             let agents = agents_only.clone();
+
             move |input| {
+
                 let agents = agents.clone();
+
                 let agent = agents.iter().find(|a| **a == input.agent).unwrap().clone();
+
                 Ok(async move { Ok(Some(agent_info(agent).await)) }
                     .boxed()
                     .into())
@@ -70,8 +91,11 @@ impl HandlerBuilder {
         });
 
         self.0.expect_handle_query_gossip_agents().returning({
+
             move |_| {
+
                 let agents_arcs = agents_arcs.clone();
+
                 Ok(async move { Ok(agents_arcs) }.boxed().into())
             }
         });
@@ -79,6 +103,7 @@ impl HandlerBuilder {
         self.0
             .expect_handle_query_op_hashes()
             .returning(move |arg: QueryOpHashesEvt| {
+
                 // Return ops for agent, correctly filtered by arc but not by time window
                 let QueryOpHashesEvt {
                     space: _,
@@ -94,14 +119,17 @@ impl HandlerBuilder {
                     .iter()
                     .filter_map(|(info, ops)| {
                         if let Some(arcset) = agent_arcsets.get(&info.agent) {
+
                             Some(
                                 ops.into_iter()
                                     .filter(|(op, time)| {
+
                                         window_ms.contains(time) && arcset.contains(op.get_loc())
                                     })
                                     .collect::<Vec<_>>(),
                             )
                         } else {
+
                             None
                         }
                     })
@@ -109,31 +137,40 @@ impl HandlerBuilder {
                     .collect();
 
                 ops.sort_by_key(|(_, time)| time);
+
                 ops.dedup();
+
                 let result: Option<(Vec<Arc<KitsuneOpHash>>, TimeWindowMs)> =
                     if let (Some((_, first)), Some((_, last))) = (ops.first(), ops.last()) {
+
                         let ops = ops
                             .into_iter()
                             .map(|(op, _)| Arc::new(op.clone()))
                             .take(max_ops)
                             .collect();
+
                         Some((ops, *first..*last))
                     } else {
+
                         None
                     };
+
                 Ok(async { Ok(result) }.boxed().into())
             });
 
         self.0
             .expect_handle_fetch_op_data()
             .returning(|arg: FetchOpDataEvt| {
+
                 // Return dummy data for each op
                 let FetchOpDataEvt {
                     space: _,
                     agents: _,
                     op_hashes,
                 } = arg;
+
                 Ok(async {
+
                     Ok(itertools::zip(op_hashes.into_iter(), std::iter::repeat(vec![0])).collect())
                 }
                 .boxed()
@@ -152,6 +189,7 @@ impl HandlerBuilder {
 /// small library of such scenarios, defined in terms of this type.
 ///
 /// See [`generate_ops_for_overlapping_arcs`] for usage detail.
+
 pub struct OwnershipData {
     /// Total number of op hashes to be generated
     total_ops: usize,
@@ -162,7 +200,9 @@ pub struct OwnershipData {
 impl OwnershipData {
     /// Construct `OwnershipData` from a more compact "untagged" format using
     /// tuples instead of structs. This is intended to be the canonical constructor.
+
     pub fn from_compact(total_ops: usize, v: Vec<OwnershipDataAgentCompact>) -> Self {
+
         Self {
             total_ops,
             agents: v
@@ -178,6 +218,7 @@ impl OwnershipData {
 }
 
 /// Declares arcs and ownership in terms of indices into a vec of generated op hashes.
+
 pub struct OwnershipDataAgent {
     /// The agent in question
     agent: Arc<KitsuneAgent>,
@@ -189,6 +230,7 @@ pub struct OwnershipDataAgent {
 
 /// Same as [`OwnershipDataAgent`], but using a tuple instead of a struct.
 /// It's just more compact.
+
 pub type OwnershipDataAgentCompact = (Arc<KitsuneAgent>, (usize, usize), Vec<usize>);
 
 /// Given a list of ownership requirements, returns a list of triples, each
@@ -211,10 +253,12 @@ pub type OwnershipDataAgentCompact = (Arc<KitsuneAgent>, (usize, usize), Vec<usi
 /// (which would have to be searched for).
 ///
 /// See the test below for a thorough example.
+
 pub fn mock_agent_persistence<'a>(
     entropy: &mut arbitrary::Unstructured<'a>,
     ownership: OwnershipData,
 ) -> (MockAgentPersistence, Vec<KitsuneOpHash>) {
+
     // create one op per "ownership" item
     let mut hashes: Vec<KitsuneOpHash> = (0..ownership.total_ops)
         .map(|_| KitsuneOpHash::arbitrary(entropy).unwrap())
@@ -229,20 +273,24 @@ pub fn mock_agent_persistence<'a>(
         .agents
         .iter()
         .map(|data| {
+
             let OwnershipDataAgent {
                 agent,
                 arc_indices: (arc_idx_lo, arc_idx_hi),
                 hash_indices,
             } = data;
+
             let arc = DhtArc::from_interval(
                 ArcInterval::new(hashes[*arc_idx_lo].get_loc(), hashes[*arc_idx_hi].get_loc())
                     .quantized(),
             );
+
             let hashes = hash_indices
                 .into_iter()
                 // TODO: `1111` is an arbitrary timestamp placeholder
                 .map(|i| (hashes[*i].clone(), 1111))
                 .collect();
+
             (
                 dangerous_fake_agent_info_with_arc(
                     Arc::new(fixt!(KitsuneSpace)),
@@ -253,22 +301,29 @@ pub fn mock_agent_persistence<'a>(
             )
         })
         .collect();
+
     (persistence, hashes)
 }
 
 /// Given some mock persistence data, calculate the diff for each agent, i.e.
 /// the ops that would be sent via local sync given the current state.
+
 pub fn calculate_missing_ops(
     data: &MockAgentPersistence,
 ) -> Vec<(Arc<KitsuneAgent>, Vec<KitsuneOpHash>)> {
+
     let all_hashes: HashSet<_> = data
         .iter()
         .flat_map(|(_, hs)| hs.iter().map(|(h, _)| h))
         .collect();
+
     data.iter()
         .map(|(info, hs)| {
+
             let owned: HashSet<&KitsuneOpHash> = hs.iter().map(|(h, _)| h).collect();
+
             let (agent, arc) = info.to_agent_arc();
+
             (
                 agent.clone(),
                 all_hashes
@@ -284,11 +339,17 @@ pub fn calculate_missing_ops(
 /// Test that the above functions work as expected in one specific case:
 /// Out of 6 ops total, all 3 agents hold 3 ops each.
 #[tokio::test(flavor = "multi_thread")]
+
 async fn test_three_way_sharded_ownership() {
+
     let mut u = arbitrary::Unstructured::new(&NOISE);
+
     let space = Arc::new(KitsuneSpace::arbitrary(&mut u).unwrap());
+
     let (agents, ownership) = three_way_sharded_ownership();
+
     let (persistence, hashes) = mock_agent_persistence(&mut u, ownership);
+
     let agent_arcs: Vec<_> = persistence
         .iter()
         .map(|(info, _)| (info.agent.clone(), info.storage_arc.interval()))
@@ -314,13 +375,18 @@ async fn test_three_way_sharded_ownership() {
     let evt_handler = HandlerBuilder::new()
         .with_agent_persistence(persistence)
         .build();
+
     let (evt_sender, _) = spawn_handler(evt_handler).await;
 
     // Closure to reduce boilerplate
     let get_op_hashes = |a: usize| {
+
         let evt_sender = evt_sender.clone();
+
         let space = space.clone();
+
         async move {
+
             store::all_op_hashes_within_arcset(
                 &evt_sender,
                 &space,
@@ -340,8 +406,11 @@ async fn test_three_way_sharded_ownership() {
 
     // - All arcs cover 3 hashes, but each agent only holds 2 of those
     let op_hashes_0 = (get_op_hashes.clone())(0).await;
+
     let op_hashes_1 = (get_op_hashes.clone())(1).await;
+
     let op_hashes_2 = (get_op_hashes.clone())(2).await;
+
     assert_eq!(
         (op_hashes_0.len(), op_hashes_1.len(), op_hashes_2.len()),
         (2, 2, 2)
@@ -356,6 +425,7 @@ async fn test_three_way_sharded_ownership() {
     )
     .await
     .unwrap();
+
     let ops_1 = store::fetch_ops(
         &evt_sender,
         &space,
@@ -364,6 +434,7 @@ async fn test_three_way_sharded_ownership() {
     )
     .await
     .unwrap();
+
     let ops_2 = store::fetch_ops(
         &evt_sender,
         &space,
@@ -372,12 +443,17 @@ async fn test_three_way_sharded_ownership() {
     )
     .await
     .unwrap();
+
     assert_eq!((ops_0.len(), ops_1.len(), ops_2.len()), (2, 2, 2));
 
     // - There are only 6 distinct ops
     let mut all_ops = HashSet::new();
+
     all_ops.extend(ops_0.into_iter());
+
     all_ops.extend(ops_1.into_iter());
+
     all_ops.extend(ops_2.into_iter());
+
     assert_eq!(all_ops.len(), 6);
 }

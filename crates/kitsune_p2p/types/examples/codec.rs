@@ -13,10 +13,16 @@ write_codec_enum! {
 }
 
 fn main() {
+
     let item1 = MyCodec::my_variant("test".to_string());
+
     let data = item1.encode_vec().unwrap();
+
     println!("Encoded: {:?}", &data);
+
     let (_, item2) = MyCodec::decode_ref(&data).unwrap();
+
     println!("Decoded: {:?}", item2);
+
     assert_eq!(item1, item2);
 }

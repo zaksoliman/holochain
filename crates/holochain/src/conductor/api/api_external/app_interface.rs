@@ -15,8 +15,10 @@ pub use holochain_conductor_api::*;
 
 /// The interface that a Conductor exposes to the outside world.
 #[async_trait::async_trait]
+
 pub trait AppInterfaceApi: 'static + Send + Sync + Clone {
     /// Call an admin function to modify this Conductor's behavior
+
     async fn handle_app_request_inner(
         &self,
         request: AppRequest,
@@ -25,14 +27,18 @@ pub trait AppInterfaceApi: 'static + Send + Sync + Clone {
     // -- provided -- //
 
     /// Deal with error cases produced by `handle_app_request_inner`
+
     async fn handle_app_request(&self, request: AppRequest) -> AppResponse {
+
         tracing::debug!("app request: {:?}", request);
 
         let res = match self.handle_app_request_inner(request).await {
             Ok(response) => response,
             Err(e) => AppResponse::Error(e.into()),
         };
+
         tracing::debug!("app response: {:?}", res);
+
         res
     }
 }
@@ -40,6 +46,7 @@ pub trait AppInterfaceApi: 'static + Send + Sync + Clone {
 /// The Conductor lives inside an Arc<RwLock<_>> which is shared with all
 /// other Api references
 #[derive(Clone)]
+
 pub struct RealAppInterfaceApi {
     conductor_handle: ConductorHandle,
     interface_id: AppInterfaceId,
@@ -47,7 +54,9 @@ pub struct RealAppInterfaceApi {
 
 impl RealAppInterfaceApi {
     /// Create a new instance from a shared Conductor reference
+
     pub fn new(conductor_handle: ConductorHandle, interface_id: AppInterfaceId) -> Self {
+
         Self {
             conductor_handle,
             interface_id,
@@ -56,12 +65,15 @@ impl RealAppInterfaceApi {
 }
 
 #[async_trait::async_trait]
+
 impl AppInterfaceApi for RealAppInterfaceApi {
     /// Routes the [AppRequest] to the [AppResponse]
+
     async fn handle_app_request_inner(
         &self,
         request: AppRequest,
     ) -> ConductorApiResult<AppResponse> {
+
         match request {
             AppRequest::AppInfo { installed_app_id } => Ok(AppResponse::AppInfo(
                 self.conductor_handle
@@ -69,12 +81,15 @@ impl AppInterfaceApi for RealAppInterfaceApi {
                     .await?,
             )),
             AppRequest::ZomeCallInvocation(call) => {
+
                 tracing::warn!(
                     "AppRequest::ZomeCallInvocation is deprecated, use AppRequest::ZomeCall (TODO: update conductor-api)"
                 );
+
                 self.handle_app_request_inner(AppRequest::ZomeCall(call))
                     .await
                     .map(|r| {
+
                         match r {
                             // if successful, re-wrap in the deprecated response type
                             AppResponse::ZomeCall(zc) => AppResponse::ZomeCallInvocation(zc),
@@ -84,6 +99,7 @@ impl AppInterfaceApi for RealAppInterfaceApi {
                     })
             }
             AppRequest::ZomeCall(call) => {
+
                 match self.conductor_handle.call_zome(*call.clone()).await? {
                     Ok(ZomeCallResponse::Ok(output)) => Ok(AppResponse::ZomeCall(Box::new(output))),
                     Ok(ZomeCallResponse::Unauthorized(_, _, _, _)) => Ok(AppResponse::Error(
@@ -112,20 +128,26 @@ impl AppInterfaceApi for RealAppInterfaceApi {
 }
 
 #[async_trait::async_trait]
+
 impl InterfaceApi for RealAppInterfaceApi {
     type ApiRequest = AppRequest;
+
     type ApiResponse = AppResponse;
+
     async fn handle_request(
         &self,
         request: Result<Self::ApiRequest, SerializedBytesError>,
     ) -> InterfaceResult<Self::ApiResponse> {
+
         {
+
             self.conductor_handle
                 .check_running()
                 .await
                 .map_err(Box::new)
                 .map_err(InterfaceError::RequestHandler)?;
         }
+
         match request {
             Ok(request) => Ok(AppInterfaceApi::handle_app_request(self, request).await),
             Err(e) => Ok(AppResponse::Error(SerializationError::from(e).into())),

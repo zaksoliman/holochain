@@ -3,6 +3,7 @@ use std::sync::Arc;
 /// KitsuneP2p Error Type.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
+
 pub enum KitsuneP2pError {
     /// GhostError
     #[error(transparent)]
@@ -57,22 +58,30 @@ pub use crate::actor::KitsuneP2pResult;
 
 impl KitsuneP2pError {
     /// promote a custom error type to a KitsuneP2pError
+
     pub fn other(e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+
         Self::Other(e.into())
     }
 
     /// generate a decoding error from a string
+
     pub fn decoding_error(s: String) -> Self {
+
         Self::DecodingError(s.into_boxed_str())
     }
 }
 
 impl From<String> for KitsuneP2pError {
     fn from(s: String) -> Self {
+
         #[derive(Debug, thiserror::Error)]
+
         struct OtherError(String);
+
         impl std::fmt::Display for OtherError {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
                 write!(f, "{}", self.0)
             }
         }
@@ -83,6 +92,7 @@ impl From<String> for KitsuneP2pError {
 
 impl From<&str> for KitsuneP2pError {
     fn from(s: &str) -> Self {
+
         s.to_string().into()
     }
 }
@@ -90,7 +100,9 @@ impl From<&str> for KitsuneP2pError {
 pub use kitsune_p2p_types::bin_types::*;
 
 /// Data structures to be stored in the agent/peer database.
+
 pub mod agent_store {
+
     pub use kitsune_p2p_types::agent_info::*;
 }
 

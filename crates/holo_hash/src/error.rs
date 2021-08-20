@@ -4,6 +4,7 @@ use crate::HOLO_HASH_PREFIX_LEN;
 
 /// HoloHash Error Type.
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
+
 pub enum HoloHashError {
     /// holo hashes begin with a lower case u (base64url_no_pad)
     #[error("Holo Hash missing 'u' prefix")]
@@ -27,4 +28,5 @@ pub enum HoloHashError {
 }
 
 /// HoloHash Result type
+
 pub type HoloHashResult<T> = Result<T, HoloHashError>;

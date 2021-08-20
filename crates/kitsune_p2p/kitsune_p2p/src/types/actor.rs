@@ -8,6 +8,7 @@ use url2::Url2;
 /// Make a request to multiple destination agents - awaiting/aggregating the responses.
 /// The remote sides will see these messages as "RequestEvt" events.
 #[derive(Clone, Debug)]
+
 pub struct RpcMulti {
     /// The "space" context.
     pub space: Arc<super::KitsuneSpace>,
@@ -37,6 +38,7 @@ pub struct RpcMulti {
 impl RpcMulti {
     /// Construct a new RpcMulti input struct
     /// with timing defaults specified by tuning_params.
+
     pub fn new(
         tuning_params: &KitsuneP2pTuningParams,
         space: Arc<super::KitsuneSpace>,
@@ -44,6 +46,7 @@ impl RpcMulti {
         basis: Arc<super::KitsuneBasis>,
         payload: Vec<u8>,
     ) -> Self {
+
         Self {
             space,
             from_agent,
@@ -58,6 +61,7 @@ impl RpcMulti {
 
 /// A response type helps indicate what agent gave what response.
 #[derive(Clone, Debug)]
+
 pub struct RpcMultiResponse {
     /// The agent that gave this response.
     pub agent: Arc<super::KitsuneAgent>,
@@ -66,10 +70,15 @@ pub struct RpcMultiResponse {
 }
 
 type KSpace = Arc<super::KitsuneSpace>;
+
 type KAgent = Arc<super::KitsuneAgent>;
+
 type KAgents = Vec<Arc<super::KitsuneAgent>>;
+
 type KBasis = Arc<super::KitsuneBasis>;
+
 type Payload = Vec<u8>;
+
 type OptU64 = Option<u64>;
 
 ghost_actor::ghost_chan! {

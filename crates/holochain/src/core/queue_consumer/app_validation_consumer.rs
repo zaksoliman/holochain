@@ -18,6 +18,7 @@ use tracing::*;
     conductor_api,
     network
 ))]
+
 pub fn spawn_app_validation_consumer(
     env: EnvWrite,
     cache: EnvWrite,
@@ -27,20 +28,28 @@ pub fn spawn_app_validation_consumer(
     conductor_api: impl CellConductorApiT + 'static,
     network: HolochainP2pCell,
 ) -> (TriggerSender, JoinHandle<ManagedTaskResult>) {
+
     let (tx, mut rx) = TriggerSender::new();
+
     let mut trigger_self = tx.clone();
+
     let handle = tokio::spawn(async move {
+
         loop {
+
             // Wait for next job
             if let Job::Shutdown = next_job_or_exit(&mut rx, &mut stop).await {
+
                 tracing::warn!(
                     "Cell is shutting down: stopping app_validation_workflow queue consumer."
                 );
+
                 break;
             }
 
             // Run the workflow
             let workspace = AppValidationWorkspace::new(env.clone(), cache.clone());
+
             let result = app_validation_workflow(
                 workspace,
                 trigger_integration.clone(),
@@ -48,6 +57,7 @@ pub fn spawn_app_validation_consumer(
                 network.clone(),
             )
             .await;
+
             match result {
                 Ok(WorkComplete::Incomplete) => trigger_self.trigger(),
                 Err(err) => {
@@ -62,7 +72,9 @@ pub fn spawn_app_validation_consumer(
                 _ => (),
             };
         }
+
         Ok(())
     });
+
     (tx, handle)
 }

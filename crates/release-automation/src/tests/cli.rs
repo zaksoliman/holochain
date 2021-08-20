@@ -11,24 +11,34 @@ use predicates::prelude::*;
 use std::io::Write;
 
 #[test]
+
 fn release_createreleasebranch() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
+
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "release",
         "--steps=CreateReleaseBranch",
     ]);
+
     cmd.assert().success();
 
     crate::release::ensure_release_branch(&workspace).unwrap();
 }
 
 #[test]
+
 fn release_createreleasebranch_fails_on_dirty_repo() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     workspace_mocker.add_or_replace_file(
         "crates/crate_a/README",
         indoc::indoc! {r#"
@@ -39,10 +49,13 @@ fn release_createreleasebranch_fails_on_dirty_repo() {
             "#,
         },
     );
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
 
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=debug",
@@ -57,6 +70,7 @@ fn release_createreleasebranch_fails_on_dirty_repo() {
 
 macro_rules! assert_cmd_success {
     ($cmd:expr) => {{
+
         let output = $cmd.output().unwrap();
 
         let (stderr, stdout) = (
@@ -65,6 +79,7 @@ macro_rules! assert_cmd_success {
         );
 
         if !output.status.success() {
+
             panic!(
                 "code: {:?}\nstderr:\n'{}'\n---\nstdout:\n'{}'\n---\n",
                 output.status.code(),
@@ -81,15 +96,18 @@ fn get_crate_versions<'a>(
     expected_crates: &[&str],
     workspace: &'a ReleaseWorkspace<'a>,
 ) -> Vec<String> {
+
     expected_crates
         .clone()
         .iter()
         .map(|name| {
+
             let cargo_toml_path = workspace
                 .root()
                 .join("crates")
                 .join(name)
                 .join("Cargo.toml");
+
             cargo_next::get_version(&cargo_toml_path)
                 .context(format!(
                     "trying to parse version in Cargo.toml at {:?}",
@@ -103,12 +121,17 @@ fn get_crate_versions<'a>(
 
 // todo(backlog): ensure all of these conditions have unit tests?
 #[test]
+
 fn bump_versions_on_selection() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
 
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
@@ -120,10 +143,12 @@ fn bump_versions_on_selection() {
     ]);
 
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
     // set expectations
     let expected_crates = vec!["crate_b", "crate_a", "crate_e"];
+
     let expected_release_versions = vec!["0.0.1", "0.0.2", "0.0.1"];
 
     // check manifests for new release headings
@@ -156,16 +181,19 @@ fn bump_versions_on_selection() {
         expected_crates
             .iter()
             .map(|crt| {
+
                 let path = workspace
                     .root()
                     .join("crates")
                     .join(crt)
                     .join("CHANGELOG.md");
+
                 ChangelogT::<CrateChangelog>::at_path(&path)
                     .topmost_release()
                     .context(format!("querying topmost_release on changelog for {}", crt))
                     .unwrap()
                     .ok_or_else(|| {
+
                         anyhow::anyhow!(
                             "changelog for {} doesn't have any release. file content: \n{}",
                             crt,
@@ -180,6 +208,7 @@ fn bump_versions_on_selection() {
 
     let workspace_changelog =
         ChangelogT::<WorkspaceChangelog>::at_path(&workspace.root().join("CHANGELOG.md"));
+
     let topmost_workspace_release = workspace_changelog
         .topmost_release()
         .unwrap()
@@ -193,9 +222,11 @@ fn bump_versions_on_selection() {
         "{}",
         topmost_workspace_release
     );
+
     assert_ne!("[20210304.120604]", topmost_workspace_release);
 
     {
+
         // check for release heading contents in the workspace changelog
 
         let expected = sanitize(indoc::formatdoc!(
@@ -262,6 +293,7 @@ fn bump_versions_on_selection() {
         ));
 
         let result = sanitize(std::fs::read_to_string(workspace_changelog.path()).unwrap());
+
         assert_eq!(
             result,
             expected,
@@ -272,6 +304,7 @@ fn bump_versions_on_selection() {
 
     // ensure the git commit for the whole release was created
     let commit_msg = {
+
         let commit = workspace
             .git_repo()
             .head()
@@ -306,6 +339,7 @@ fn bump_versions_on_selection() {
     // }
 
     if matches!(option_env!("FAIL_CLI_RELEASE_TEST"), Some(_)) {
+
         println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
         panic!("workspace root: {:?}", workspace.root());
@@ -313,12 +347,15 @@ fn bump_versions_on_selection() {
 }
 
 #[test]
+
 fn changelog_aggregation() {
+
     let workspace_mocker = example_workspace_1().unwrap();
 
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
 
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
@@ -330,9 +367,11 @@ fn changelog_aggregation() {
 
     let workspace_changelog =
         ChangelogT::<WorkspaceChangelog>::at_path(&workspace.root().join("CHANGELOG.md"));
+
     let result = sanitize(std::fs::read_to_string(workspace_changelog.path()).unwrap());
 
     let expected = example_workspace_1_aggregated_changelog();
+
     assert_eq!(
         result,
         expected,
@@ -342,13 +381,18 @@ fn changelog_aggregation() {
 }
 
 #[test]
+
 fn release_publish() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
 
     // simulate a release
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
@@ -357,11 +401,14 @@ fn release_publish() {
         "--allowed-matched-blockers=UnreleasableViaChangelogFrontmatter,DisallowedVersionReqViolated",
         "--steps=CreateReleaseBranch,BumpReleaseVersions",
     ]);
+
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
     // publish
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
@@ -370,7 +417,9 @@ fn release_publish() {
         "--dry-run",
         "--steps=PublishToCratesIo",
     ]);
+
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 }
 
@@ -378,13 +427,18 @@ fn release_publish() {
 // it now lives in a separate command and these tests can be moved there
 #[ignore]
 #[test]
+
 fn post_release_version_bumps() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
 
     // simulate a release
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
@@ -394,17 +448,22 @@ fn post_release_version_bumps() {
         "--steps=CreateReleaseBranch,BumpReleaseVersions",
         "--allowed-missing-dependencies=crate_b",
     ]);
+
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace.root().display()),
         "--log-level=trace",
         "release",
         "--steps=BumpPostReleaseVersions",
     ]);
+
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
     assert_eq!(
@@ -414,6 +473,7 @@ fn post_release_version_bumps() {
 
     // ensure the git commit for the whole release was created
     let commit_msg = {
+
         let commit = workspace
             .git_repo()
             .head()
@@ -446,6 +506,7 @@ fn post_release_version_bumps() {
     );
 
     {
+
         // ensure the workspace release tag has been created
         let topmost_workspace_release = workspace
             .changelog()
@@ -454,16 +515,22 @@ fn post_release_version_bumps() {
             .unwrap()
             .map(|change| change.title().to_string())
             .unwrap();
+
         let expected_tag = format!("release-{}", topmost_workspace_release);
+
         crate::crate_selection::git_lookup_tag(workspace.git_repo(), &expected_tag)
             .unwrap_or_else(|| panic!("git tag '{}' not found", &expected_tag));
     }
 }
 
 #[test]
+
 fn multiple_subsequent_releases() {
+
     let workspace_mocker = example_workspace_1().unwrap();
+
     type A = (PathBuf, Vec<String>, Vec<String>);
+
     type F = Box<dyn Fn(A)>;
 
     for (
@@ -504,9 +571,11 @@ fn multiple_subsequent_releases() {
             vec!["crate_b"],
             true,
             Box::new(|args: A| {
+
                 let root = args.0;
 
                 for crt in &["crate_a", "crate_e"] {
+
                     let mut readme = std::fs::OpenOptions::new()
                         .write(true)
                         .append(true)
@@ -530,9 +599,11 @@ fn multiple_subsequent_releases() {
             vec![],
             true,
             Box::new(|args: A| {
+
                 let root = args.0;
 
                 for crt in &["crate_b"] {
+
                     let mut readme = std::fs::OpenOptions::new()
                         .write(true)
                         .append(true)
@@ -552,6 +623,7 @@ fn multiple_subsequent_releases() {
     .iter()
     .enumerate()
     {
+
         println!("---\ntest case {}\n---", i);
 
         pre_release_fn((
@@ -569,7 +641,9 @@ fn multiple_subsequent_releases() {
         ));
 
         let topmost_release_title_pre = {
+
             let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
             let topmost_release_title_pre = match workspace
                 .changelog()
                 .unwrap()
@@ -584,6 +658,7 @@ fn multiple_subsequent_releases() {
             workspace.git_checkout_branch("develop", true).unwrap();
 
             let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
             let cmd = cmd.args(&[
                 &format!("--workspace-path={}", workspace.root().display()),
                 "--log-level=debug",
@@ -596,13 +671,16 @@ fn multiple_subsequent_releases() {
                     allowed_missing_dependencies.iter().fold("".to_string(), |acc, cur|{ acc + "," + *cur })
                 )
             ]);
+
             let output = assert_cmd_success!(cmd);
+
             println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1,);
 
             topmost_release_title_pre
         };
 
         let topmost_release_title = {
+
             // todo: figure out how we can make the workspace re-read its data instead of creating a new one
             let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
 
@@ -625,9 +703,11 @@ fn multiple_subsequent_releases() {
             };
 
             {
+
                 // ensure the git commit matches the most recent release.
 
                 let commit_msg = {
+
                     let commit = workspace
                         .git_repo()
                         .head()
@@ -655,12 +735,14 @@ fn multiple_subsequent_releases() {
         };
 
         if *expect_new_release {
+
             assert_ne!(
                 topmost_release_title, topmost_release_title_pre,
                 "expected new release? {}",
                 *expect_new_release
             );
         } else {
+
             assert_eq!(
                 topmost_release_title, topmost_release_title_pre,
                 "expected new release? {}",
@@ -675,11 +757,15 @@ fn multiple_subsequent_releases() {
 }
 
 #[test]
+
 fn apply_dev_versions_works() {
+
     let workspace_mocker = example_workspace_1().unwrap();
 
     let get_crate_a_version = || -> String {
+
         let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
         let crate_a = workspace
             .members()
             .unwrap()
@@ -693,22 +779,29 @@ fn apply_dev_versions_works() {
     assert_eq!(get_crate_a_version(), "0.0.1");
 
     let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
     let cmd = cmd.args(&[
         &format!("--workspace-path={}", workspace_mocker.root().display()),
         "--log-level=debug",
         "crate",
         "apply-dev-versions",
     ]);
+
     let output = assert_cmd_success!(cmd);
+
     println!("stderr:\n'{}'\n---\nstdout:\n'{}'\n---", output.0, output.1);
 
     assert_eq!(get_crate_a_version(), "0.0.2-dev.0");
 }
 
 #[test]
+
 fn release_dry_run_fails_on_unallowed_conditions() {
+
     let workspace_mocker = example_workspace_4().unwrap();
+
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
     workspace.git_checkout_new_branch("develop").unwrap();
 
     let members = workspace
@@ -720,6 +813,7 @@ fn release_dry_run_fails_on_unallowed_conditions() {
 
     // every member corresponds to a blocker and must thus fail separately
     for member in members {
+
         workspace_mocker.add_or_replace_file(
             &format!("crates/{}/README.md", member),
             indoc::indoc! {r#"
@@ -730,9 +824,11 @@ fn release_dry_run_fails_on_unallowed_conditions() {
             "#,
             },
         );
+
         workspace.git_add_all_and_commit("msg", None).unwrap();
 
         let mut cmd = assert_cmd::Command::cargo_bin("release-automation").unwrap();
+
         let cmd = cmd.args(&[
             &format!("--workspace-path={}", workspace.root().display()),
             "--log-level=debug",

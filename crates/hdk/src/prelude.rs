@@ -88,6 +88,7 @@ pub use mockall;
 
 // This needs to be called at least once _somewhere_ and is idempotent.
 #[macro_export]
+
 macro_rules! holochain_externs {
     () => {
         holochain_wasmer_guest::host_externs!(
@@ -138,4 +139,5 @@ macro_rules! holochain_externs {
 }
 
 #[cfg(not(feature = "mock"))]
+
 holochain_externs!();

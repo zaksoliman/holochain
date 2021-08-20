@@ -55,12 +55,15 @@ use crate::prelude::*;
 /// If you have the hash of the identity entry you can get all the links, if you have the entry or
 /// header hash for any of the creates or updates you can lookup the identity entry hash out of the
 /// body of the create/update entry.
+
 pub fn create_link<T: Into<LinkTag>>(
     base_address: EntryHash,
     target_address: EntryHash,
     tag: T,
 ) -> ExternResult<HeaderHash> {
+
     HDK.with(|h| {
+
         h.borrow().create_link(CreateLinkInput::new(
             base_address,
             target_address,
@@ -92,7 +95,9 @@ pub fn create_link<T: Into<LinkTag>>(
 ///   link after any previous delete of any link.
 /// All of this is bad so link creates point to entries (See [ `create_link` ]) and deletes point to
 /// creates.
+
 pub fn delete_link(add_link_header: HeaderHash) -> ExternResult<HeaderHash> {
+
     HDK.with(|h| h.borrow().delete_link(add_link_header))
 }
 
@@ -115,9 +120,12 @@ pub fn delete_link(add_link_header: HeaderHash) -> ExternResult<HeaderHash> {
 /// deleted c.f. get_link_details that returns all the creates and all the deletes together.
 ///
 /// See [ `get_link_details` ].
+
 pub fn get_links(base: EntryHash, link_tag: Option<LinkTag>) -> ExternResult<Links> {
+
     Ok(HDK
         .with(|h| {
+
             h.borrow()
                 .get_links(vec![GetLinksInput::new(base, link_tag)])
         })?
@@ -145,9 +153,12 @@ pub fn get_links(base: EntryHash, link_tag: Option<LinkTag>) -> ExternResult<Lin
 /// c.f. get_links that returns only the creates that have not been deleted.
 ///
 /// See [ `get_links` ].
+
 pub fn get_link_details(base: EntryHash, link_tag: Option<LinkTag>) -> ExternResult<LinkDetails> {
+
     Ok(HDK
         .with(|h| {
+
             h.borrow()
                 .get_link_details(vec![GetLinksInput::new(base, link_tag)])
         })?

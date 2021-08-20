@@ -7,6 +7,7 @@ use thiserror::Error;
 use super::DhtOpType;
 
 #[derive(PartialEq, Eq, Clone, Debug, Error)]
+
 pub enum DhtOpError {
     #[error("Tried to create a DhtOp from a Element that requires an Entry. Header type {0:?}")]
     HeaderWithoutEntry(Header),
