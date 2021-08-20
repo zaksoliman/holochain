@@ -16,6 +16,7 @@ use holochain_types::env::EnvWrite;
 use holochain_types::timestamp;
 use holochain_types::Timestamp;
 use holochain_zome_types::entry::EntryHashed;
+use holochain_zome_types::entry_def::ChainTopOrdering;
 use holochain_zome_types::header;
 use holochain_zome_types::CapAccess;
 use holochain_zome_types::CapGrant;
@@ -24,6 +25,7 @@ use holochain_zome_types::CounterSigningAgentState;
 use holochain_zome_types::CounterSigningSessionData;
 use holochain_zome_types::Element;
 use holochain_zome_types::Entry;
+use holochain_zome_types::EntryDef;
 use holochain_zome_types::EntryVisibility;
 use holochain_zome_types::GrantedFunction;
 use holochain_zome_types::Header;
@@ -58,6 +60,7 @@ pub struct SourceChain {
     persisted_head: HeaderHash,
     persisted_timestamp: Timestamp,
     public_only: bool,
+    relaxed_only: bool,
 }
 
 // TODO fix this.  We shouldn't really have nil values but this would
@@ -96,6 +99,7 @@ impl SourceChain {
             persisted_head,
             persisted_timestamp,
             public_only: false,
+            relaxed_only: true,
         })
     }
     pub fn public_only(&mut self) {
@@ -140,25 +144,41 @@ impl SourceChain {
     }
 
     async fn put_with_header(
-        &self,
+        &mut self,
         header: Header,
-        maybe_entry: Option<Entry>,
+        maybe_def_with_entry: Option<(EntryDef, Entry)>,
     ) -> SourceChainResult<HeaderHash> {
+        if let Some((
+            EntryDef {
+                chain_top_ordering: ChainTopOrdering::Strict,
+                ..
+            },
+            _,
+        )) = maybe_def_with_entry
+        {
+            self.relaxed_only = false;
+        }
         let header = HeaderHashed::from_content_sync(header);
         let hash = header.as_hash().clone();
         let header = SignedHeaderHashed::new(&self.vault.keystore(), header).await?;
-        let element = Element::new(header, maybe_entry);
+        let element = Element::new(
+            header,
+            maybe_def_with_entry.and_then(|(_, entry)| Some(entry)),
+        );
         self.scratch
             .apply(|scratch| insert_element_scratch(scratch, element))?;
         Ok(hash)
     }
 
-    pub async fn put_countersigned(&self, entry: Entry) -> SourceChainResult<HeaderHash> {
+    pub async fn put_countersigned(
+        &mut self,
+        (entry_def, entry): (EntryDef, Entry),
+    ) -> SourceChainResult<HeaderHash> {
         let entry_hash = EntryHash::with_data_sync(&entry);
         if let Entry::CounterSign(ref session_data, _) = entry {
             self.put_with_header(
                 Header::from_countersigning_data(entry_hash, session_data, (*self.author).clone())?,
-                Some(entry),
+                Some((entry_def, entry)),
             )
             .await
         } else {
@@ -168,9 +188,9 @@ impl SourceChain {
     }
 
     pub async fn put<H: HeaderInner, B: HeaderBuilder<H>>(
-        &self,
+        &mut self,
         header_builder: B,
-        maybe_entry: Option<Entry>,
+        maybe_def_with_entry: Option<(EntryDef, Entry)>,
     ) -> SourceChainResult<HeaderHash> {
         let (prev_header, chain_head_seq, chain_head_timestamp) = self.chain_head()?;
         let header_seq = chain_head_seq + 1;
@@ -185,7 +205,7 @@ impl SourceChain {
             header_seq,
             prev_header,
         };
-        self.put_with_header(header_builder.build(common).into(), maybe_entry)
+        self.put_with_header(header_builder.build(common).into(), maybe_def_with_entry)
             .await
     }
 

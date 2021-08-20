@@ -47,7 +47,7 @@ where
 }
 
 async fn initialize_zomes_workflow_inner<Ribosome, C>(
-    workspace: HostFnWorkspace,
+    mut workspace: HostFnWorkspace,
     network: HolochainP2pCell,
     keystore: KeystoreSender,
     args: InitializeZomesWorkflowArgs<Ribosome, C>,
@@ -70,7 +70,7 @@ where
 
     // Insert the init marker
     workspace
-        .source_chain()
+        .source_chain_mut()
         .put(builder::InitZomesComplete {}, None)
         .await?;
 

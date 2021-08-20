@@ -19,6 +19,7 @@ pub fn create<'a>(
     match HostFnAccess::from(&call_context.host_context()) {
         HostFnAccess{ write_workspace: Permission::Allow, .. } => {
             let entry = AsRef::<Entry>::as_ref(&input);
+            let entry_def = call_context.host_context()
 
             // Countersigned entries have different header handling.
             match entry {
