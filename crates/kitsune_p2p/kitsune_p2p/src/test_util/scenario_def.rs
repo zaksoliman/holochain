@@ -170,12 +170,34 @@ pub fn rectify_index(i: i8) -> u32 {
 /// If `end` is false, then return the first value of the bucket at this index.
 /// If `end` is true, then return the last value of the bucket at this index.
 pub fn expand_index(i: i8, end: bool) -> u32 {
-    let n = rectify_index(i);
+    let n = rectify_index(i) * BUCKET_SIZE as u32;
     if end {
-        n * (BUCKET_SIZE as u32 + 1) - 1
+        n + (BUCKET_SIZE as u32 - 1)
     } else {
-        n * BUCKET_SIZE as u32
+        n
     }
+}
+
+#[test]
+fn test_rectify_index() {
+    assert_eq!(rectify_index(0), 0);
+    assert_eq!(rectify_index(-1), 255);
+    assert_eq!(rectify_index(-2), 254);
+    assert_eq!(rectify_index(1), 1);
+    assert_eq!(rectify_index(127), 127);
+}
+
+#[test]
+fn test_expand_index() {
+    const B: u32 = BUCKET_SIZE as u32;
+    assert_eq!(expand_index(0, false), 0);
+    assert_eq!(expand_index(0, true), B - 1);
+
+    assert_eq!(expand_index(11, false), 11 * B);
+    assert_eq!(expand_index(11, true), 12 * B - 1);
+
+    assert_eq!(expand_index(-1, false), u8::MAX as u32 * B);
+    assert_eq!(expand_index(-1, true), u32::MAX);
 }
 
 /// Just construct a scenario to illustrate/experience how it's done
@@ -195,15 +217,4 @@ fn constructors() {
         ]),
     ];
     let _scenario = ScenarioDef::new(nodes, PeerMatrix::sparse([&[1], &[]]));
-}
-
-#[test]
-fn test_expand_index() {
-    const B: u32 = BUCKET_SIZE as u32;
-    assert_eq!(expand_index(0, false), 0);
-    assert_eq!(expand_index(0, true), 255);
-    assert_eq!(expand_index(11, false), 11 * B);
-    assert_eq!(expand_index(11, true), 12 * B - 1);
-    assert_eq!(expand_index(-1, false), u8::MAX as u32 * B);
-    assert_eq!(expand_index(-1, true), u32::MAX);
 }
