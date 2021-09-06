@@ -104,8 +104,8 @@ impl ScenarioDefAgent {
     /// definition, based on the resolution defined in the ScenarioDef which
     /// is passed in
     pub fn arc(&self) -> ArcInterval {
-        let start = rectify_index(TOTAL, self.arc.0, false);
-        let end = rectify_index(TOTAL, self.arc.1, true);
+        let start = expand_index(self.arc.0, false);
+        let end = expand_index(self.arc.1, true);
         ArcInterval::new(start, end)
     }
 }
@@ -158,11 +158,23 @@ impl<const N: usize> PeerMatrix<N> {
 }
 
 /// Map a signed index into an unsigned index
-pub fn rectify_index(num: usize, i: i8, end: bool) -> u32 {
+pub fn rectify_index(i: i8) -> u32 {
     if i < 0 {
-        (num as isize + i as isize) as u32
+        (TOTAL as isize + i as isize) as u32
     } else {
         i as u32
+    }
+}
+
+/// "Expand" a signed bucket index into the u32 space.
+/// If `end` is false, then return the first value of the bucket at this index.
+/// If `end` is true, then return the last value of the bucket at this index.
+pub fn expand_index(i: i8, end: bool) -> u32 {
+    let n = rectify_index(i);
+    if end {
+        n * (BUCKET_SIZE as u32 + 1) - 1
+    } else {
+        n * BUCKET_SIZE as u32
     }
 }
 
@@ -183,4 +195,15 @@ fn constructors() {
         ]),
     ];
     let _scenario = ScenarioDef::new(nodes, PeerMatrix::sparse([&[1], &[]]));
+}
+
+#[test]
+fn test_expand_index() {
+    const B: u32 = BUCKET_SIZE as u32;
+    assert_eq!(expand_index(0, false), 0);
+    assert_eq!(expand_index(0, true), 255);
+    assert_eq!(expand_index(11, false), 11 * B);
+    assert_eq!(expand_index(11, true), 12 * B - 1);
+    assert_eq!(expand_index(-1, false), u8::MAX as u32 * B);
+    assert_eq!(expand_index(-1, true), u32::MAX);
 }

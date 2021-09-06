@@ -17,7 +17,7 @@ impl ShardedGossipLocal {
         let mut gossip = Vec::with_capacity(1);
 
         // Get all local agents that are relevant to this common arc set.
-        let local_agents_within_common_arc: Vec<_> = store::agents_within_arcset(
+        let local_agents_within_common_arcset: Vec<_> = store::agents_within_arcset(
             &self.evt_sender,
             &self.space,
             state.common_arc_set.clone(),
@@ -29,7 +29,7 @@ impl ShardedGossipLocal {
 
         // Check which ops are missing.
         let ops = self
-            .check_ops_bloom(local_agents_within_common_arc, state, remote_bloom)
+            .check_ops_bloom(local_agents_within_common_arcset, state, remote_bloom)
             .await?;
 
         // Chunk the ops into multiple gossip messages if needed.
