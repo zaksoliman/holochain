@@ -24,14 +24,14 @@ pub struct SweetGossipScenarioNode {
 impl SweetGossipScenarioNode {
     /// Get the LocBuckets for every op hash held by this node.
     /// Ops which were not manually injected are excluded.
-    pub async fn get_op_basis_loc_buckets(&self) -> HashSet<LocBucket> {
+    pub async fn get_op_basis_loc_buckets(&self) -> Vec<LocBucket> {
         let hashes: HashSet<DhtOpHash> = self
             .conductor
             .get_all_op_hashes(self.apps.cells_flattened())
             .await
             .collect();
         // Exclude the ops which were present at the moment of op injection
-        hashes
+        let mut hashes: Vec<_> = hashes
             .difference(&*self.excluded_ops)
             .map(|h| {
                 let loc = *GOSSIP_FIXTURE_OP_LOOKUP.get(&h).unwrap_or_else(|| {
@@ -40,9 +40,11 @@ impl SweetGossipScenarioNode {
                         h
                     )
                 });
-                loc
+                loc.clone()
             })
-            .collect()
+            .collect();
+        hashes.sort();
+        hashes
     }
 }
 

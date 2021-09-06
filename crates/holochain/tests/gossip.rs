@@ -1,5 +1,4 @@
 use holochain::sweettest::*;
-use maplit::hashset;
 use pretty_assertions::assert_eq;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -38,7 +37,7 @@ async fn test_1() {
     dbg!(&locs2);
 
     // TODO: properly await consistency
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let locs0 = c0.get_op_basis_loc_buckets().await;
     let locs1 = c1.get_op_basis_loc_buckets().await;
@@ -49,5 +48,5 @@ async fn test_1() {
     dbg!(&locs1);
     dbg!(&locs2);
 
-    assert_eq!(locs0, hashset![-4, -3, -2, -1, 0, 1, 2, 3, 4]);
+    assert_eq!(locs0, vec![-4, -3, -2, -1, 0, 1, 2, 3, 4]);
 }

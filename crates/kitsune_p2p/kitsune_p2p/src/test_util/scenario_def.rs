@@ -106,7 +106,7 @@ impl ScenarioDefAgent {
     pub fn arc(&self) -> ArcInterval {
         let start = expand_index(self.arc.0, false);
         let end = expand_index(self.arc.1, true);
-        ArcInterval::new(start, end)
+        dbg!(ArcInterval::new(start, end))
     }
 }
 

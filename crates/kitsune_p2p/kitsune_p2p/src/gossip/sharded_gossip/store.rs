@@ -126,7 +126,7 @@ pub(super) async fn all_op_hashes_within_arcset(
             (a.clone(), intersection)
         })
         .collect();
-    dbg!(&agents, &window_ms, &max_ops, &include_limbo);
+    // dbg!(&agents, &window_ms, &max_ops, &include_limbo);
     Ok(evt_sender
         .query_op_hashes(QueryOpHashesEvt {
             space: space.clone(),
