@@ -5,6 +5,7 @@ use hdk::prelude::*;
 use holo_hash::*;
 use holochain_p2p::HolochainP2pCell;
 use holochain_sqlite::prelude::DatabaseResult;
+use holochain_state::prelude::to_blob;
 use holochain_types::prelude::*;
 use kitsune_p2p::{actor::TestBackdoor, test_util::scenario_def::LocBucket};
 
@@ -88,7 +89,9 @@ impl SweetCell {
                 txn.execute(
                     "
                     UPDATE Header
-                    SET author = :author, private_entry = 0
+                    SET
+                        private_entry = 0,
+                        author = :author
                     ",
                     rusqlite::named_params! {
                         ":author": self.agent_pubkey()
@@ -97,13 +100,25 @@ impl SweetCell {
                 // Set timestamp to something reasonable.
                 // TODO: allow variability of timestamps.
                 let timestamp = holochain_types::timestamp::now();
+                // NB: we need to be able to disable validation in order for
+                //     these ops to be able to pass from node to node. Currently
+                //     they will only be gossiped one hop from the source due
+                //     to hard-coding the when_integrated time.
                 txn.execute(
                     "
                     UPDATE DhtOp
-                    SET authored_timestamp_ms = :timestamp
+                    SET
+                        authored_timestamp_ms = :now,
+                        when_integrated = :now,
+                        when_integrated_ns = :now_blob,
+                        validation_status = :status,
+                        validation_stage = 3,
+                        op_order = \"1111\"
                     ",
                     rusqlite::named_params! {
-                        ":timestamp": timestamp
+                        ":now": timestamp,
+                        ":now_blob": to_blob(timestamp).unwrap(),
+                        ":status": ValidationStatus::Valid,
                     },
                 )?;
                 DatabaseResult::Ok(())

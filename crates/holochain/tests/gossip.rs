@@ -37,7 +37,7 @@ async fn test_1() {
     dbg!(&locs2);
 
     // TODO: properly await consistency
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     let locs0 = c0.get_op_basis_loc_buckets().await;
     let locs1 = c1.get_op_basis_loc_buckets().await;
