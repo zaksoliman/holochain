@@ -22,8 +22,9 @@ pub struct GossipFixtures {
 }
 
 /// Lazily-instantiated fixtures for gossip.
-/// This can take some time to generate the first time, since it is brute-force
-/// search for hashes that satisfy the necessary conditions.
+/// This can take some time to generate the first time, since it is a brute-force
+/// search for hashes that satisfy the necessary conditions. The result is
+/// cached on disk for subsequent runs.
 pub static GOSSIP_FIXTURES: once_cell::sync::Lazy<GossipFixtures> =
     once_cell::sync::Lazy::new(|| {
         //match std::fs::read(&FIXTURE_PATH) {
