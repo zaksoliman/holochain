@@ -235,6 +235,16 @@ impl ShardedGossip {
 
     fn pop_queues(&self) -> KitsuneResult<(Option<Incoming>, Option<Outgoing>)> {
         self.inner.share_mut(move |inner, _| {
+            println!(
+                "{}",
+                holochain_util::fmt::indent(
+                    &format!(
+                        "queues:\nINCOMING: {:?}\nOUTGOING: {:?}",
+                        inner.incoming, inner.outgoing
+                    ),
+                    "<Q> "
+                )
+            );
             let incoming = inner.incoming.pop_front();
             let outgoing = inner.outgoing.pop_front();
             Ok((incoming, outgoing))

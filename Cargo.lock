@@ -3242,6 +3242,7 @@ dependencies = [
  "futures",
  "ghost_actor 0.3.0-alpha.4",
  "governor",
+ "holochain_util",
  "itertools 0.10.1",
  "kitsune_p2p_mdns",
  "kitsune_p2p_proxy",

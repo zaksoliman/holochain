@@ -35,6 +35,11 @@ impl SweetCell {
         &self.cell_id.agent_pubkey()
     }
 
+    /// Accessor for HolochainP2pCell
+    pub fn network(&self) -> &HolochainP2pCell {
+        &self.network
+    }
+
     /// Accessor for DnaHash
     pub fn dna_hash(&self) -> &DnaHash {
         &self.cell_id.dna_hash()

@@ -89,11 +89,16 @@ impl<const N: usize> SweetGossipScenario<N> {
             let cells = apps.cells_flattened();
             excluded_ops.extend(conductor.get_all_op_hashes(cells.clone()).await);
 
-            for (agent_def, cell) in itertools::zip(agent_defs, cells) {
+            for (agent_def, cell) in itertools::zip(agent_defs, cells.iter()) {
                 // Manually set the storage arc
                 cell.set_storage_arc(agent_def.arc()).await;
                 // Manually inject DhtOps at the correct locations
                 cell.inject_gossip_fixture_ops(agent_def.ops.clone().into_iter());
+            }
+
+            for cell in cells {
+                // Trigger gossip
+                cell.network().new_integrated_data().await;
             }
 
             conductors_with_apps.push((conductor, apps));
@@ -144,6 +149,9 @@ fn sharded_config() -> ConductorConfig {
     let mut tuning =
         kitsune_p2p_types::config::tuning_params_struct::KitsuneP2pTuningParams::default();
     tuning.gossip_strategy = "sharded-gossip".to_string();
+    tuning.gossip_loop_iteration_delay_ms = 200;
+    tuning.gossip_peer_on_success_next_gossip_delay_ms = 1000;
+    tuning.gossip_peer_on_error_next_gossip_delay_ms = 1000;
     let mut network = KitsuneP2pConfig::default();
     network.transport_pool = vec![kitsune_p2p::TransportConfig::Quic {
         bind_to: None,
@@ -191,7 +199,7 @@ mod tests {
         let ops0 = node.get_op_basis_loc_buckets().await;
 
         // - Check that the specially prepared ops are present
-        assert_eq!(ops0, hashset![1, 2, 3, 4, 5, 6]);
+        assert_eq!(ops0, vec![1, 2, 3, 4, 5, 6]);
     }
 
     /// Just test that a scenario can be instantiated and results in the proper
@@ -224,7 +232,7 @@ mod tests {
         let ops1 = node1.get_op_basis_loc_buckets().await;
 
         // - Check that the specially prepared ops are present
-        assert_eq!(ops0, hashset![0, 10, 20, 30, 90, 80, -10]);
-        assert_eq!(ops1, hashset![5, 15, 25, 35, 75, 85, 95, -25]);
+        assert_eq!(ops0, vec![0, 10, 20, 30, 90, 80, -10]);
+        assert_eq!(ops1, vec![5, 15, 25, 35, 75, 85, 95, -25]);
     }
 }
