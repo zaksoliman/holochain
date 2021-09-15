@@ -49,6 +49,7 @@ pub mod conductor_setup;
 pub mod gossip_fixtures;
 pub mod host_fn_caller;
 pub mod inline_zomes;
+mod lazy_buckets;
 
 mod wait_for_any;
 pub use wait_for_any::*;

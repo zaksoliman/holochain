@@ -30,9 +30,6 @@ pub mod hash_b64;
 #[cfg(feature = "fixturators")]
 pub mod fixt;
 
-#[cfg(feature = "test_utils")]
-pub mod hashed_fixtures;
-
 #[cfg(feature = "hashing")]
 mod hash_ext;
 

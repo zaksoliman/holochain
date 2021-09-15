@@ -1,4 +1,4 @@
-use crate::test_utils::gossip_fixtures::GOSSIP_FIXTURES;
+use crate::test_utils::gossip_fixtures::gossip_fixtures;
 
 use super::SweetZome;
 use hdk::prelude::*;
@@ -73,9 +73,8 @@ impl SweetCell {
     }
 
     /// Inject ops from the GOSSIP_FIXTURES, indexed by signed (+/-) location.
-    /// - This sets the author to the current agent. NB this can lead to
-    ///   multiple agents claiming authorship over the same op! However,
-    ///   for gossip testing purposes, this isn't a problem.
+    /// The ops are injected as "authored", and ops signed by this agent are used,
+    /// so they are valid as authored ops.
     pub fn inject_gossip_fixture_ops<L>(&self, locations: L)
     where
         L: Iterator<Item = LocBucket>,
@@ -85,9 +84,10 @@ impl SweetCell {
             .conn()
             .unwrap()
             .with_commit_sync(|txn| {
+                let gf = gossip_fixtures();
                 // Add in fixture data
                 for loc in locations.iter() {
-                    let op = GOSSIP_FIXTURES.ops.get(*loc).clone();
+                    let op = gf.ops_by_agent(self.agent_pubkey()).get(*loc).clone();
                     holochain_state::mutations::insert_op(txn, op, true).unwrap();
                 }
                 // Set author to this agent

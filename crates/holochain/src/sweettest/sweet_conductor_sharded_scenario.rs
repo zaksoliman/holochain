@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::{SweetAgents, SweetAppBatch, SweetConductor};
 use crate::{
     conductor::{config::ConductorConfig, handle::DevSettingsDelta},
-    test_utils::gossip_fixtures::GOSSIP_FIXTURE_OP_LOOKUP,
+    test_utils::gossip_fixtures::gossip_fixtures,
 };
 use hdk::prelude::*;
 use holochain_p2p::*;
@@ -31,20 +31,11 @@ impl SweetGossipScenarioNode {
             .await
             .collect();
         // Exclude the ops which were present at the moment of op injection
-        let mut hashes: Vec<_> = hashes
-            .difference(&*self.excluded_ops)
-            .map(|h| {
-                let loc = *GOSSIP_FIXTURE_OP_LOOKUP.get(&h).unwrap_or_else(|| {
-                    panic!(
-                        "Must only fixture op hashes for LocBucket lookup. Hash: {}",
-                        h
-                    )
-                });
-                loc.clone()
-            })
-            .collect();
-        hashes.sort();
-        hashes
+        let mut fixture_hashes = hashes.difference(&*self.excluded_ops);
+        let gf = gossip_fixtures();
+        let mut locs: Vec<_> = gf.lookup(fixture_hashes).collect();
+        locs.sort();
+        locs
     }
 }
 

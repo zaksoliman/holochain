@@ -11,6 +11,12 @@ impl NewEntryHeader {
             }) => header_seq,
         }
     }
+    pub fn author_mut(&mut self) -> &mut AgentPubKey {
+        match self {
+            Self::Create(Create { ref mut author, .. }) => author,
+            Self::Update(Update { ref mut author, .. }) => author,
+        }
+    }
 
     pub fn entry_data_mut(&mut self) -> (&mut EntryHash, &mut EntryType) {
         match self {

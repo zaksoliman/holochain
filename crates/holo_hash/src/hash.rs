@@ -23,7 +23,7 @@
 //!
 //! The complete 39 bytes together are known as the "full" hash
 
-use kitsune_p2p_dht_arc::DhtLocation;
+pub use kitsune_p2p_dht_arc::DhtLocation;
 
 use crate::encode;
 use crate::error::HoloHashResult;

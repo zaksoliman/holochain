@@ -16,6 +16,20 @@ pub fn valid_dht_op(keystore: KeystoreSender) -> Facts<'static, DhtOp> {
     ]
 }
 
+/// Fact: The DhtOp is internally consistent in all of its references AND
+/// was authored by the specified agent
+pub fn valid_dht_op_by_author(
+    keystore: KeystoreSender,
+    author: AgentPubKey,
+) -> Facts<'static, DhtOp> {
+    facts![
+        header_type_matches_entry_existence(),
+        header_references_entry(),
+        lens("author", |o: &mut DhtOp| o.author_mut(), eq_(author)),
+        signature_matches_header(keystore),
+    ]
+}
+
 /// Ensures that the header type is congruent to the entry existence, i.e.
 /// if the Header expects an Entry, there must be an Entry, and
 /// if the Header expects no Entry, there must be no Entry
@@ -138,6 +152,21 @@ impl DhtOp {
             DhtOp::RegisterDeletedEntryHeader(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterAddLink(_, ref mut h) => Some(&mut h.header_seq),
             DhtOp::RegisterRemoveLink(_, ref mut h) => Some(&mut h.header_seq),
+        }
+    }
+
+    /// Mutable access to the seq of the Header, if applicable
+    pub fn author_mut(&mut self) -> &mut AgentPubKey {
+        match self {
+            DhtOp::StoreElement(_, ref mut h, _) => h.author_mut(),
+            DhtOp::StoreEntry(_, ref mut h, _) => h.author_mut(),
+            DhtOp::RegisterAgentActivity(_, ref mut h) => h.author_mut(),
+            DhtOp::RegisterUpdatedContent(_, ref mut h, _) => &mut h.author,
+            DhtOp::RegisterUpdatedElement(_, ref mut h, _) => &mut h.author,
+            DhtOp::RegisterDeletedBy(_, ref mut h) => &mut h.author,
+            DhtOp::RegisterDeletedEntryHeader(_, ref mut h) => &mut h.author,
+            DhtOp::RegisterAddLink(_, ref mut h) => &mut h.author,
+            DhtOp::RegisterRemoveLink(_, ref mut h) => &mut h.author,
         }
     }
 
