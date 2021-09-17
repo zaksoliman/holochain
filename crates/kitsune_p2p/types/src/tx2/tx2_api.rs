@@ -362,7 +362,7 @@ impl<C: CodecBound> RealTx2ConHnd<C> {
     }
 }
 
-impl<C: CodecBound + std::fmt::Debug> AsTx2ConHnd for RealTx2ConHnd<C> {
+impl<C: CodecBound> AsTx2ConHnd for RealTx2ConHnd<C> {
     type Codec = C;
 
     /// Get the opaque Uniq identifier for this connection.
