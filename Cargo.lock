@@ -2690,6 +2690,7 @@ dependencies = [
  "automap",
  "backtrace",
  "base64",
+ "blake2b_simd",
  "cfg-if 0.1.10",
  "chrono",
  "contrafact",
