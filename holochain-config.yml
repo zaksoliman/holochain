@@ -13,4 +13,21 @@ admin_interfaces:
   - driver:
       type: websocket
       port: 4444
-network: ~
+network: {
+  bootstrap_service: "https://bootstrap-staging.holo.host",
+    network_type: quic_bootstrap,
+  transport_pool: [{
+    type: proxy,
+    sub_transport: { type: quic },
+    proxy_config: {
+      type: remote_proxy_client,
+      proxy_url: "kitsune-proxy://SYVd4CF3BdJ4DS7KwLLgeU3_DbHoZ34Y-qroZ79DOs8/kitsune-quic/h/165.22.32.11/p/5779/--",
+   }
+  }],
+  tuning_params: {
+      gossip_strategy: "sharded-gossip",
+      gossip_single_storage_arc_per_space: true
+  }
+}
+# Test also fails if no network is passed
+# network: ~
