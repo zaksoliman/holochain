@@ -8,7 +8,7 @@
 
 ## Expected outcome:
 Test completes successfully without printing `ERROR ****************`
-Even though a signing request is failing for agent #2, I expect agent #3 to work be able to be activated.
+Even though a signing request is failing for agent #2, I expect agent #3 to work and be able to be activated.
 
 ## Actual outcome:
 Test errors with the following because agent #3 cannot be activated
