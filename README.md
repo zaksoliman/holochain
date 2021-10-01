@@ -5,6 +5,7 @@
 2. `yarn install`
 3. `node index.js`
 
+Please read index.js to understand what the test does.
 
 ## Expected outcome:
 Test completes successfully without printing `ERROR ****************`
