@@ -69,11 +69,30 @@ const main = async () => {
         console.log("Turn off signing for agent #1")
         disconnectedAgent = Buffer.from(agent1)
 
-        console.log("Deactivate App for agent #1")
-        await adminWs.deactivateApp({
-            installed_app_id: "happ-1"
+        try {
+            console.log("Deactivate App for agent #1")
+            await adminWs.deactivateApp({
+                installed_app_id: "happ-1"
+            })
+            // ^ Fails. (Which holo can work around)
+        } catch (err) {
+            console.log("Deactivate app failed with")
+            console.log(err)
+        }
+        console.log("Install dummy DNA again")
+        await adminWs.installAppBundle({
+            installed_app_id: "happ-2",
+            agent_key: agent2,
+            membrane_proofs: {
+                'test': Buffer.from('rGpvaW5pbmcgY29kZQ==', 'base64')
+            },
+            path: './test.happ'
         })
-        // ^ Fails
+        console.log("Activate app #2")
+        await adminWs.activateApp({
+            installed_app_id: "happ-2"
+        })
+        // ^ Also fails. Needs to succeed for holo use case
 
         console.log('Apps:')
         console.log(await adminWs.listApps({}))
