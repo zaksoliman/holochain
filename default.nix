@@ -1,75 +1,31 @@
-{ nixpkgs ? null
-, rustVersion ? {
-    track = "stable";
-    version = "1.53.0";
-  }
-
-, holonixArgs ? {
-    inherit rustVersion;
-  }
-}:
-
-# This is an example of what downstream consumers of holonix should do
-# This is also used to dogfood as many commands as possible for holonix
-# For example the release process for holonix uses this file
 let
-  # point this to your local config.nix file for this project
-  # example.config.nix shows and documents a lot of the options
-  config = import ./config.nix;
-
-  # START HOLONIX IMPORT BOILERPLATE
-  holonixPath = config.holonix.pathFn {};
-  holonix = config.holonix.importFn holonixArgs;
-  # END HOLONIX IMPORT BOILERPLATE
-
-  overlays = [
-    (self: super: {
-      inherit holonix holonixPath;
-
-      hcToplevelDir = builtins.toString ./.;
-
-      nixEnvPrefixEval = ''
-        if [[ -n "$NIX_ENV_PREFIX" ]]; then
-          # don't touch it
-          :
-        elif test -w "$PWD"; then
-          export NIX_ENV_PREFIX="$PWD"
-        elif test -d "${builtins.toString self.hcToplevelDir}" &&
-            test -w "${builtins.toString self.hcToplevelDir}"; then
-          export NIX_ENV_PREFIX="${builtins.toString self.hcToplevelDir}"
-        elif test -d "$HOME" && test -w "$HOME"; then
-          export NIX_ENV_PREFIX="$HOME/.cache/holochain-dev"
-          mkdir -p "$NIX_ENV_PREFIX"
-        else
-          export NIX_ENV_PREFIX="$(${self.coreutils}/bin/mktemp -d)"
-        fi
-      '';
-    })
-  ];
-
-  nixpkgs' = import (nixpkgs.path or holonix.pkgs.path) { inherit overlays; };
-  inherit (nixpkgs') callPackage;
-
-  pkgs = callPackage ./nix/pkgs/default.nix { };
-in
-{
-  inherit
-    holonix
-    pkgs
-    ;
-
-  # TODO: refactor when we start releasing again
-  # releaseHooks = callPackages ./nix/release {
-  #   inherit
-  #     config
-  #     nixpkgs
-  #     ;
-  # };
-
-  shells = callPackage ./nix/shells.nix {
-    inherit
-      holonix
-      pkgs
-      ;
+  holonixPath = builtins.fetchTarball {
+    url = "https://github.com/holochain/holonix/archive/55a5eef58979fb6bc476d8c3e0c028cdeb1b5421.tar.gz";
+    sha256 = "sha256:0q6d0rql1pyy93xw1c8s28jjjcgk1zgwxwixsp9z5r4w2ihaz3zg";
   };
+  holonix = import (holonixPath) {
+    includeHolochainBinaries = true;
+    holochainVersionId = "custom";
+
+    holochainVersion = {
+     rev = "a1206a694fe3b521440fe633db99a50b8255c1b2";
+     sha256 = "0qdjjkqw3xlg8g686gvn509a9rv4kc6qfw07hypzc0fksix9d4iz";
+     cargoSha256 = "sha256:175b76j31sls0gj08imchwnk7n4ylsxlc1bm58zrhfmq62hcchb1";
+     bins = {
+       holochain = "holochain";
+       hc = "hc";
+     };
+
+     lairKeystoreHashes = {
+        sha256 = "0khg5w5fgdp1sg22vqyzsb2ri7znbxiwl7vr2zx6bwn744wy2cyv";
+        cargoSha256 = "1lm8vrxh7fw7gcir9lq85frfd0rdcca9p7883nikjfbn21ac4sn4";
+      };
+    };
+  };
+  nixpkgs = holonix.pkgs;
+in nixpkgs.mkShell {
+  inputsFrom = [ holonix.main ];
+  buildInputs = with nixpkgs; [
+    binaryen
+  ];
 }
