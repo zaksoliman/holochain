@@ -60,7 +60,7 @@ Automated steps still require running the tool manually ;-).
            * they have changed since their last release OR they haven't had a release
            * version number is allowed by a the given requirement
        - Exclude candidates by any of these negative indicators:
-          * CHANGELOG.md contains `unreleaseable = true` in its front matter
+           * CHANGELOG.md contains `unreleaseable = true` in its front matter
            * version number is disallowed by a requirement
            * description or license fields are missing
     0. Increase the package version in each Cargo.toml file to the desired release level
@@ -69,20 +69,33 @@ Automated steps still require running the tool manually ;-).
     0. Create a commit with the version and changelog changes
     0. Create a tag for each crate release (***NOTE***: This is likely subject to change because it creates issues in case of publish failures later on. It would probably be preferable to only create tags after a successful publish.)
 
-    The command for this is:
+    The commands for this are:
 
     ```sh
-    hc-ra \
-        --log-level=info \
-        release \
-            --dry-run \
-            --match-filter="^(holochain|holochain_cli|kitsune_p2p_proxy)$" \
-            --disallowed-version-reqs=">=0.1" \
-            --allowed-matched-blockers=UnreleasableViaChangelogFrontmatter \
-            --steps=CreateReleaseBranch,BumpReleaseVersions'
+    nice -n19 nix-shell --pure ../holochain/shell.nix --run 'env NIX_ENV_PREFIX=$HOME/src/holo/holochain hc-ra \
+      --workspace-path=$HOME/src/holo/holochain_release \
+      --log-level=info \
+      release \
+        --steps=CreateReleaseBranch'
+
+    nice -n19 nix-shell --pure ../holochain/shell.nix --run 'env NIX_ENV_PREFIX=$HOME/src/holo/holochain hc-ra \
+      --workspace-path=$HOME/src/holo/holochain_release \
+      --log-level=info \
+      release \
+        --dry-run \
+        --match-filter="^(holochain|holochain_cli|kitsune_p2p_proxy)$" \
+        --disallowed-version-reqs=">=0.1" \
+        --allowed-matched-blockers=UnreleasableViaChangelogFrontmatter \
+        --steps=BumpReleaseVersions'
     ```
 
     If this succeeds, repeat the command without the `--dry-run` to perform the changes.
+
+    ***NOTE***: If at any point after this any changes need to be made to the code for this release, please come back here and follow these steps.
+    0. Drop the commit made by the _BumpReleaseVersions_ step using `git rebase -i HEAD~1`.
+    0. Make the required changes and commit them.
+    0. Repeat the _BumpReleaseVersions_.
+    0. Continue the process from here...
 
 0. _[M]_ Push the release branch. Example:
 
@@ -94,45 +107,78 @@ Automated steps still require running the tool manually ;-).
 
 0. _[M]_ Ensure the CI tests pass
 
+0. _[M]_ Create PRs on holochain/holochain-nixpkgs aand holochain/holonix with the release candidate revision and ensure CI tests pass
+
 0. _[M]_ Ensure release branch is fast-forward mergable to the main branch
     Example:
 
     ```sh
     export RELEASE_BRANCH=$(git branch --show-current)
+    git fetch upstream
     git checkout -B main-merge-test upstream/main
     git merge --ff-only "${RELEASE_BRANCH}"
     git checkout "${RELEASE_BRANCH}"
     git branch -D main-merge-test
     ```
+
 0. _[T]_ Publish all the bumped crates to crates.io.
 
     0. Run a variation of `cargo publish --dry-run` for all bumped crates.
-        Expected errors, such as missing dependencies of new crate versions, will be detected and tolerated.
-    0. On successful publish, the tool will invite the missing owners according to the the given *(FIXME: hardcoded)* given set of owners and the ones who are set on the registry.
+       Expected errors, such as missing dependencies of new crate versions, will be detected and tolerated.
+
+       ```sh
+       nice -n19 nix-shell --pure ../holochain/shell.nix --run 'env NIX_ENV_PREFIX=$HOME/src/holo/holochain hc-ra \
+         --workspace-path=$PWD \
+         --log-level=debug \
+         release \
+           --dry-run \
+           --steps=PublishToCratesIo'
+       ```
+
+       If this succeeds, repeat the command without the `--dry-run` to perform the changes.
+
+    0. On successful publish, the tool will invite the missing owners according to the given *(FIXME: hardcoded)* given set of owners and the ones who are set on the registry.
+
+       ```sh
+       nice -n19 nix-shell --pure ../holochain/shell.nix --run 'env NIX_ENV_PREFIX=$HOME/src/holo/holochain hc-ra \
+         --workspace-path=$PWD \
+         --log-level=info \
+         release \
+           --dry-run \
+           --steps=AddOwnersToCratesIo \
+         '
+       ```
+
+       If this succeeds, repeat the command without the `--dry-run` to perform the changes.
+
+0. _[M]_ Merge the release branch into the main branch using fast-forward.
+    Example:
 
     ```sh
-    hc-ra \
-    --workspace-path=$PWD \
-    --log-level=debug \
-    release \
-        --dry-run \
-        --steps=PublishToCratesIo'
+    export RELEASE_BRANCH=$(git branch --show-current)
+    git fetch upstream
+    git checkout main
+    git pull
+    git merge --ff-only "${RELEASE_BRANCH}"
+    git push upstream main --tags
     ```
 
-    If this succeeds, repeat the command without the `--dry-run` to perform the changes.
-
-0. _[M]_ Push the tags. Example:
-    ```sh
-    git push upstream --tags
-    ```
+0. _[M]_ Create a release from the new holochain tag on holochain/holochain.
 
 0. _[M]_ Merge the develop branch into the release branch if it has advanced in the meantime. Example:
+
     ```sh
-    git fetch --all
-    git merge develop $(git branch --show-current)
-    git push upstream
+    git checkout "${RELEASE_BRANCH}"
+    git fetch upstream
+    git merge upstream/develop
+    git push upstream "${RELEASE_BRANCH}"
     ```
-0. _[M]_ Create and merge a PR from the release branch to develop
+
+0. _[M]_ Create and merge a PR from the release branch to the develop branch.
+
+0. _[M]_ Merge the PR on holochain/holochain-nixpkgs.
+
+0. _[M]_ Adapt the PR on holochain/holonix to point to the merged commit and merge it as well.
 
 ## Development
 
