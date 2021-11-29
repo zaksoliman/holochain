@@ -255,12 +255,19 @@ impl ShardedGossip {
         }
         if let Some(outgoing) = outgoing {
             let cert = outgoing.0.cert().clone();
-            if let Err(err) = self.process_outgoing(outgoing).await {
-                self.gossip.remove_state(&cert, true).await?;
+            if let Err(err) = self.process_outgoing(outgoing.clone()).await {
+                // FIXME: Undo this, it's only a workaround for the current network issue.
+                // self.gossip.remove_state(&cert, true)?;
                 tracing::error!(
                     "Gossip failed to send outgoing message because of: {:?}",
                     err
                 );
+                self.inner
+                    .share_mut(move |inner, _| {
+                        inner.outgoing.push_front(outgoing);
+                        Ok(())
+                    })
+                    .ok();
             }
         }
 

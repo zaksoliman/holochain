@@ -88,6 +88,7 @@ async fn in_chan_recv_logic(
     let con_item = &con_item;
     let logic_hnd = &logic_hnd;
 
+    let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let recv_fut = in_chan_recv
         .for_each_concurrent(
             // currently setting this to the concurrent limit (default: 32)
@@ -95,83 +96,117 @@ async fn in_chan_recv_logic(
             // but we're only establishign 3 outgoing channels, should
             // we set this to tx2_channel_count_per_connection?
             tuning_params.concurrent_limit_per_thread,
-            move |chan| async move {
-                let mut chan = match chan.await {
-                    Err(e) => {
-                        // unable to resolve incoming channel
-                        // shut down the connection
-
-                        let reason = format!("{:?}", e);
-
-                        // TODO - standardize codes?
-                        con_item.close(500, &reason).await;
-
-                        // exit the loop
-                        return;
-                    }
-                    Ok(c) => c,
-                };
-                // TODO: ask david.b if it was ok to downgrade this from debug to trace
-                tracing::trace!(?local_cert, ?peer_cert, "accepted incoming channel");
-                loop {
-                    let r = chan.read(tuning_params.implicit_timeout()).await;
-
-                    let (msg_id, data) = match r {
-                        Err(e) if *e.kind() == KitsuneErrorKind::Closed => {
-                            // this channel was closed - exit the loop
-                            // allowing another channel to be processed.
-                            break;
-                        }
+            move |chan| {
+                let count = count.clone();
+                async move {
+                    let id = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    dbg!(id);
+                    let mut chan = match chan.await {
                         Err(e) => {
-                            // unrecoverable error - shut down the connection
+                            // unable to resolve incoming channel
+                            // shut down the connection
 
+                            dbg!(&e);
                             let reason = format!("{:?}", e);
 
                             // TODO - standardize codes?
                             con_item.close(500, &reason).await;
 
                             // exit the loop
+                            return;
+                        }
+                        Ok(c) => c,
+                    };
+                    dbg!(id);
+                    // TODO: ask david.b if it was ok to downgrade this from debug to trace
+                    tracing::trace!(?local_cert, ?peer_cert, "accepted incoming channel");
+                    let r_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+                    let r_total = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+                    loop {
+                        let count = count.clone();
+                        let r_count = r_count.clone();
+                        let r_total = r_total.clone();
+                        let r_id = r_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        r_total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let s = std::time::Instant::now();
+                        let r = chan.read(tuning_params.implicit_timeout()).await;
+
+                        let (msg_id, data) = match r {
+                            Err(e) if *e.kind() == KitsuneErrorKind::Closed => {
+                                // this channel was closed - exit the loop
+                                // allowing another channel to be processed.
+                                dbg!(&e);
+                                r_total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                                break;
+                            }
+                            Err(e) => {
+                                // unrecoverable error - shut down the connection
+
+                                let reason = format!("{:?}", e);
+
+                                // TODO - standardize codes?
+                                con_item.close(500, &reason).await;
+
+                                eprintln!(
+                                    "{}:{}:{}:{}:{}:{:?}:{:?}",
+                                    id,
+                                    r_id,
+                                    count.load(std::sync::atomic::Ordering::Relaxed),
+                                    r_count.load(std::sync::atomic::Ordering::Relaxed),
+                                    r_total.load(std::sync::atomic::Ordering::Relaxed),
+                                    e,
+                                    s.elapsed()
+                                );
+                                // exit the loop
+                                r_total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                                break;
+                            }
+                            Ok(r) => r,
+                        };
+
+                        tracing::trace!(
+                            ?local_cert,
+                            ?peer_cert,
+                            byte_count = %data.len(),
+                            "received bytes",
+                        );
+
+                        let con: ConHnd = Arc::new(con_item.clone());
+                        let data = EpIncomingData {
+                            con,
+                            url: url.clone(),
+                            msg_id,
+                            data,
+                        };
+
+                        if logic_hnd.emit(EpEvent::IncomingData(data)).await.is_err() {
+                            dbg!();
+                            // the only reason this will error is if our
+                            // endpoint is shut down, in which case we
+                            // no longer care about the error.
+                            r_total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                             break;
                         }
-                        Ok(r) => r,
-                    };
 
-                    tracing::trace!(
-                        ?local_cert,
-                        ?peer_cert,
-                        byte_count = %data.len(),
-                        "received bytes",
-                    );
-
-                    let con: ConHnd = Arc::new(con_item.clone());
-                    let data = EpIncomingData {
-                        con,
-                        url: url.clone(),
-                        msg_id,
-                        data,
-                    };
-
-                    if logic_hnd.emit(EpEvent::IncomingData(data)).await.is_err() {
-                        // the only reason this will error is if our
-                        // endpoint is shut down, in which case we
-                        // no longer care about the error.
-                        break;
+                        crate::metrics::metric_push_raw_recv_count(1);
+                        r_total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                     }
-
-                    crate::metrics::metric_push_raw_recv_count(1);
+                    tracing::debug!(?local_cert, ?peer_cert, "channel recv loop end");
                 }
-                tracing::debug!(?local_cert, ?peer_cert, "channel recv loop end");
             },
         )
         .boxed();
 
     let write_fut = async move {
+        let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         loop {
+            let id = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let permit = match write_chan_limit.clone().acquire_owned().await {
                 Err(_) => {
                     // we only get errors here when our
                     // connection / endpoint has closed
                     // we can safely just exit this loop
+                    dbg!(id);
                     break;
                 }
                 Ok(p) => p,
@@ -188,11 +223,13 @@ async fn in_chan_recv_logic(
                     con_item.close(500, &reason).await;
 
                     // exit the loop
+                    dbg!(id);
                     break;
                 }
                 Ok(c) => c,
             };
 
+            dbg!(id);
             writer_bucket.release(WriteChan {
                 _permit: permit,
                 writer,
@@ -206,10 +243,12 @@ async fn in_chan_recv_logic(
 
     tokio::select! {
         _ = recv_fut => {
+            tracing::warn!(?local_cert, ?peer_cert, "Recv closed");
             // TODO - standardize codes?
             con_item.close(500, "recv_fut closed").await;
         }
         _ = write_fut => {
+            tracing::warn!(?local_cert, ?peer_cert, "Send closed");
             // TODO - standardize codes?
             con_item.close(500, "write_fut closed").await;
         }
@@ -525,9 +564,11 @@ impl ConItem {
                 .share_mut(|i, _| {
                     if let Some(con_item) = i.cons.get(&remote) {
                         let con_item = con_item.clone();
+                        dbg!(&remote);
                         return Ok(async move { Ok(con_item) }.boxed());
                     }
                     if let Some(pend_con_fut) = i.pend_cons.get(&remote) {
+                        dbg!(&remote);
                         return Ok(pend_con_fut.clone().boxed());
                     }
                     let con_limit = i.con_limit.clone();
@@ -540,6 +581,7 @@ impl ConItem {
                         remote.clone(),
                         timeout,
                     );
+                    dbg!(&remote);
                     i.pend_cons.insert(remote, pend_con_fut.clone());
                     Ok(pend_con_fut.boxed())
                 })?
